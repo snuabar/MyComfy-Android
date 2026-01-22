@@ -6,6 +6,7 @@ import androidx.core.content.ContextCompat;
 import androidx.lifecycle.ViewModelProvider;
 
 import android.Manifest;
+import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -122,6 +123,11 @@ public class MainFragment extends Fragment {
         tvRequestId = root.findViewById(R.id.tvRequestId);
         tvLog = root.findViewById(R.id.tvLog);
         ivGeneratedImage = root.findViewById(R.id.ivGeneratedImage);
+
+        etPrompt.setText(requireActivity().getPreferences(Context.MODE_PRIVATE).getString("prompt", getString(R.string.default_prompt)));
+        etWidth.setText(requireActivity().getPreferences(Context.MODE_PRIVATE).getString("width", "512"));
+        etHeight.setText(requireActivity().getPreferences(Context.MODE_PRIVATE).getString("height", "512"));
+        etSeed.setText(requireActivity().getPreferences(Context.MODE_PRIVATE).getString("seed", "0"));
     }
 
     private void setupClickListeners() {
@@ -307,6 +313,13 @@ public class MainFragment extends Fragment {
             }
         }
 
+        requireActivity().getPreferences(Context.MODE_PRIVATE).edit()
+                .putString("prompt", prompt)
+                .putString("width", width + "")
+                .putString("height", height + "")
+                .putString("seed", seed + "")
+                .apply();
+
         // 创建请求对象
         ImageRequest request = new ImageRequest(prompt, seed, width, height);
 
@@ -318,8 +331,6 @@ public class MainFragment extends Fragment {
         log("发送生成请求:\n" + "提示词: " + prompt + "\n" + "尺寸: " + width + "x" + height + "\n" + "种子: " + (seed != null ? seed : "随机"));
 
         currentRequestId = null;
-//        // 开始监听状态
-//        startStatusChecker();
 
         // 发送请求
         retrofitClient.getApiService().generateImage(request).enqueue(new Callback<>() {
@@ -330,7 +341,7 @@ public class MainFragment extends Fragment {
                     currentRequestId = imageResponse.getRequest_id();
 
                     mainHandler.post(() -> {
-                        progressBar.setVisibility(View.GONE);
+                        progressBar.setVisibility(View.INVISIBLE);
                         btnGenerate.setEnabled(true);
 
                         if ("success".equals(imageResponse.getStatus())) {
@@ -349,7 +360,7 @@ public class MainFragment extends Fragment {
                     });
                 } else {
                     mainHandler.post(() -> {
-                        progressBar.setVisibility(View.GONE);
+                        progressBar.setVisibility(View.INVISIBLE);
                         btnGenerate.setEnabled(true);
                         tvStatus.setText("请求失败: " + response.code());
                         log("请求失败，状态码: " + response.code());
@@ -360,7 +371,7 @@ public class MainFragment extends Fragment {
             @Override
             public void onFailure(@NonNull Call<ImageResponse> call, @NonNull Throwable t) {
                 mainHandler.post(() -> {
-                    progressBar.setVisibility(View.GONE);
+                    progressBar.setVisibility(View.INVISIBLE);
                     btnGenerate.setEnabled(true);
                     tvStatus.setText("请求失败: " + t.getMessage());
                     log("请求失败: " + t.getMessage());
@@ -654,4 +665,11 @@ public class MainFragment extends Fragment {
             statusChecker.shutdown();
         }
     }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        testServerConnection();
+    }
+
 }
