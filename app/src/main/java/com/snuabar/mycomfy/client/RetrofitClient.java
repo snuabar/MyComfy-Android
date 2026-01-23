@@ -91,9 +91,11 @@ public class RetrofitClient {
     }
 
     public void setBaseUrl(String baseUrl) {
-        this.baseUrl = baseUrl;
-        apiService = null;
-        createRetrofit();
+        if (!this.baseUrl.equals(baseUrl)) {
+            this.baseUrl = baseUrl;
+            apiService = null;
+            createRetrofit();
+        }
     }
 
     /**

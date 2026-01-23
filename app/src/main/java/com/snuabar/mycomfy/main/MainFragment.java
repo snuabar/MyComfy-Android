@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModelProvider;
 
 import android.Manifest;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -35,8 +36,10 @@ import com.snuabar.mycomfy.R;
 import com.snuabar.mycomfy.client.ImageRequest;
 import com.snuabar.mycomfy.client.ImageResponse;
 import com.snuabar.mycomfy.client.RetrofitClient;
-import com.snuabar.mycomfy.client.ServerStats;
 import com.snuabar.mycomfy.client.StatusResponse;
+
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.File;
 import java.io.IOException;
@@ -45,9 +48,11 @@ import java.io.OutputStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -62,8 +67,8 @@ public class MainFragment extends Fragment {
 
     private static final String TAG = MainFragment.class.getName();
 
-    private EditText etServerIp, etServerPort, etPrompt, etWidth, etHeight, etSeed;
-    private Button btnTestConnection, btnGenerate, btnDownload;
+    private EditText etPrompt, etWidth, etHeight, etSeed;
+    private Button btnGenerate, btnDownload;
     private ProgressBar progressBar;
     private TextView tvStatus, tvRequestId, tvLog;
     private ImageView ivGeneratedImage;
@@ -76,6 +81,7 @@ public class MainFragment extends Fragment {
     private MainViewModel mViewModel;
 
     private Handler mainHandler;
+    private boolean connectionOk = false;
 
     // 使用新的 Activity Result API 处理权限请求
     private ActivityResultLauncher<String[]> requestPermissionLauncher;
@@ -109,13 +115,10 @@ public class MainFragment extends Fragment {
     }
 
     private void initViews(View root) {
-        etServerIp = root.findViewById(R.id.etServerIp);
-        etServerPort = root.findViewById(R.id.etServerPort);
         etPrompt = root.findViewById(R.id.etPrompt);
         etWidth = root.findViewById(R.id.etWidth);
         etHeight = root.findViewById(R.id.etHeight);
         etSeed = root.findViewById(R.id.etSeed);
-        btnTestConnection = root.findViewById(R.id.btnTestConnection);
         btnGenerate = root.findViewById(R.id.btnGenerate);
         btnDownload = root.findViewById(R.id.btnDownload);
         progressBar = root.findViewById(R.id.progressBar);
@@ -131,9 +134,6 @@ public class MainFragment extends Fragment {
     }
 
     private void setupClickListeners() {
-        // 测试连接按钮
-        btnTestConnection.setOnClickListener(v -> testServerConnection());
-
         // 生成图像按钮
         btnGenerate.setOnClickListener(v -> generateImage());
 
@@ -220,63 +220,6 @@ public class MainFragment extends Fragment {
         }
     }
 
-    private void testServerConnection() {
-        String ip = etServerIp.getText().toString().trim();
-        String port = etServerPort.getText().toString().trim();
-
-        if (ip.isEmpty() || port.isEmpty()) {
-            showToast("请输入服务器IP和端口");
-            return;
-        }
-
-        // 更新Base URL
-        String baseUrl = "http://" + ip + ":" + port;
-        retrofitClient.setBaseUrl(baseUrl);
-
-        log("测试连接到: " + baseUrl);
-        tvStatus.setText("正在测试连接...");
-
-        // 发送测试请求
-        executor.execute(() -> {
-            try {
-                retrofitClient.getApiService().getServerStats().enqueue(new Callback<>() {
-                    @Override
-                    public void onResponse(@NonNull Call<ServerStats> call, @NonNull Response<ServerStats> response) {
-                        if (response.isSuccessful() && response.body() != null) {
-                            ServerStats stats = response.body();
-                            mainHandler.post(() -> {
-                                showToast("连接成功！");
-                                tvStatus.setText("连接成功");
-                                log("服务器状态:\n" + "总图像数: " + stats.getTotal_images() + "\n" + "存储使用: " + stats.getStorage_used_mb() + " MB");
-                            });
-                        } else {
-                            mainHandler.post(() -> {
-                                showToast("连接失败: " + response.code());
-                                tvStatus.setText("连接失败");
-                                log("连接失败，状态码: " + response.code());
-                            });
-                        }
-                    }
-
-                    @Override
-                    public void onFailure(@NonNull Call<ServerStats> call, @NonNull Throwable t) {
-                        mainHandler.post(() -> {
-                            showToast("连接失败: " + t.getMessage());
-                            tvStatus.setText("连接失败");
-                            log("连接失败: " + t.getMessage());
-                        });
-                    }
-                });
-            } catch (Exception e) {
-                mainHandler.post(() -> {
-                    showToast("连接失败: " + e.getMessage());
-                    tvStatus.setText("连接失败");
-                    log("连接异常: " + e.getMessage());
-                });
-            }
-        });
-    }
-
     private void generateImage() {
         String prompt = etPrompt.getText().toString().trim();
         String widthStr = etWidth.getText().toString().trim();
@@ -294,8 +237,8 @@ public class MainFragment extends Fragment {
             width = Integer.parseInt(widthStr);
             height = Integer.parseInt(heightStr);
 
-            if (width < 64 || width > 2048 || height < 64 || height > 2048) {
-                showToast("图像尺寸应在64-2048之间");
+            if (width < 64 || width > 4096 || height < 64 || height > 4096) {
+                showToast("图像尺寸应在64-4096之间");
                 return;
             }
         } catch (NumberFormatException e) {
@@ -313,12 +256,18 @@ public class MainFragment extends Fragment {
             }
         }
 
-        requireActivity().getPreferences(Context.MODE_PRIVATE).edit()
-                .putString("prompt", prompt)
-                .putString("width", width + "")
-                .putString("height", height + "")
-                .putString("seed", seed + "")
-                .apply();
+        SharedPreferences.Editor editor =requireActivity().getPreferences(Context.MODE_PRIVATE).edit();
+        Set<String> prompts = requireActivity().getPreferences(Context.MODE_PRIVATE).getStringSet("prompts", new HashSet<>());
+        if (!requireActivity().getPreferences(Context.MODE_PRIVATE).getString("prompt", getString(R.string.default_prompt)).equals(prompt)) {
+            HashSet<String> newSet = new HashSet<>(prompts);
+            newSet.add(getPromptForSave(prompt));
+            editor.putStringSet("prompts", newSet);
+            editor.putString("prompt", prompt);
+        }
+        editor.putString("width", width + "");
+        editor.putString("height", height + "");
+        editor.putString("seed", seed + "");
+        editor.apply();
 
         // 创建请求对象
         ImageRequest request = new ImageRequest(prompt, seed, width, height);
@@ -331,6 +280,7 @@ public class MainFragment extends Fragment {
         log("发送生成请求:\n" + "提示词: " + prompt + "\n" + "尺寸: " + width + "x" + height + "\n" + "种子: " + (seed != null ? seed : "随机"));
 
         currentRequestId = null;
+        btnDownload.setEnabled(false);
 
         // 发送请求
         retrofitClient.getApiService().generateImage(request).enqueue(new Callback<>() {
@@ -347,7 +297,7 @@ public class MainFragment extends Fragment {
                         if ("success".equals(imageResponse.getStatus())) {
                             tvStatus.setText("图像生成成功");
                             tvRequestId.setText("请求ID: " + currentRequestId);
-                            btnDownload.setVisibility(View.VISIBLE);
+                            btnDownload.setEnabled(true);
 
                             log("生成成功！\n" + "请求ID: " + currentRequestId + "\n" + "处理时间: " + imageResponse.getProcessing_time() + "秒");
 
@@ -669,7 +619,48 @@ public class MainFragment extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
-        testServerConnection();
+        updateBaseUrl();
     }
 
+    private void updateBaseUrl() {
+        String ip = requireActivity().getPreferences(Context.MODE_PRIVATE).getString("server_ip", "192.168.1.17");
+        String port = requireActivity().getPreferences(Context.MODE_PRIVATE).getString("server_port", "8000");
+        // 更新Base URL
+        String baseUrl = "http://" + ip + ":" + port;
+        retrofitClient.setBaseUrl(baseUrl);
+    }
+
+    private String getPromptForSave(String prompt) {
+        JSONObject jsonObject = new JSONObject();
+        try {
+            jsonObject.putOpt("timestamp", System.currentTimeMillis());
+            jsonObject.putOpt("prompt", prompt);
+            return jsonObject.toString();
+        } catch (JSONException e) {
+            Log.e(TAG, "getPromptForSave. error thrown.", e);
+        }
+
+        return null;
+    }
+
+    private ArrayList<Object[]> getPromptFromSaved() {
+        Set<String> prompts = requireActivity().getPreferences(Context.MODE_PRIVATE).getStringSet("prompts", new HashSet<>());
+        ArrayList<Object[]> promptArray = new ArrayList<>();
+        for (String jsonString : prompts) {
+            try {
+                JSONObject jsonObject = new JSONObject(jsonString);
+                Object[] promptInfo = new Object[]{
+                        jsonObject.optLong("timestamp", 0),
+                        jsonObject.optString("prompt", "")
+                };
+                promptArray.add(promptInfo);
+            } catch (JSONException e) {
+                Log.e(TAG, "getPromptFromSaved. error thrown.", e);
+            }
+        }
+
+        promptArray.sort((o1, o2) -> Math.toIntExact((long) o2[0] - (long) o1[0]));
+
+        return promptArray;
+    }
 }
