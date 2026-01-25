@@ -30,6 +30,7 @@ import com.snuabar.mycomfy.client.StatusResponse;
 import com.snuabar.mycomfy.client.WorkflowsResponse;
 import com.snuabar.mycomfy.common.Callbacks;
 import com.snuabar.mycomfy.databinding.FragmentHomeBinding;
+import com.snuabar.mycomfy.setting.Settings;
 import com.snuabar.mycomfy.utils.FileOperator;
 import com.snuabar.mycomfy.utils.FilePicker;
 import com.snuabar.mycomfy.utils.Output;
@@ -112,7 +113,7 @@ public class HomeFragment extends Fragment {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 String selectedWorkflow = binding.spinner.getItemAtPosition(position).toString();
-                requireActivity().getPreferences(Context.MODE_PRIVATE).edit().putString("workflow", selectedWorkflow).apply();
+                Settings.getInstance().getPreferences().edit().putString("workflow", selectedWorkflow).apply();
             }
 
             @Override
@@ -123,10 +124,10 @@ public class HomeFragment extends Fragment {
     }
 
     private void initViews() {
-        binding.etPrompt.setText(requireActivity().getPreferences(Context.MODE_PRIVATE).getString("prompt", getString(R.string.default_prompt)));
-        binding.etWidth.setText(requireActivity().getPreferences(Context.MODE_PRIVATE).getString("width", "512"));
-        binding.etHeight.setText(requireActivity().getPreferences(Context.MODE_PRIVATE).getString("height", "512"));
-        binding.etSeed.setText(requireActivity().getPreferences(Context.MODE_PRIVATE).getString("seed", "0"));
+        binding.etPrompt.setText(Settings.getInstance().getPreferences().getString("prompt", getString(R.string.default_prompt)));
+        binding.etWidth.setText(Settings.getInstance().getPreferences().getString("width", "512"));
+        binding.etHeight.setText(Settings.getInstance().getPreferences().getString("height", "512"));
+        binding.etSeed.setText(Settings.getInstance().getPreferences().getString("seed", "0"));
     }
 
     private void setupClickListeners() {
@@ -161,11 +162,11 @@ public class HomeFragment extends Fragment {
                     mainHandler.post(() -> {
                         workflowAdapter.clear();
                         workflowAdapter.addAll(workflows);
-                        String selectedWorkflow = requireActivity().getPreferences(Context.MODE_PRIVATE).getString("workflow", null);
+                        String selectedWorkflow = Settings.getInstance().getPreferences().getString("workflow", null);
                         int index = workflows.indexOf(selectedWorkflow);
                         if (index < 0 || index >= workflows.size()) {
                             index = 0;
-                            requireActivity().getPreferences(Context.MODE_PRIVATE).edit().putString("workflow", workflows.get(index)).apply();
+                            Settings.getInstance().getPreferences().edit().putString("workflow", workflows.get(index)).apply();
                         }
                         binding.spinner.setSelection(index);
                     });
@@ -230,9 +231,9 @@ public class HomeFragment extends Fragment {
             }
         }
 
-        SharedPreferences.Editor editor = requireActivity().getPreferences(Context.MODE_PRIVATE).edit();
-        Set<String> prompts = requireActivity().getPreferences(Context.MODE_PRIVATE).getStringSet("prompts", new HashSet<>());
-        if (!requireActivity().getPreferences(Context.MODE_PRIVATE).getString("prompt", getString(R.string.default_prompt)).equals(prompt)) {
+        SharedPreferences.Editor editor = Settings.getInstance().getPreferences().edit();
+        Set<String> prompts = Settings.getInstance().getPreferences().getStringSet("prompts", new HashSet<>());
+        if (!Settings.getInstance().getPreferences().getString("prompt", getString(R.string.default_prompt)).equals(prompt)) {
             HashSet<String> newSet = new HashSet<>(prompts);
             newSet.add(getPromptForSave(prompt));
             editor.putStringSet("prompts", newSet);
@@ -537,7 +538,7 @@ public class HomeFragment extends Fragment {
                     }
                 }
 
-                SharedPreferences preferences = requireActivity().getPreferences(Context.MODE_PRIVATE);
+                SharedPreferences preferences = Settings.getInstance().getPreferences();
                 Set<String> imageSet = preferences.getStringSet("images", new HashSet<>());
 
                 SharedPreferences.Editor editor = preferences.edit();
@@ -645,11 +646,10 @@ public class HomeFragment extends Fragment {
     }
 
     private void updateBaseUrl() {
-        String ip = requireActivity().getPreferences(Context.MODE_PRIVATE).getString("server_ip", "192.168.1.17");
-        String port = requireActivity().getPreferences(Context.MODE_PRIVATE).getString("server_port", "8000");
+        String ip = Settings.getInstance().getPreferences().getString("server_ip", "192.168.1.17");
+        String port = Settings.getInstance().getPreferences().getString("server_port", "8000");
         // 更新Base URL
-        String baseUrl = "http://" + ip + ":" + port;
-        retrofitClient.setBaseUrl(baseUrl);
+        retrofitClient.setBaseUrl(ip, port);
     }
 
     private String getFileInfoForSave(File imageFile) {
@@ -679,7 +679,7 @@ public class HomeFragment extends Fragment {
     }
 
     private ArrayList<Object[]> getPromptsFromSaved() {
-        Set<String> prompts = requireActivity().getPreferences(Context.MODE_PRIVATE).getStringSet("prompts", new HashSet<>());
+        Set<String> prompts = Settings.getInstance().getPreferences().getStringSet("prompts", new HashSet<>());
         ArrayList<Object[]> promptArray = new ArrayList<>();
         for (String jsonString : prompts) {
             try {

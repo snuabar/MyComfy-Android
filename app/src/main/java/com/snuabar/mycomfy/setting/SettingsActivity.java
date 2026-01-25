@@ -51,8 +51,8 @@ public class SettingsActivity extends AppCompatActivity {
         btnTestConnection = findViewById(R.id.btn_test_connection);
         tvStatus = findViewById(R.id.tvStatus);
 
-        etIpAddress.setText(getPreferences(Context.MODE_PRIVATE).getString("server_ip", "192.168.1.17"));
-        etPort.setText(getPreferences(Context.MODE_PRIVATE).getString("server_port", "8000"));
+        etIpAddress.setText(Settings.getInstance().getPreferences().getString("server_ip", "192.168.1.17"));
+        etPort.setText(Settings.getInstance().getPreferences().getString("server_port", "8000"));
     }
 
     private void setupListeners() {
@@ -70,11 +70,9 @@ public class SettingsActivity extends AppCompatActivity {
             }
 
             // 更新Base URL
-            String baseUrl = "http://" + ip + ":" + port;
-            retrofitClient.setBaseUrl(baseUrl);
+            retrofitClient.setBaseUrl(ip, port);
 
-            tvStatus.setText("测试连接到: " + baseUrl);
-//        tvStatus.setText("正在测试连接...");
+            tvStatus.setText("测试连接到: " + retrofitClient.getBaseUrl());
 
             // 发送测试请求
             executor.execute(() -> {
@@ -113,7 +111,7 @@ public class SettingsActivity extends AppCompatActivity {
 
     @Override
     protected void onPause() {
-        getPreferences(Context.MODE_PRIVATE).edit()
+        Settings.getInstance().getPreferences().edit()
                 .putString("server_ip", etIpAddress.getText().toString())
                 .putString("server_port", etPort.getText().toString())
                 .apply();

@@ -14,6 +14,9 @@ import com.snuabar.mycomfy.common.Callbacks;
 import com.snuabar.mycomfy.databinding.FragmentHistoryItemBinding;
 import com.snuabar.mycomfy.utils.ImageUtils;
 
+import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
@@ -45,12 +48,16 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
             ImageUtils.makeThumbnailAsync(content, width, height, this::onThumbnailMake);
         }
         if (content.getParams() != null) {
-            holder.binding.tvPrompt.setText(content.getParams().getPrompt());
+            String title = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+                    .format(Date.from(Instant.ofEpochMilli(content.getParams().timestamp)));
+            holder.binding.tvTitle.setText(title);
             holder.binding.tvInfo.setText(
-                    String.format(Locale.getDefault(), "%d x %d, 种子：%d",
+                    String.format(Locale.getDefault(), "%s\n%d x %d\n种子：%d",
+                            content.getParams().getWorkflow(),
                             content.getParams().getImg_width(),
                             content.getParams().getImg_height(),
                             content.getParams().getSeed()));
+            holder.binding.tvPrompt.setText(content.getParams().getPrompt());
         }
     }
 

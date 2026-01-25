@@ -92,12 +92,22 @@ public class RetrofitClient {
         return apiService;
     }
 
-    public void setBaseUrl(String baseUrl) {
+    public void setBaseUrl(String ip, String port) {
+        String baseUrl;
+        if (ip != null && ip.indexOf(':') != -1 && ip.indexOf(':') != ip.lastIndexOf(':')) {
+            baseUrl = "http://[" + ip + "]:" + port;
+        } else {
+            baseUrl = "http://" + ip + ":" + port;
+        }
         if (!this.baseUrl.equals(baseUrl)) {
             this.baseUrl = baseUrl;
             apiService = null;
             createRetrofit();
         }
+    }
+
+    public String getBaseUrl() {
+        return baseUrl;
     }
 
     /**
