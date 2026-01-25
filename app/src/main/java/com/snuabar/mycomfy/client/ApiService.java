@@ -9,6 +9,12 @@ public interface ApiService {
     /**
      * 生成AI图像
      */
+    @GET("/api/workflows")
+    Call<WorkflowsResponse> loadWorkflow();
+
+    /**
+     * 生成AI图像
+     */
     @POST("/api/generate")
     Call<ImageResponse> generateImage(@Body ImageRequest request);
 

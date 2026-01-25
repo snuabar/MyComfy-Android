@@ -1,192 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fitsSystemWindows="true">
+    android:orientation="vertical"
+    android:fitsSystemWindows="true"
+    tools:context=".main.MainActivity">
 
-    <LinearLayout
+    <androidx.viewpager2.widget.ViewPager2
+        android:id="@+id/viewPager2"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="vertical"
-        android:padding="10dp">
-        <!-- 提示词输入 -->
-        <TextView
-            android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"/>
+
+    <com.google.android.material.tabs.TabLayout
+        android:id="@+id/tabLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <com.google.android.material.tabs.TabItem
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="2dp"
-            android:text="图像描述"
-            android:textSize="11sp"
-            android:textStyle="bold" />
+            android:text="主页" />
 
-        <ScrollView
-            android:layout_width="match_parent"
-            android:layout_height="200dp"
-            android:layout_marginBottom="6dp"
-            android:gravity="top">
-
-            <EditText
-                android:id="@+id/etPrompt"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:hint="请输入图像描述..."
-                android:text="@string/default_prompt"
-                android:textSize="14sp" />
-        </ScrollView>
-
-        <!-- 参数设置 -->
-        <TextView
-            android:layout_width="match_parent"
+        <com.google.android.material.tabs.TabItem
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="2dp"
-            android:text="参数设置"
-            android:textSize="11sp"
-            android:textStyle="bold" />
+            android:text="历史" />
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="2dp"
-            android:orientation="horizontal">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="图像宽度:" />
-
-            <EditText
-                android:id="@+id/etWidth"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:inputType="number"
-                android:maxLength="4"
-                android:text="512"
-                android:textSize="14sp" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="10dp"
-                android:text="图像高度:" />
-
-            <EditText
-                android:id="@+id/etHeight"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:inputType="number"
-                android:maxLength="4"
-                android:text="512"
-                android:textSize="14sp" />
-
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="10dp"
-                android:text="种子:" />
-
-            <EditText
-                android:id="@+id/etSeed"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="2"
-                android:hint="可选"
-                android:inputType="numberSigned"
-                android:text="216"
-                android:textSize="14sp" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="6dp"
-            android:orientation="horizontal"></LinearLayout>
-
-        <!-- 生成按钮 -->
-        <Button
-            android:id="@+id/btnGenerate"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="生成图像" />
-
-        <!-- 进度显示 -->
-        <ProgressBar
-            android:id="@+id/progressBar"
-            style="?android:attr/progressBarStyleHorizontal"
-            android:layout_width="match_parent"
-            android:layout_height="5dp"
-            android:visibility="invisible" />
-
-        <TextView
-            android:id="@+id/tvStatus"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="6dp" />
-
-        <ScrollView
-            android:layout_width="match_parent"
-            android:layout_height="match_parent">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:orientation="vertical">
-                <!-- 生成的图像 -->
-                <ImageView
-                    android:id="@+id/ivGeneratedImage"
-                    android:layout_width="match_parent"
-                    android:layout_height="400dp"
-                    android:layout_marginBottom="6dp"
-                    android:background="#f0f0f0"
-                    android:scaleType="fitCenter" />
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal">
-
-                    <!-- 请求ID -->
-                    <TextView
-                        android:id="@+id/tvRequestId"
-                        android:layout_width="0dp"
-                        android:layout_weight="1"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="6dp" />
-
-                    <!-- 下载按钮 -->
-                    <Button
-                        android:id="@+id/btnDownload"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="下载图像"
-                        android:textSize="11sp"
-                        android:enabled="false"
-                        android:textStyle="bold"
-                        android:layout_marginHorizontal="6dp" />
-
-                </LinearLayout>
-
-                <!-- 日志输出 -->
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="2dp"
-                    android:text="日志"
-                    android:textSize="11sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/tvLog"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:background="#f5f5f5"
-                    android:minHeight="100dp"
-                    android:padding="8dp"
-                    android:textSize="12sp" />
-            </LinearLayout>
-
-        </ScrollView>
-    </LinearLayout>
-</FrameLayout>
+    </com.google.android.material.tabs.TabLayout>
+</LinearLayout>

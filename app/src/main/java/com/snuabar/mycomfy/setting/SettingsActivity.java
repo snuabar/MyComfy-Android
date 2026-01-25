@@ -57,51 +57,48 @@ public class SettingsActivity extends AppCompatActivity {
 
     private void setupListeners() {
         // 测试连接按钮监听器
-        btnTestConnection.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                // TODO: 实现测试连接功能
-                String ip = etIpAddress.getText().toString().trim();
-                String port = etPort.getText().toString().trim();
+        btnTestConnection.setOnClickListener(v -> {
+            // TODO: 实现测试连接功能
+            String ip = etIpAddress.getText().toString().trim();
+            String port = etPort.getText().toString().trim();
 
-                RetrofitClient retrofitClient = RetrofitClient.getInstance(SettingsActivity.this);
+            RetrofitClient retrofitClient = RetrofitClient.getInstance(SettingsActivity.this);
 
-                if (ip.isEmpty() || port.isEmpty()) {
-                    tvStatus.setText("请输入服务器IP和端口");
-                    return;
-                }
+            if (ip.isEmpty() || port.isEmpty()) {
+                tvStatus.setText("请输入服务器IP和端口");
+                return;
+            }
 
-                // 更新Base URL
-                String baseUrl = "http://" + ip + ":" + port;
-                retrofitClient.setBaseUrl(baseUrl);
+            // 更新Base URL
+            String baseUrl = "http://" + ip + ":" + port;
+            retrofitClient.setBaseUrl(baseUrl);
 
-                tvStatus.setText("测试连接到: " + baseUrl);
+            tvStatus.setText("测试连接到: " + baseUrl);
 //        tvStatus.setText("正在测试连接...");
 
-                // 发送测试请求
-                executor.execute(() -> {
-                    try {
-                        retrofitClient.getApiService().getServerStats().enqueue(new Callback<>() {
-                            @Override
-                            public void onResponse(@NonNull Call<ServerStats> call, @NonNull Response<ServerStats> response) {
-                                if (response.isSuccessful() && response.body() != null) {
-                                    ServerStats stats = response.body();
-                                    runOnUiThread(() -> tvStatus.setText("连接成功。服务器状态:\n" + "总图像数: " + stats.getTotal_images() + "\n" + "存储使用: " + stats.getStorage_used_mb() + " MB"));
-                                } else {
-                                    runOnUiThread(() -> tvStatus.setText("连接失败，状态码: " + response.code()));
-                                }
+            // 发送测试请求
+            executor.execute(() -> {
+                try {
+                    retrofitClient.getApiService().getServerStats().enqueue(new Callback<>() {
+                        @Override
+                        public void onResponse(@NonNull Call<ServerStats> call, @NonNull Response<ServerStats> response) {
+                            if (response.isSuccessful() && response.body() != null) {
+                                ServerStats stats = response.body();
+                                runOnUiThread(() -> tvStatus.setText("连接成功。服务器状态:\n" + "总图像数: " + stats.getTotal_images() + "\n" + "存储使用: " + stats.getStorage_used_mb() + " MB"));
+                            } else {
+                                runOnUiThread(() -> tvStatus.setText("连接失败，状态码: " + response.code()));
                             }
+                        }
 
-                            @Override
-                            public void onFailure(@NonNull Call<ServerStats> call, @NonNull Throwable t) {
-                                runOnUiThread(() -> tvStatus.setText("连接失败: " + t.getMessage()));
-                            }
-                        });
-                    } catch (Exception e) {
-                        runOnUiThread(() -> tvStatus.setText("连接异常: " + e.getMessage()));
-                    }
-                });
-            }
+                        @Override
+                        public void onFailure(@NonNull Call<ServerStats> call, @NonNull Throwable t) {
+                            runOnUiThread(() -> tvStatus.setText("连接失败: " + t.getMessage()));
+                        }
+                    });
+                } catch (Exception e) {
+                    runOnUiThread(() -> tvStatus.setText("连接异常: " + e.getMessage()));
+                }
+            });
         });
     }
 

@@ -10,6 +10,7 @@ import android.view.MenuItem;
 
 import com.snuabar.mycomfy.R;
 import com.snuabar.mycomfy.setting.SettingsActivity;
+import com.snuabar.mycomfy.utils.FilePicker;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -19,6 +20,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         mViewModel = new ViewModelProvider(this).get(MainViewModel.class);
+        mViewModel.setFilePicker(new FilePicker(this));
         setContentView(R.layout.activity_main);
         if (savedInstanceState == null) {
             getSupportFragmentManager().beginTransaction()

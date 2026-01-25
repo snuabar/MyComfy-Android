@@ -6,6 +6,8 @@ import android.util.Log;
 
 import androidx.annotation.NonNull;
 
+import com.snuabar.mycomfy.common.Callbacks;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -101,22 +103,26 @@ public class RetrofitClient {
     /**
      * 下载文件到本地
      */
-    public static boolean downloadFile(ResponseBody body, File file) {
+    public static boolean downloadFile(ResponseBody body, File file, Callbacks.Callback2T<Long, Long> callback) {
         try {
             InputStream inputStream = null;
             FileOutputStream outputStream = null;
 
             try {
                 byte[] fileReader = new byte[4096];
+                long fileLength = body.contentLength();
                 inputStream = body.byteStream();
                 outputStream = new FileOutputStream(file);
 
+                long readLength = 0;
                 while (true) {
                     int read = inputStream.read(fileReader);
                     if (read == -1) {
                         break;
                     }
                     outputStream.write(fileReader, 0, read);
+                    readLength += read;
+                    callback.apply(fileLength, readLength);
                 }
 
                 outputStream.flush();
