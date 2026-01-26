@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="text_margin">16dp</dimen>
+    <dimen name="thumbnail_width">64dp</dimen>
+    <dimen name="thumbnail_height">64dp</dimen>
+</resources>
