@@ -17,25 +17,57 @@
             android:textStyle="bold" />
 
         <LinearLayout
+            android:id="@+id/layoutWorkflows"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
             android:layout_marginBottom="2dp"
-            android:gravity="center_vertical">
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
             <Spinner
-                android:id="@+id/spinner"
+                android:id="@+id/spinnerWorkflow"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginEnd="8dp"/>
+                android:layout_marginEnd="8dp"
+                android:layout_weight="1" />
 
             <Button
                 android:id="@+id/btnLoadWorkflows"
                 android:layout_width="60dp"
                 android:layout_height="40dp"
                 android:text="刷新"
-                android:textSize="11sp"/>
+                android:textSize="11sp" />
+
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="模型"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:id="@+id/layoutModels"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="2dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <Spinner
+                android:id="@+id/spinnerModels"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:layout_weight="1" />
+
+            <Button
+                android:id="@+id/btnLoadModels"
+                android:layout_width="60dp"
+                android:layout_height="40dp"
+                android:text="刷新"
+                android:textSize="11sp" />
 
         </LinearLayout>
 
@@ -50,13 +82,15 @@
         <EditText
             android:id="@+id/etPrompt"
             android:layout_width="match_parent"
-            android:layout_height="148dp"
+            android:layout_height="100dp"
+            android:paddingVertical="0dp"
             android:ems="10"
             android:gravity="start|top"
             android:hint="请输入图像描述..."
             android:inputType="textMultiLine"
+            android:scrollbars="vertical"
             android:text="@string/default_prompt"
-            android:textSize="14sp" />
+            android:textSize="12sp" />
         <!-- 参数设置 -->
         <TextView
             android:layout_width="match_parent"
@@ -102,22 +136,74 @@
                 android:text="512"
                 android:textSize="14sp" />
 
-
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="10dp"
+                android:text="放大:" />
+
+            <EditText
+                android:id="@+id/etUpscaleFactor"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:inputType="numberDecimal"
+                android:text="1.0"
+                android:textSize="14sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="2dp"
+            android:orientation="horizontal">
+
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
                 android:text="种子:" />
 
             <EditText
                 android:id="@+id/etSeed"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_weight="2"
+                android:layout_weight="2.2"
                 android:hint="可选"
                 android:inputType="numberSigned"
                 android:text="216"
                 android:textSize="14sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="2dp"
+                android:text="步数:" />
+
+            <EditText
+                android:id="@+id/etStep"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:inputType="number"
+                android:text="20"
+                android:textSize="14sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="2dp"
+                android:text="CFG:" />
+
+            <EditText
+                android:id="@+id/etCFG"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:inputType="numberDecimal"
+                android:text="8.0"
+                android:textSize="14sp" />
+
         </LinearLayout>
 
         <!-- 生成按钮 -->

@@ -1,6 +1,5 @@
 package com.snuabar.mycomfy.main;
 
-import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -25,6 +24,7 @@ import androidx.lifecycle.ViewModelProvider;
 import com.snuabar.mycomfy.R;
 import com.snuabar.mycomfy.client.ImageRequest;
 import com.snuabar.mycomfy.client.ImageResponse;
+import com.snuabar.mycomfy.client.ModelResponse;
 import com.snuabar.mycomfy.client.RetrofitClient;
 import com.snuabar.mycomfy.client.StatusResponse;
 import com.snuabar.mycomfy.client.WorkflowsResponse;
@@ -47,9 +47,11 @@ import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -75,8 +77,9 @@ public class HomeFragment extends Fragment {
     private MainViewModel mViewModel;
     private FilePicker filePicker;
     private File latestImageFile;
-    private List<String> workflows;
-    private ArrayAdapter<String> workflowAdapter;
+    private final Map<String, List<String>> workflows = new HashMap<>();
+    private final List<String> models = new ArrayList<>();
+    private ArrayAdapter<String> workflowAdapter, modelAdapter;
 
     private Handler mainHandler;
 
@@ -108,12 +111,27 @@ public class HomeFragment extends Fragment {
 
     private void setupWorkflowAdapter() {
         workflowAdapter = new ArrayAdapter<>(requireContext(), R.layout.layout_workflow_item, R.id.text1);
-        binding.spinner.setAdapter(workflowAdapter);
-        binding.spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+        modelAdapter = new ArrayAdapter<>(requireContext(), R.layout.layout_model_item, R.id.text1);
+        binding.spinnerWorkflow.setAdapter(workflowAdapter);
+        binding.spinnerModels.setAdapter(modelAdapter);
+        binding.spinnerWorkflow.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                String selectedWorkflow = binding.spinner.getItemAtPosition(position).toString();
+                String selectedWorkflow = binding.spinnerWorkflow.getItemAtPosition(position).toString();
                 Settings.getInstance().getPreferences().edit().putString("workflow", selectedWorkflow).apply();
+                loadModels();
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+
+            }
+        });
+        binding.spinnerModels.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                String selectedModel = binding.spinnerModels.getItemAtPosition(position).toString();
+                Settings.getInstance().getPreferences().edit().putString("model", selectedModel).apply();
             }
 
             @Override
@@ -128,18 +146,20 @@ public class HomeFragment extends Fragment {
         binding.etWidth.setText(Settings.getInstance().getPreferences().getString("width", "512"));
         binding.etHeight.setText(Settings.getInstance().getPreferences().getString("height", "512"));
         binding.etSeed.setText(Settings.getInstance().getPreferences().getString("seed", "0"));
+        binding.etStep.setText(Settings.getInstance().getPreferences().getString("step", "22"));
+        binding.etCFG.setText(Settings.getInstance().getPreferences().getString("cfg", "8.0"));
+        binding.etUpscaleFactor.setText(Settings.getInstance().getPreferences().getString("upscale_factor", "1.0"));
     }
 
     private void setupClickListeners() {
         // 更新工作流按扭
         binding.btnLoadWorkflows.setOnClickListener(v -> loadWorkflows());
-
+        // 更新工作流按扭
+        binding.btnLoadModels.setOnClickListener(v -> loadModels());
         // 生成图像按钮
         binding.btnGenerate.setOnClickListener(v -> generateImage());
-
         // 保存图像按钮
         binding.btnDownload.setOnClickListener(v -> saveImageWithPicker());
-
         // 分享图像按钮
         binding.btnShare.setOnClickListener(v -> shareImage());
     }
@@ -152,23 +172,29 @@ public class HomeFragment extends Fragment {
 
     private void loadWorkflows() {
         log("发送请求: 加载工作流。");
+        binding.tvStatus.setText("正在加载工作流列表……");
         // 发送请求
         retrofitClient.getApiService().loadWorkflow().enqueue(new Callback<>() {
             @Override
             public void onResponse(@NonNull Call<WorkflowsResponse> call, @NonNull Response<WorkflowsResponse> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     WorkflowsResponse workflowsResponse = response.body();
-                    workflows = workflowsResponse.getWorkflows();
+                    workflows.clear();
+                    workflows.putAll(workflowsResponse.getWorkflows());
                     mainHandler.post(() -> {
+                        List<String> workflowNames = new ArrayList<>(workflows.keySet());
                         workflowAdapter.clear();
-                        workflowAdapter.addAll(workflows);
+                        workflowAdapter.addAll(workflowNames);
                         String selectedWorkflow = Settings.getInstance().getPreferences().getString("workflow", null);
-                        int index = workflows.indexOf(selectedWorkflow);
+                        int index = workflowNames.indexOf(selectedWorkflow);
                         if (index < 0 || index >= workflows.size()) {
                             index = 0;
-                            Settings.getInstance().getPreferences().edit().putString("workflow", workflows.get(index)).apply();
+                            Settings.getInstance().getPreferences().edit().putString("workflow", workflowNames.get(index)).apply();
                         }
-                        binding.spinner.setSelection(index);
+                        binding.spinnerWorkflow.setSelection(index);
+                        binding.tvStatus.setText("成功加载模型列表");
+
+                        loadModels();
                     });
                 } else {
                     mainHandler.post(() -> {
@@ -188,17 +214,92 @@ public class HomeFragment extends Fragment {
         });
     }
 
+    private void loadModels() {
+        modelAdapter.clear();
+        if (binding.spinnerWorkflow.getSelectedItem() == null) {
+            return;
+        }
+
+        String selectedWorkflow = binding.spinnerWorkflow.getSelectedItem().toString();
+        List<String> modelTypes = workflows.get(selectedWorkflow);
+        if (modelTypes == null) {
+            return;
+        }
+
+        binding.layoutModels.setAlpha(modelTypes.isEmpty() ? 0.3f : 1.0f);
+        binding.spinnerModels.setEnabled(!modelTypes.isEmpty());
+        binding.btnLoadModels.setEnabled(!modelTypes.isEmpty());
+
+        if (modelTypes.isEmpty()) {
+            return;
+        }
+
+        log("发送请求: 加载模型列表。");
+        binding.tvStatus.setText("正在加载模型列表……");
+        for (String modelType : modelTypes) {
+            // 发送请求
+            retrofitClient.getApiService().loadModels(modelType).enqueue(new Callback<>() {
+                @Override
+                public void onResponse(@NonNull Call<ModelResponse> call, @NonNull Response<ModelResponse> response) {
+                    if (response.isSuccessful() && response.body() != null) {
+                        ModelResponse modelResponse = response.body();
+                        models.clear();
+                        models.addAll(modelResponse.getModels());
+                        mainHandler.post(() -> {
+                            modelAdapter.clear();
+                            modelAdapter.addAll(models);
+                            String selectedModels = Settings.getInstance().getPreferences().getString("model", null);
+                            int index = models.indexOf(selectedModels);
+                            if (index < 0 || index >= models.size()) {
+                                index = 0;
+                                Settings.getInstance().getPreferences().edit().putString("model", models.get(index)).apply();
+                            }
+                            binding.spinnerModels.setSelection(index);
+                            binding.tvStatus.setText("成功加载模型列表");
+                        });
+                    } else {
+                        mainHandler.post(() -> {
+                            binding.tvStatus.setText("请求失败: " + response.code());
+                            log("请求失败，状态码: " + response.code());
+                        });
+                    }
+                }
+
+                @Override
+                public void onFailure(@NonNull Call<ModelResponse> call, @NonNull Throwable t) {
+                    mainHandler.post(() -> {
+                        binding.tvStatus.setText("请求失败: " + t.getMessage());
+                        log("请求失败: " + t.getMessage());
+                    });
+                }
+            });
+        }
+    }
+
     private void generateImage() {
-        String workflow = binding.spinner.getSelectedItem().toString();
+        String workflow = binding.spinnerWorkflow.getSelectedItem().toString();
+        String model = null;
         String prompt = binding.etPrompt.getText().toString().trim();
         String widthStr = binding.etWidth.getText().toString().trim();
         String heightStr = binding.etHeight.getText().toString().trim();
         String seedStr = binding.etSeed.getText().toString().trim();
+        String upscaleFactorStr = binding.etUpscaleFactor.getText().toString().trim();
+        String stepStr = binding.etStep.getText().toString().trim();
+        String cfgStr = binding.etCFG.getText().toString().trim();
 
         // 验证输入
         if (workflow.isEmpty()) {
             showToast("请选择工作流");
             return;
+        }
+
+        // 验证输入
+        if (binding.spinnerModels.getSelectedItem() != null) {
+            model = binding.spinnerModels.getSelectedItem().toString();
+            if (!models.contains(model)) {
+                showToast("请选择模型");
+                return;
+            }
         }
 
         // 验证输入
@@ -213,7 +314,7 @@ public class HomeFragment extends Fragment {
             height = Integer.parseInt(heightStr);
 
             if (width < 64 || width > 4096 || height < 64 || height > 4096) {
-                showToast("图像尺寸应在64-4096之间");
+                showToast("图像尺寸应在 64 ~ 4096 之间");
                 return;
             }
         } catch (NumberFormatException e) {
@@ -231,6 +332,44 @@ public class HomeFragment extends Fragment {
             }
         }
 
+        double upscaleFactor = 1.0;
+        if (!upscaleFactorStr.isEmpty()) {
+            try {
+                upscaleFactor = Double.parseDouble(upscaleFactorStr);
+                if (upscaleFactor < 1.0 || upscaleFactor > 4.0) {
+                    showToast("放大系数应在 1.0 ~ 4.0 之间");
+                    return;
+                }
+            } catch (NumberFormatException e) {
+                showToast("放大系数必须是数字");
+                return;
+            }
+        }
+
+        int step = 20;
+        if (!stepStr.isEmpty()) {
+            try {
+                step = Integer.parseInt(stepStr);
+            } catch (NumberFormatException e) {
+                showToast("种子必须是数字");
+                return;
+            }
+        }
+
+        double cfg = 8.0;
+        if (!cfgStr.isEmpty()) {
+            try {
+                cfg = Double.parseDouble(cfgStr);
+                if (cfg < 0.1 || cfg > 100.0) {
+                    showToast("CFG应在 0.1 ~ 100.0 之间");
+                    return;
+                }
+            } catch (NumberFormatException e) {
+                showToast("CFG必须是数字");
+                return;
+            }
+        }
+
         SharedPreferences.Editor editor = Settings.getInstance().getPreferences().edit();
         Set<String> prompts = Settings.getInstance().getPreferences().getStringSet("prompts", new HashSet<>());
         if (!Settings.getInstance().getPreferences().getString("prompt", getString(R.string.default_prompt)).equals(prompt)) {
@@ -243,17 +382,29 @@ public class HomeFragment extends Fragment {
         editor.putString("width", width + "");
         editor.putString("height", height + "");
         editor.putString("seed", seed + "");
+        editor.putString("upscale_factor", upscaleFactor + "");
+        editor.putString("step", step + "");
+        editor.putString("cfg", cfg + "");
         editor.apply();
 
         // 创建请求对象
-        ImageRequest request = new ImageRequest(workflow, prompt, seed, width, height);
+        ImageRequest request = new ImageRequest(workflow, model, prompt, seed, width, height, step, cfg, upscaleFactor);
 
         // 显示进度条
         binding.progressBar.setVisibility(View.VISIBLE);
         binding.tvStatus.setText("正在生成图像...");
         binding.btnGenerate.setEnabled(false);
 
-        log("发送生成请求：\n" + "工作流: " + workflow + "\n" + "提示词: " + prompt + "\n" + "尺寸: " + width + "x" + height + "\n" + "种子: " + (seed != null ? seed : "随机"));
+        log("发送生成请求：\n" +
+                "工作流: " + workflow + "\n" +
+                "模型: " + (model == null ? "不指定" : model) + "\n" +
+                "提示词: " + prompt + "\n" +
+                "尺寸: " + width + "x" + height + "\n" +
+                "种子: " + (seed != null ? seed : "随机") + "\n" +
+                "放大: " + upscaleFactor + "\n" +
+                "步数: " + step + "\n" +
+                "CFG: " + cfg + "\n"
+        );
 
         currentRequestId = null;
         binding.btnDownload.setEnabled(false);
@@ -278,7 +429,7 @@ public class HomeFragment extends Fragment {
                             log("生成成功！\n" + "请求ID: " + currentRequestId + "\n" + "处理时间: " + imageResponse.getProcessing_time() + "秒");
 
                             // 自动下载并显示图像
-                            downloadAndDisplayImage(request);
+                            downloadAndDisplayImage(imageResponse);
                         } else {
                             binding.tvStatus.setText("生成失败: " + imageResponse.getMessage());
                             log("生成失败: " + imageResponse.getMessage());
@@ -411,7 +562,7 @@ public class HomeFragment extends Fragment {
         }
     }
 
-    private void downloadAndDisplayImage(ImageRequest request) {
+    private void downloadAndDisplayImage(ImageResponse imageResponse) {
         if (currentRequestId == null || currentRequestId.isEmpty()) {
             showToast("没有可下载的图像");
             return;
@@ -427,7 +578,7 @@ public class HomeFragment extends Fragment {
                         if (response.isSuccessful()) {
                             try (ResponseBody body = response.body()) {
                                 // 保存图像到文件
-                                File imageFile = saveImageToFile(body, request, (total, progress) -> {
+                                File imageFile = saveImageToFile(body, imageResponse, (total, progress) -> {
                                     mainHandler.post(() -> {
                                         binding.progressBar.setVisibility(View.VISIBLE);
                                         binding.progressBar.setMax(Math.toIntExact(total));
@@ -519,7 +670,7 @@ public class HomeFragment extends Fragment {
         });
     }
 
-    private File saveImageToFile(ResponseBody body, ImageRequest request, Callbacks.Callback2T<Long, Long> callback) {
+    private File saveImageToFile(ResponseBody body, ImageResponse imageResponse, Callbacks.Callback2T<Long, Long> callback) {
         try {
             File[] outputFiles = Output.newOutputFile(requireContext());
             File imageFile = outputFiles[0];
@@ -527,10 +678,10 @@ public class HomeFragment extends Fragment {
             // 保存文件
             if (RetrofitClient.downloadFile(body, imageFile, callback)) {
                 latestImageFile = imageFile;
-                if (request != null) {
-                    JSONObject jsonObject = request.toJson();
+                if (imageResponse != null && imageResponse.getParameters() != null) {
+                    imageResponse.getParameters().setTimestamp(System.currentTimeMillis());
+                    JSONObject jsonObject = imageResponse.getParameters().toJson();
                     if (jsonObject != null) {
-                        jsonObject.putOpt("timestamp", System.currentTimeMillis());
                         File requestJsonFile = outputFiles[1];
                         try (FileWriter writer = new FileWriter(requestJsonFile, StandardCharsets.UTF_8, false)) {
                             writer.append(jsonObject.toString());
@@ -639,9 +790,13 @@ public class HomeFragment extends Fragment {
     public void onResume() {
         super.onResume();
         updateBaseUrl();
-        if (binding.spinner.getCount() == 0) {
+        if (binding.spinnerWorkflow.getCount() == 0) {
             // 更新工作流
             loadWorkflows();
+        }
+        if (binding.spinnerModels.getCount() == 0) {
+            // 更新工作流
+            loadModels();
         }
     }
 

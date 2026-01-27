@@ -49,14 +49,20 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
         }
         if (content.getParams() != null) {
             String title = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
-                    .format(Date.from(Instant.ofEpochMilli(content.getParams().timestamp)));
+                    .format(Date.from(Instant.ofEpochMilli(content.getParams().getTimestamp())));
             holder.binding.tvTitle.setText(title);
-            holder.binding.tvInfo.setText(
-                    String.format(Locale.getDefault(), "%s\n%d x %d\n种子：%d",
-                            content.getParams().getWorkflow(),
-                            content.getParams().getImg_width(),
-                            content.getParams().getImg_height(),
-                            content.getParams().getSeed()));
+            holder.binding.tvInfo.setText(String.format(Locale.getDefault(),
+                    "%s\n%s\n%d x %d %d %d %.01f x%.01f",
+                    content.getParams().getWorkflow(),
+                    content.getParams().getModel(),
+                    content.getParams().getImg_width(),
+                    content.getParams().getImg_height(),
+                    content.getParams().getSeed(),
+                    content.getParams().getStep(),
+                    content.getParams().getCfg(),
+                    content.getParams().getUpscale_factor()
+                    )
+            );
             holder.binding.tvPrompt.setText(content.getParams().getPrompt());
         }
     }

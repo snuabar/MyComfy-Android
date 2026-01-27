@@ -7,10 +7,16 @@ import retrofit2.http.*;
 public interface ApiService {
 
     /**
-     * 生成AI图像
+     * 加载可用工作流
      */
     @GET("/api/workflows")
     Call<WorkflowsResponse> loadWorkflow();
+
+    /**
+     * 加载可用模型
+     */
+    @GET("/api/models/{model_type}")
+    Call<ModelResponse> loadModels(@Path("model_type") String modelType);
 
     /**
      * 生成AI图像
