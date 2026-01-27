@@ -87,7 +87,7 @@ public class HistoryFragment extends Fragment {
                     if (o1.getParams() == null || o2.getParams() == null) {
                         return 0;
                     }
-                    return Math.toIntExact(o2.getParams().timestamp - o1.getParams().timestamp);
+                    return Math.toIntExact(o2.getParams().getTimestamp() - o1.getParams().getTimestamp());
                 });
                 mImageContents.addAll(imageContents);
             }

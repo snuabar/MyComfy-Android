@@ -55,8 +55,8 @@ public class FullScreenImageActivity extends AppCompatActivity {
     private void initViews() {
         // 设置双击缩放和手势缩放
         binding.photoView.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        binding.photoView.setMaximumScale(4.0f);
-        binding.photoView.setMediumScale(2.0f);
+        binding.photoView.setMaximumScale(6.0f);
+        binding.photoView.setMediumScale(3.0f);
 
         // 添加退出按钮或手势
         binding.photoView.setOnClickListener(v -> finish());

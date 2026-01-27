@@ -7,7 +7,7 @@ import android.media.ExifInterface;
 import android.os.Build;
 import android.util.Log;
 
-import com.snuabar.mycomfy.client.ImageRequest;
+import com.snuabar.mycomfy.client.Parameters;
 import com.snuabar.mycomfy.common.Callbacks;
 
 import org.json.JSONException;
@@ -32,7 +32,7 @@ public class ImageUtils {
         public final File imageFile;
         public final File promptFile;
         private File thumbnailFile;
-        private Params params;
+        private Parameters params;
 
         public ImageContent(File imageFile, File promptFile) {
             this.imageFile = imageFile;
@@ -55,15 +55,7 @@ public class ImageUtils {
             return Objects.hash(imageFile, promptFile, thumbnailFile, params);
         }
 
-        public static class Params extends ImageRequest {
-            public long timestamp;
-            public Params(long timestamp) {
-                super(null, null, 0, 0, 0);
-                this.timestamp = timestamp;
-            }
-        }
-
-        public Params getParams() {
+        public Parameters getParams() {
             if (params == null) {
                 if (promptFile != null && promptFile.exists()) {
                     try {
@@ -71,7 +63,7 @@ public class ImageUtils {
                         String jsonString = new String(bytes, StandardCharsets.UTF_8);
 
                         JSONObject jsonObject = new JSONObject(jsonString);
-                        params = new Params(jsonObject.getLong("timestamp"));
+                        params = new Parameters();
                         params.loadJson(jsonObject);
                     } catch (IOException e) {
                         Log.e(TAG, "getParams: failed to read prompt from file.");

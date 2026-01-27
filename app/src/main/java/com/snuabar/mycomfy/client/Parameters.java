@@ -1,33 +1,40 @@
 package com.snuabar.mycomfy.client;
 
-public class Parameters {
-    private String prompt;
-    private Integer seed;
-    private int img_width;
-    private int img_height;
-    private int num_images;
-    private String style;
-    private String negative_prompt;
+import android.util.Log;
 
-    // Getters and Setters
-    public String getPrompt() { return prompt; }
-    public void setPrompt(String prompt) { this.prompt = prompt; }
+import org.json.JSONException;
+import org.json.JSONObject;
 
-    public Integer getSeed() { return seed; }
-    public void setSeed(Integer seed) { this.seed = seed; }
+public class Parameters extends ImageRequest {
+    private long timestamp;
+    public Parameters() {
+        super(null, null, null, 0, 0, 0, 0, 0.0, 0.0);
+    }
 
-    public int getImg_width() { return img_width; }
-    public void setImg_width(int img_width) { this.img_width = img_width; }
+    public long getTimestamp() {
+        return timestamp;
+    }
 
-    public int getImg_height() { return img_height; }
-    public void setImg_height(int img_height) { this.img_height = img_height; }
+    public void setTimestamp(long timestamp) {
+        this.timestamp = timestamp;
+    }
 
-    public int getNum_images() { return num_images; }
-    public void setNum_images(int num_images) { this.num_images = num_images; }
+    @Override
+    public JSONObject toJson() {
+        JSONObject jsonObject = super.toJson();
+        if (jsonObject != null) {
+            try {
+                jsonObject.putOpt("timestamp", timestamp);
+            } catch (JSONException e) {
+                Log.e("Parameters", "toJson. exception thrown.", e);
+            }
+        }
+        return jsonObject;
+    }
 
-    public String getStyle() { return style; }
-    public void setStyle(String style) { this.style = style; }
-
-    public String getNegative_prompt() { return negative_prompt; }
-    public void setNegative_prompt(String negative_prompt) { this.negative_prompt = negative_prompt; }
+    @Override
+    public void loadJson(JSONObject jsonObject) {
+        super.loadJson(jsonObject);
+        setTimestamp(jsonObject.optLong("timestamp", 0));
+    }
 }
