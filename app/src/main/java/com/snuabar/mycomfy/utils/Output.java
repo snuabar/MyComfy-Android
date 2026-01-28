@@ -1,9 +1,11 @@
 package com.snuabar.mycomfy.utils;
 
 import android.content.Context;
+import android.os.Environment;
 import android.util.Log;
 
 import java.io.File;
+import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -18,7 +20,15 @@ public class Output {
     public static final String PROMPT_EXT = ".prompt";
 
     public static File getOutputDir(Context context) {
-        return context.getExternalFilesDir("output");
+        File file = context.getExternalFilesDir(null);
+        if (file != null && !file.exists() && !file.mkdirs()) {
+            Log.e(TAG, "getOutputDir: failed to execute mkdirs()");
+        }
+        file = context.getExternalFilesDir("output");
+        if (file != null && !file.exists() && !file.mkdirs()) {
+            Log.e(TAG, "getOutputDir: failed to execute mkdirs()");
+        }
+        return file;
     }
 
     public static ArrayList<ImageUtils.ImageContent> getOutputFiles(Context context) {

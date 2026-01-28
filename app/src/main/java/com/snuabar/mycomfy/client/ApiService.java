@@ -25,6 +25,12 @@ public interface ApiService {
     Call<ImageResponse> generateImage(@Body ImageRequest request);
 
     /**
+     * 添加至生成队列
+     */
+    @POST("/api/enqueue")
+    Call<EnqueueResponse> enqueue(@Body ImageRequest request);
+
+    /**
      * 获取生成的图像
      */
     @GET("/api/images/{request_id}")
@@ -49,5 +55,13 @@ public interface ApiService {
      */
     @GET("/api/stats")
     Call<ServerStats> getServerStats();
+
+    /**
+     * 获取历史记录
+     */
+    @GET("/api/history/{prompt_id}")
+    Call<ResponseBody> getHistory(@Path("prompt_id") String promptId);
+
+
 }
 

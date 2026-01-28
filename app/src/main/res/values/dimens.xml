@@ -3,4 +3,5 @@
     <dimen name="text_margin">16dp</dimen>
     <dimen name="thumbnail_width">64dp</dimen>
     <dimen name="thumbnail_height">64dp</dimen>
+    <dimen name="main_item_height">128dp</dimen>
 </resources>

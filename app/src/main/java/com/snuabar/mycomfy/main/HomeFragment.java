@@ -22,14 +22,19 @@ import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.snuabar.mycomfy.R;
+import com.snuabar.mycomfy.client.EnqueueResponse;
 import com.snuabar.mycomfy.client.ImageRequest;
 import com.snuabar.mycomfy.client.ImageResponse;
 import com.snuabar.mycomfy.client.ModelResponse;
+import com.snuabar.mycomfy.client.Parameters;
 import com.snuabar.mycomfy.client.RetrofitClient;
 import com.snuabar.mycomfy.client.StatusResponse;
 import com.snuabar.mycomfy.client.WorkflowsResponse;
 import com.snuabar.mycomfy.common.Callbacks;
 import com.snuabar.mycomfy.databinding.FragmentHomeBinding;
+import com.snuabar.mycomfy.main.model.MessageModel;
+import com.snuabar.mycomfy.main.model.ReceivedMessageModel;
+import com.snuabar.mycomfy.main.model.SentMessageModel;
 import com.snuabar.mycomfy.setting.Settings;
 import com.snuabar.mycomfy.utils.FileOperator;
 import com.snuabar.mycomfy.utils.FilePicker;
@@ -70,7 +75,7 @@ public class HomeFragment extends Fragment {
     private FragmentHomeBinding binding;
 
     private RetrofitClient retrofitClient;
-    private String currentRequestId;
+    private String currentRequestId, currentPromptId;
     private ScheduledExecutorService statusChecker;
     private final Executor executor = Executors.newSingleThreadExecutor();
 
@@ -80,6 +85,7 @@ public class HomeFragment extends Fragment {
     private final Map<String, List<String>> workflows = new HashMap<>();
     private final List<String> models = new ArrayList<>();
     private ArrayAdapter<String> workflowAdapter, modelAdapter;
+    private final List<MessageModel> messageList = new ArrayList<>();
 
     private Handler mainHandler;
 
@@ -447,6 +453,146 @@ public class HomeFragment extends Fragment {
 
             @Override
             public void onFailure(@NonNull Call<ImageResponse> call, @NonNull Throwable t) {
+                mainHandler.post(() -> {
+                    binding.progressBar.setVisibility(View.INVISIBLE);
+                    binding.btnGenerate.setEnabled(true);
+                    binding.tvStatus.setText("请求失败: " + t.getMessage());
+                    log("请求失败: " + t.getMessage());
+                });
+            }
+        });
+    }
+    private void enqueue() {
+        String workflow = binding.spinnerWorkflow.getSelectedItem().toString();
+        String model = null;
+        String prompt = binding.etPrompt.getText().toString().trim();
+        String widthStr = binding.etWidth.getText().toString().trim();
+        String heightStr = binding.etHeight.getText().toString().trim();
+        String seedStr = binding.etSeed.getText().toString().trim();
+        String upscaleFactorStr = binding.etUpscaleFactor.getText().toString().trim();
+        String stepStr = binding.etStep.getText().toString().trim();
+        String cfgStr = binding.etCFG.getText().toString().trim();
+
+        // 验证输入
+        if (workflow.isEmpty()) {
+            showToast("请选择工作流");
+            return;
+        }
+
+        // 验证输入
+        if (binding.spinnerModels.getSelectedItem() != null) {
+            model = binding.spinnerModels.getSelectedItem().toString();
+            if (!models.contains(model)) {
+                showToast("请选择模型");
+                return;
+            }
+        }
+
+        // 验证输入
+        if (prompt.isEmpty()) {
+            showToast("请输入图像描述");
+            return;
+        }
+
+        int width, height;
+        try {
+            width = Integer.parseInt(widthStr);
+            height = Integer.parseInt(heightStr);
+
+            if (width < 64 || width > 4096 || height < 64 || height > 4096) {
+                showToast("图像尺寸应在 64 ~ 4096 之间");
+                return;
+            }
+        } catch (NumberFormatException e) {
+            showToast("请输入有效的尺寸");
+            return;
+        }
+
+        Integer seed = null;
+        if (!seedStr.isEmpty()) {
+            try {
+                seed = Integer.parseInt(seedStr);
+            } catch (NumberFormatException e) {
+                showToast("种子必须是数字");
+                return;
+            }
+        }
+
+        double upscaleFactor = 1.0;
+        if (!upscaleFactorStr.isEmpty()) {
+            try {
+                upscaleFactor = Double.parseDouble(upscaleFactorStr);
+                if (upscaleFactor < 1.0 || upscaleFactor > 4.0) {
+                    showToast("放大系数应在 1.0 ~ 4.0 之间");
+                    return;
+                }
+            } catch (NumberFormatException e) {
+                showToast("放大系数必须是数字");
+                return;
+            }
+        }
+
+        int step = 20;
+        if (!stepStr.isEmpty()) {
+            try {
+                step = Integer.parseInt(stepStr);
+            } catch (NumberFormatException e) {
+                showToast("种子必须是数字");
+                return;
+            }
+        }
+
+        double cfg = 8.0;
+        if (!cfgStr.isEmpty()) {
+            try {
+                cfg = Double.parseDouble(cfgStr);
+                if (cfg < 0.1 || cfg > 100.0) {
+                    showToast("CFG应在 0.1 ~ 100.0 之间");
+                    return;
+                }
+            } catch (NumberFormatException e) {
+                showToast("CFG必须是数字");
+                return;
+            }
+        }
+
+        SharedPreferences.Editor editor = Settings.getInstance().getPreferences().edit();
+        Set<String> prompts = Settings.getInstance().getPreferences().getStringSet("prompts", new HashSet<>());
+        if (!Settings.getInstance().getPreferences().getString("prompt", getString(R.string.default_prompt)).equals(prompt)) {
+            HashSet<String> newSet = new HashSet<>(prompts);
+            newSet.add(getPromptForSave(prompt));
+            editor.putStringSet("prompts", newSet);
+            editor.putString("prompt", prompt);
+        }
+        editor.putString("workflow", workflow);
+        editor.putString("width", width + "");
+        editor.putString("height", height + "");
+        editor.putString("seed", seed + "");
+        editor.putString("upscale_factor", upscaleFactor + "");
+        editor.putString("step", step + "");
+        editor.putString("cfg", cfg + "");
+        editor.apply();
+
+        // 创建请求对象
+        ImageRequest request = new ImageRequest(workflow, model, prompt, seed, width, height, step, cfg, upscaleFactor);
+        messageList.add(new SentMessageModel(request));
+        // 发送请求
+        retrofitClient.getApiService().enqueue(request).enqueue(new Callback<>() {
+            @Override
+            public void onResponse(@NonNull Call<EnqueueResponse> call, @NonNull Response<EnqueueResponse> response) {
+                EnqueueResponse enqueueResponse;
+                if (response.isSuccessful() && response.body() != null) {
+                    enqueueResponse = response.body();
+                } else {
+                    enqueueResponse = EnqueueResponse.create(response.code(), response.message(),
+                            new Parameters().loadFromRequest(request));
+                }
+                messageList.add(new ReceivedMessageModel(enqueueResponse));
+//                requireActivity().runOnUiThread(() -> mainAdapter.notifyItemInsert());
+            }
+
+            @Override
+            public void onFailure(@NonNull Call<EnqueueResponse> call, @NonNull Throwable t) {
                 mainHandler.post(() -> {
                     binding.progressBar.setVisibility(View.INVISIBLE);
                     binding.btnGenerate.setEnabled(true);

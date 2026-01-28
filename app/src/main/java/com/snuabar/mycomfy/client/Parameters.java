@@ -5,6 +5,8 @@ import android.util.Log;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.time.Clock;
+
 public class Parameters extends ImageRequest {
     private long timestamp;
     public Parameters() {
@@ -36,5 +38,12 @@ public class Parameters extends ImageRequest {
     public void loadJson(JSONObject jsonObject) {
         super.loadJson(jsonObject);
         setTimestamp(jsonObject.optLong("timestamp", 0));
+    }
+
+    public Parameters loadFromRequest(ImageRequest request) {
+        JSONObject object = request.toJson();
+        setTimestamp(Clock.systemUTC().millis());
+        loadJson(object);
+        return this;
     }
 }

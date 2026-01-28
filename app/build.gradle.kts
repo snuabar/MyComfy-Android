@@ -26,6 +26,11 @@ android {
                 "proguard-rules.pro"
             )
         }
+        debug {
+            isMinifyEnabled = false
+            isShrinkResources = false
+            enableUnitTestCoverage = false
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
