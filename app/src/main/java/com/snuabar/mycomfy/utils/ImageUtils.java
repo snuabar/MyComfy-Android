@@ -7,19 +7,12 @@ import android.media.ExifInterface;
 import android.os.Build;
 import android.util.Log;
 
-import com.snuabar.mycomfy.client.Parameters;
 import com.snuabar.mycomfy.common.Callbacks;
-
-import org.json.JSONException;
-import org.json.JSONObject;
+import com.snuabar.mycomfy.main.data.AbstractMessageModel;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.Objects;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
@@ -28,75 +21,43 @@ public class ImageUtils {
 
     private static final String THUMB_EXT = ".thumb";
 
-    public static class ImageContent {
-        public final File imageFile;
-        public final File promptFile;
-        private File thumbnailFile;
-        private Parameters params;
-
-        public ImageContent(File imageFile, File promptFile) {
-            this.imageFile = imageFile;
-            this.promptFile = promptFile;
-        }
-
-        public File getThumbnailFile() {
-            return thumbnailFile;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (o == null || getClass() != o.getClass()) return false;
-            ImageContent that = (ImageContent) o;
-            return Objects.equals(imageFile, that.imageFile) && Objects.equals(promptFile, that.promptFile) && Objects.equals(thumbnailFile, that.thumbnailFile) && Objects.equals(params, that.params);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(imageFile, promptFile, thumbnailFile, params);
-        }
-
-        public Parameters getParams() {
-            if (params == null) {
-                if (promptFile != null && promptFile.exists()) {
-                    try {
-                        byte[] bytes = Files.readAllBytes(Paths.get(promptFile.getAbsolutePath()));
-                        String jsonString = new String(bytes, StandardCharsets.UTF_8);
-
-                        JSONObject jsonObject = new JSONObject(jsonString);
-                        params = new Parameters();
-                        params.loadJson(jsonObject);
-                    } catch (IOException e) {
-                        Log.e(TAG, "getParams: failed to read prompt from file.");
-                    } catch (JSONException e) {
-                        Log.e(TAG, "getParams: failed to process json string.");
-                    }
-                }
-            }
-            return params;
-        }
-    }
-
-    public static boolean getThumbnail(ImageContent imageContent) {
-        if (isThumbnailExists(imageContent.imageFile)) {
-            imageContent.thumbnailFile = getThumbnailFile(imageContent.imageFile);
+    public static boolean getThumbnail(AbstractMessageModel model) {
+        if (isThumbnailExists(model.getImageFile())) {
+            model.setThumbnailFile(getThumbnailFile(model.getImageFile()));
             return true;
         }
         return false;
     }
 
     private static Executor ThumbnailExecutor = null;
-    public static void makeThumbnailAsync(ImageContent imageContent, float maxWidth, float maxHeight, final Callbacks.CallbackT<ImageContent> completion) {
+
+    public static void makeThumbnailAsync(AbstractMessageModel model, float maxWidth, float maxHeight, final Callbacks.CallbackT<AbstractMessageModel> completion) {
+        if (model.getImageFile() == null) {
+            return;
+        }
         if (ThumbnailExecutor == null) {
             ThumbnailExecutor = Executors.newScheduledThreadPool(10);
         }
         ThumbnailExecutor.execute(() -> {
-            imageContent.thumbnailFile = ImageUtils.createAndSaveThumbnail(imageContent.imageFile, maxWidth, maxHeight);
-            completion.apply(imageContent);
+            model.setThumbnailFile(ImageUtils.createAndSaveThumbnail(model.getImageFile(), maxWidth, maxHeight));
+            completion.apply(model);
         });
     }
 
-    private static File getThumbnailFile(File imageFile) {
+    public static File getThumbnailFile(File imageFile) {
         return new File(imageFile.getParent(), imageFile.getName() + THUMB_EXT);
+    }
+
+    public static int[] getImageSize(File imageFile) {
+        // 1. 解码图片并获取原始尺寸
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inJustDecodeBounds = true;
+        BitmapFactory.decodeFile(imageFile.getAbsolutePath(), options);
+
+        int originalWidth = options.outWidth;
+        int originalHeight = options.outHeight;
+
+        return new int[]{originalWidth, originalHeight};
     }
 
     /**
@@ -261,8 +222,8 @@ public class ImageUtils {
             Bitmap.CompressFormat format;
 
             if (fileName.endsWith(".png") || fileName.endsWith(".png.thumb")) {
-                format = Bitmap.CompressFormat.PNG;
-                quality = 100; // PNG不支持质量设置
+                format = Bitmap.CompressFormat.JPEG;
+//                quality = 100; // PNG不支持质量设置
             } else if (fileName.endsWith(".webp") || fileName.endsWith(".webp.thumb")) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
                     format = Bitmap.CompressFormat.WEBP;

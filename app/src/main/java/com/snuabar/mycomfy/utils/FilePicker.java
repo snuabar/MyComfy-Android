@@ -12,6 +12,8 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.snuabar.mycomfy.common.Callbacks;
 
+import java.io.File;
+
 public final class FilePicker {
 
     private static final String Tag = FilePicker.class.getName();
@@ -20,6 +22,8 @@ public final class FilePicker {
     private final ActivityResultLauncher<Intent> mFilePickerLauncher;
     private final ActivityResultLauncher<Intent> mFileOpenLauncher;
     private Callbacks.CallbackT<Uri[]> directoryPickerCallback;
+    private File tempFile;
+    private Callbacks.Callback2T<Uri[], File> directoryPickerWithFileCallback;
     private Callbacks.CallbackT<Uri[]> mSelectFileCallback;
 
 
@@ -27,7 +31,7 @@ public final class FilePicker {
         this.context = context.getApplicationContext();
 
         mFilePickerLauncher = ((AppCompatActivity) context).registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
-            if (directoryPickerCallback != null && result != null && result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
+            if ((directoryPickerCallback != null || directoryPickerWithFileCallback != null) && result != null && result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
                 Uri destinationDirUri = result.getData().getData();
                 if (destinationDirUri != null) {
                     // 获取持久化权限
@@ -37,7 +41,12 @@ public final class FilePicker {
                                     Intent.FLAG_GRANT_WRITE_URI_PERMISSION
                     );
 
-                    directoryPickerCallback.apply(new Uri[]{destinationDirUri});
+                    if (directoryPickerCallback != null) {
+                        directoryPickerCallback.apply(new Uri[]{destinationDirUri});
+                    }
+                    if (directoryPickerWithFileCallback != null) {
+                        directoryPickerWithFileCallback.apply(new Uri[]{destinationDirUri}, tempFile);
+                    }
                 }
             }
         });
@@ -62,6 +71,18 @@ public final class FilePicker {
     // 启动目录选择器
     public void pickDirectory(Callbacks.CallbackT<Uri[]> callback) {
         directoryPickerCallback = callback;
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+        intent.addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, false);
+        mFilePickerLauncher.launch(intent);
+    }
+
+    // 启动目录选择器
+    public void pickDirectory(File file, Callbacks.Callback2T<Uri[], File> callback) {
+        tempFile = file;
+        directoryPickerWithFileCallback = callback;
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
         intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
         intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);

@@ -2,13 +2,15 @@ package com.snuabar.mycomfy.client;
 
 import android.util.Log;
 
+import com.snuabar.mycomfy.main.model.AbstractParameters;
+
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.Objects;
 
 // 请求模型
-public class ImageRequest {
+public class ImageRequest extends AbstractParameters {
     private String workflow;
     private String model;
     private String prompt;
@@ -37,67 +39,132 @@ public class ImageRequest {
 
     // Getters and Setters
 
+    @Override
     public String getWorkflow() {
         return workflow;
     }
 
+    @Override
     public void setWorkflow(String workflow) {
         this.workflow = workflow;
     }
 
+    @Override
     public String getModel() {
         return model;
     }
 
+    @Override
     public void setModel(String model) {
         this.model = model;
     }
 
-    public String getPrompt() { return prompt; }
-    public void setPrompt(String prompt) { this.prompt = prompt; }
+    @Override
+    public String getPrompt() {
+        return prompt;
+    }
 
-    public Integer getSeed() { return seed; }
-    public void setSeed(Integer seed) { this.seed = seed; }
+    @Override
+    public void setPrompt(String prompt) {
+        this.prompt = prompt;
+    }
 
-    public int getImg_width() { return img_width; }
-    public void setImg_width(int img_width) { this.img_width = img_width; }
+    @Override
+    public Integer getSeed() {
+        return seed;
+    }
 
-    public int getImg_height() { return img_height; }
-    public void setImg_height(int img_height) { this.img_height = img_height; }
+    @Override
+    public void setSeed(Integer seed) {
+        this.seed = seed;
+    }
 
-    public int getNum_images() { return num_images; }
-    public void setNum_images(int num_images) { this.num_images = num_images; }
+    @Override
+    public int getImg_width() {
+        return img_width;
+    }
 
-    public String getStyle() { return style; }
-    public void setStyle(String style) { this.style = style; }
+    @Override
+    public void setImg_width(int img_width) {
+        this.img_width = img_width;
+    }
 
-    public String getNegative_prompt() { return negative_prompt; }
-    public void setNegative_prompt(String negative_prompt) { this.negative_prompt = negative_prompt; }
+    @Override
+    public int getImg_height() {
+        return img_height;
+    }
 
+    @Override
+    public void setImg_height(int img_height) {
+        this.img_height = img_height;
+    }
+
+    @Override
+    public int getNum_images() {
+        return num_images;
+    }
+
+    @Override
+    public void setNum_images(int num_images) {
+        this.num_images = num_images;
+    }
+
+    @Override
+    public String getStyle() {
+        return style;
+    }
+
+    @Override
+    public void setStyle(String style) {
+        this.style = style;
+    }
+
+    @Override
+    public String getNegative_prompt() {
+        return negative_prompt;
+    }
+
+    @Override
+    public void setNegative_prompt(String negative_prompt) {
+        this.negative_prompt = negative_prompt;
+    }
+
+    @Override
     public double getUpscale_factor() {
         return upscale_factor;
     }
 
+    @Override
     public void setUpscale_factor(double upscale_factor) {
         this.upscale_factor = upscale_factor;
     }
 
+    @Override
     public int getStep() {
         return step;
     }
 
+    @Override
     public void setStep(int step) {
         this.step = step;
     }
 
+    @Override
     public double getCfg() {
         return cfg;
     }
 
+    @Override
     public void setCfg(double cfg) {
         this.cfg = cfg;
     }
 
+    @Override
+    public long getTimestamp() {
+        return 0;
+    }
+
+    @Override
     public JSONObject toJson() {
         try {
             JSONObject jsonObject = new JSONObject();
@@ -120,6 +187,7 @@ public class ImageRequest {
         return null;
     }
 
+    @Override
     public void loadJson(JSONObject jsonObject) {
         setWorkflow(jsonObject.optString("workflow"));
         setModel(jsonObject.optString("model"));

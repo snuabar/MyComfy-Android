@@ -62,7 +62,7 @@ public class SettingsActivity extends AppCompatActivity {
             String ip = etIpAddress.getText().toString().trim();
             String port = etPort.getText().toString().trim();
 
-            RetrofitClient retrofitClient = RetrofitClient.getInstance(SettingsActivity.this);
+            RetrofitClient retrofitClient = RetrofitClient.getInstance();
 
             if (ip.isEmpty() || port.isEmpty()) {
                 tvStatus.setText("请输入服务器IP和端口");

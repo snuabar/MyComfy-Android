@@ -1,33 +1,28 @@
 package com.snuabar.mycomfy.client;
 
-import java.util.List;
-
 // 响应模型
 public class ImageResponse {
-    private String request_id;
-    private String status;
+    private String prompt_id;
+    private int code;
     private String message;
-    private String image_url;
-    private List<String> image_paths;
-    private Parameters parameters;
-    private String created_at;
-    private Float processing_time;
+    private String media_type;
+    private String filename;
+    private String utc_timestamp;
 
-    // Getters and Setters
-    public String getRequest_id() {
-        return request_id;
+    public String getPrompt_id() {
+        return prompt_id;
     }
 
-    public void setRequest_id(String request_id) {
-        this.request_id = request_id;
+    public void setPrompt_id(String prompt_id) {
+        this.prompt_id = prompt_id;
     }
 
-    public String getStatus() {
-        return status;
+    public int getCode() {
+        return code;
     }
 
-    public void setStatus(String status) {
-        this.status = status;
+    public void setCode(int code) {
+        this.code = code;
     }
 
     public String getMessage() {
@@ -38,43 +33,27 @@ public class ImageResponse {
         this.message = message;
     }
 
-    public String getImage_url() {
-        return image_url;
+    public String getMedia_type() {
+        return media_type;
     }
 
-    public void setImage_url(String image_url) {
-        this.image_url = image_url;
+    public void setMedia_type(String media_type) {
+        this.media_type = media_type;
     }
 
-    public List<String> getImage_paths() {
-        return image_paths;
+    public String getFilename() {
+        return filename;
     }
 
-    public void setImage_paths(List<String> image_paths) {
-        this.image_paths = image_paths;
+    public void setFilename(String filename) {
+        this.filename = filename;
     }
 
-    public Parameters getParameters() {
-        return parameters;
+    public String getUtc_timestamp() {
+        return utc_timestamp;
     }
 
-    public void setParameters(Parameters parameters) {
-        this.parameters = parameters;
-    }
-
-    public String getCreated_at() {
-        return created_at;
-    }
-
-    public void setCreated_at(String created_at) {
-        this.created_at = created_at;
-    }
-
-    public Float getProcessing_time() {
-        return processing_time;
-    }
-
-    public void setProcessing_time(Float processing_time) {
-        this.processing_time = processing_time;
+    public void setUtc_timestamp(String utc_timestamp) {
+        this.utc_timestamp = utc_timestamp;
     }
 }

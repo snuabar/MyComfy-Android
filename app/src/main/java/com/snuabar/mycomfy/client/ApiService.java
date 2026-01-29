@@ -19,17 +19,24 @@ public interface ApiService {
     Call<ModelResponse> loadModels(@Path("model_type") String modelType);
 
     /**
-     * 生成AI图像
+     * 添加至生成队列
      */
-    @POST("/api/generate")
-    Call<ImageResponse> generateImage(@Body ImageRequest request);
+    @POST("/api/enqueue")
+    Call<EnqueueResponse> enqueue(@Body ImageRequest request);
 
     /**
-     * 获取生成的图像
+     * 获取图像生成状态
      */
-    @GET("/api/images/{request_id}")
+    @GET("/api/images/{prompt_id}")
     @Streaming
-    Call<ResponseBody> downloadImage(@Path("request_id") String requestId);
+    Call<ImageResponse> getImageStatus(@Path("prompt_id") String promptId);
+
+    /**
+     * 下载
+     */
+    @GET("/api/download/{prompt_id}")
+    @Streaming
+    Call<ResponseBody> download(@Path("prompt_id") String promptId);
 
     /**
      * 流式获取图像（适用于大图像）
@@ -39,15 +46,12 @@ public interface ApiService {
     Call<ResponseBody> streamImage(@Path("request_id") String requestId);
 
     /**
-     * 检查生成状态
-     */
-    @GET("/api/status/{request_id}")
-    Call<StatusResponse> checkStatus(@Path("request_id") String requestId);
-
-    /**
      * 获取服务器统计信息
      */
     @GET("/api/stats")
     Call<ServerStats> getServerStats();
+
+    @POST("/api/interrupt")
+    Call<ResponseBody> interrupt(@Body InterruptRequest request);
 }
 
