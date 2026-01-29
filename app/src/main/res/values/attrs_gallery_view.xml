@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="GalleryView">
+        <attr name="horizontalSpacing" format="dimension"/>
+        <attr name="verticalSpacing" format="dimension"/>
+        <attr name="columnWidth" format="dimension"/>
+        <attr name="numColumns" format="integer">
+            <enum name="auto_fit" value="-1" />
+        </attr>
+        <attr name="horizontalSpacingStrategy" format="integer">
+            <enum name="gap_sensitive" value="-1" />
+            <enum name="fixed" value="-2" />
+        </attr>
+    </declare-styleable>
+</resources>

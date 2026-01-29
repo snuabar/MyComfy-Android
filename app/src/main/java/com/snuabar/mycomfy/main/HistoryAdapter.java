@@ -3,71 +3,81 @@ package com.snuabar.mycomfy.main;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import android.content.Context;
 import android.graphics.BitmapFactory;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.LayoutInflater;
+import android.view.View;
 import android.view.ViewGroup;
 
 import com.snuabar.mycomfy.R;
 import com.snuabar.mycomfy.common.Callbacks;
-import com.snuabar.mycomfy.databinding.FragmentHistoryItemBinding;
+import com.snuabar.mycomfy.databinding.LayoutHistoryItemBinding;
+import com.snuabar.mycomfy.main.data.AbstractMessageModel;
+import com.snuabar.mycomfy.main.data.DataIO;
 import com.snuabar.mycomfy.utils.ImageUtils;
 
 import java.text.SimpleDateFormat;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHolder> {
 
-    private final List<ImageUtils.ImageContent> mValues;
+    private final List<AbstractMessageModel> mValues;
     private final Handler mHandler = new Handler(Looper.getMainLooper());
-    private final Callbacks.CallbackT<Integer> onItemClickCallback;
+    private final Callbacks.Callback2T<Integer, Boolean> onItemClickCallback;
+    private final Set<Integer> selections;
+    private boolean isEditMode = false;
+    private final Context context;
 
-    public HistoryAdapter(List<ImageUtils.ImageContent> items, Callbacks.CallbackT<Integer> onItemClickCallback) {
+    public HistoryAdapter(Context context, List<AbstractMessageModel> items, Callbacks.Callback2T<Integer, Boolean> onItemClickCallback) {
+        this.context = context.getApplicationContext();
         mValues = items;
         this.onItemClickCallback = onItemClickCallback;
+        this.selections = new HashSet<>();
     }
 
     @NonNull
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        return new ViewHolder(FragmentHistoryItemBinding.inflate(LayoutInflater.from(parent.getContext()), parent, false));
+        return new ViewHolder(LayoutHistoryItemBinding.inflate(LayoutInflater.from(parent.getContext()), parent, false));
     }
 
     @Override
     public void onBindViewHolder(@NonNull final ViewHolder holder, int position) {
-        ImageUtils.ImageContent content = mValues.get(position);
-        if (ImageUtils.getThumbnail(content)) {
-            holder.binding.imageView.setImageBitmap(BitmapFactory.decodeFile(content.getThumbnailFile().getAbsolutePath()));
+        holder.binding.checkBox.setVisibility(isEditMode ? View.VISIBLE : View.GONE);
+        holder.binding.checkBox.setChecked(selections.contains(position));
+
+        AbstractMessageModel model = mValues.get(position);
+        if (ImageUtils.getThumbnail(model)) {
+            holder.binding.imageView.setImageBitmap(BitmapFactory.decodeFile(model.getThumbnailFile().getAbsolutePath()));
         } else {
             float width = holder.itemView.getContext().getResources().getDimension(R.dimen.thumbnail_width);
             float height = holder.itemView.getContext().getResources().getDimension(R.dimen.thumbnail_height);
-            ImageUtils.makeThumbnailAsync(content, width, height, this::onThumbnailMake);
+            ImageUtils.makeThumbnailAsync(model, width, height, this::onThumbnailMake);
         }
-        if (content.getParams() != null) {
-            String title = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
-                    .format(Date.from(Instant.ofEpochMilli(content.getParams().getTimestamp())));
+        if (model.getParameters() != null) {
+            String title = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                    .format(Date.from(Instant.ofEpochMilli(model.getParameters().getTimestamp())));
             holder.binding.tvTitle.setText(title);
             holder.binding.tvInfo.setText(String.format(Locale.getDefault(),
-                    "%s\n%s\n%d x %d %d %d %.01f x%.01f",
-                    content.getParams().getWorkflow(),
-                    content.getParams().getModel(),
-                    content.getParams().getImg_width(),
-                    content.getParams().getImg_height(),
-                    content.getParams().getSeed(),
-                    content.getParams().getStep(),
-                    content.getParams().getCfg(),
-                    content.getParams().getUpscale_factor()
+                            "%d x %d x%.01f",
+                            model.getParameters().getImg_width(),
+                            model.getParameters().getImg_height(),
+                            model.getParameters().getUpscale_factor()
                     )
             );
-            holder.binding.tvPrompt.setText(content.getParams().getPrompt());
         }
     }
 
-    private void onThumbnailMake(ImageUtils.ImageContent content) {
+    private void onThumbnailMake(AbstractMessageModel content) {
         int index = mValues.indexOf(content);
         if (index != -1) {
             mHandler.post(() -> notifyItemChanged(index));
@@ -79,15 +89,57 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
         return mValues.size();
     }
 
-    public class ViewHolder extends RecyclerView.ViewHolder {
-        private final FragmentHistoryItemBinding binding;
+    public void setEditMode(boolean editMode) {
+        this.isEditMode = editMode;
+        selections.clear();
+        notifyDataSetChanged();
+    }
 
-        public ViewHolder(FragmentHistoryItemBinding binding) {
+    public void toggleSelection(int position) {
+        if (selections.contains(position)) {
+            selections.remove(position);
+        } else {
+            selections.add(position);
+        }
+        notifyItemChanged(position);
+    }
+
+    public List<Integer> getSelectedIndices() {
+        return new ArrayList<>(selections);
+    }
+
+    public List<AbstractMessageModel> deleteSelection() {
+        List<Integer> indices = getSelectedIndices();
+        indices.sort((o1, o2) -> o2 - o1);
+
+        List<AbstractMessageModel> deletedModels = new ArrayList<>();
+        for (int i : indices) {
+            AbstractMessageModel model = mValues.get(i);
+            if (DataIO.deleteModelFile(context, model)) {
+                deletedModels.add(model);
+                mValues.remove(i);
+                notifyItemRemoved(i);
+            }
+        }
+        return deletedModels;
+    }
+
+    public class ViewHolder extends RecyclerView.ViewHolder {
+        private final LayoutHistoryItemBinding binding;
+
+        public ViewHolder(LayoutHistoryItemBinding binding) {
             super(binding.getRoot());
             this.binding = binding;
+            this.itemView.setLongClickable(true);
+            this.itemView.setOnLongClickListener(v -> {
+                if (onItemClickCallback != null) {
+                    onItemClickCallback.apply(getAbsoluteAdapterPosition(), true);
+                }
+                return true;
+            });
             this.itemView.setOnClickListener(v -> {
                 if (onItemClickCallback != null) {
-                    onItemClickCallback.apply(getAbsoluteAdapterPosition());
+                    onItemClickCallback.apply(getAbsoluteAdapterPosition(), false);
                 }
             });
         }

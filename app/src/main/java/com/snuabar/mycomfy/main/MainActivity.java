@@ -1,5 +1,6 @@
 package com.snuabar.mycomfy.main;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.lifecycle.ViewModelProvider;
 
@@ -9,6 +10,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 
 import com.snuabar.mycomfy.R;
+import com.snuabar.mycomfy.client.RetrofitClient;
 import com.snuabar.mycomfy.setting.Settings;
 import com.snuabar.mycomfy.setting.SettingsActivity;
 import com.snuabar.mycomfy.utils.FilePicker;
@@ -21,6 +23,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         Settings.init(this);
+        RetrofitClient.init(this);
         mViewModel = new ViewModelProvider(this).get(MainViewModel.class);
         mViewModel.setFilePicker(new FilePicker(this));
         setContentView(R.layout.activity_main);
@@ -29,6 +32,18 @@ public class MainActivity extends AppCompatActivity {
                     .replace(R.id.container, MainFragment.newInstance())
                     .commitNow();
         }
+
+        mViewModel.getDeletionModeLiveData().observe(this, aBoolean -> invalidateOptionsMenu());
+
+        getOnBackPressedDispatcher().addCallback(this, onBackPressedCallback);
+    }
+
+    @Override
+    public boolean onPrepareOptionsMenu(Menu menu) {
+        boolean deletionMode = Boolean.TRUE.equals(mViewModel.getDeletionModeLiveData().getValue());
+        menu.findItem(R.id.action_settings).setVisible(!deletionMode);
+        menu.findItem(R.id.action_delete).setVisible(deletionMode);
+        return super.onPrepareOptionsMenu(menu);
     }
 
     @Override
@@ -48,7 +63,24 @@ public class MainActivity extends AppCompatActivity {
             startActivity(intent);
             return true;
         }
+        if (id == R.id.action_delete) {
+            mViewModel.changeDeletionHasPressed(true);
+            mViewModel.changeDeletionHasPressed(false);
+            return true;
+        }
 
         return super.onOptionsItemSelected(item);
     }
+
+    private final OnBackPressedCallback onBackPressedCallback = new OnBackPressedCallback(true) {
+        @Override
+        public void handleOnBackPressed() {
+            if (Boolean.TRUE.equals(mViewModel.getDeletionModeLiveData().getValue())) {
+                mViewModel.changeDeletionMode(false);
+                return;
+            }
+            setEnabled(false);
+            getOnBackPressedDispatcher().onBackPressed();
+        }
+    };
 }

@@ -66,10 +66,13 @@ public class RetrofitClient {
         createRetrofit();
     }
 
-    public static synchronized RetrofitClient getInstance(Context context) {
+    public static synchronized void init(Context context) {
         if (instance == null) {
             instance = new RetrofitClient(context);
         }
+    }
+
+    public static RetrofitClient getInstance() {
         return instance;
     }
 

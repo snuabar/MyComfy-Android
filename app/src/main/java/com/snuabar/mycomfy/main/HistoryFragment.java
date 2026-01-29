@@ -1,10 +1,13 @@
 package com.snuabar.mycomfy.main;
 
 import android.content.Intent;
+import android.content.res.Configuration;
 import android.os.Bundle;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.Lifecycle;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -13,12 +16,16 @@ import android.view.View;
 import android.view.ViewGroup;
 
 import com.snuabar.mycomfy.databinding.FragmentHistoryBinding;
+import com.snuabar.mycomfy.main.data.AbstractMessageModel;
 import com.snuabar.mycomfy.preview.FullScreenImageActivity;
-import com.snuabar.mycomfy.utils.ImageUtils;
-import com.snuabar.mycomfy.utils.Output;
+import com.snuabar.mycomfy.main.data.DataIO;
+import com.snuabar.mycomfy.view.dialog.OptionalDialog;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
@@ -29,7 +36,7 @@ public class HistoryFragment extends Fragment {
 
     private MainViewModel mViewModel;
     private FragmentHistoryBinding binding;
-    private final List<ImageUtils.ImageContent> mImageContents = new ArrayList<>();
+    private final List<AbstractMessageModel> messageModels = new ArrayList<>();
     private final Executor executor = Executors.newSingleThreadExecutor();
 
     /**
@@ -54,8 +61,41 @@ public class HistoryFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         binding = FragmentHistoryBinding.inflate(inflater, container, false);
-        binding.list.setAdapter(new HistoryAdapter(mImageContents, this::onItemClick));
+        binding.list.setAdapter(new HistoryAdapter(requireContext(), messageModels, this::onItemClick));
         return binding.getRoot();
+    }
+
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+        mViewModel.getDeletionHasPressLiveData().observe(this, aBoolean -> {
+            if (getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.RESUMED)) {
+                if (aBoolean) {
+                    doDelete();
+                }
+            }
+        });
+        mViewModel.getDeletionModeLiveData().observe(this, aBoolean -> {
+            if (getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.RESUMED)) {
+                if (binding.list.getAdapter() instanceof HistoryAdapter) {
+                    ((HistoryAdapter) binding.list.getAdapter()).setEditMode(aBoolean);
+                }
+            }
+        });
+        mViewModel.getDeletedModelsLiveData().observe(this, stringListMap -> {
+            stringListMap.remove(HistoryFragment.class.getName());
+            if (!stringListMap.isEmpty()) {
+
+            }
+        });
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        if (binding.list.getAdapter() instanceof HistoryAdapter) {
+            ((HistoryAdapter) binding.list.getAdapter()).setEditMode(false);
+        }
     }
 
     @Override
@@ -64,15 +104,33 @@ public class HistoryFragment extends Fragment {
         loadImageContents();
     }
 
-    private void onItemClick(int position) {
+    @Override
+    public void onConfigurationChanged(@NonNull Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        binding.list.configureLayout();
+    }
+
+    private void onItemClick(int position, boolean longClick) {
         if (position == RecyclerView.NO_POSITION) {
             return;
         }
 
-        ImageUtils.ImageContent content = mImageContents.get(position);
-        Intent intent = new Intent(requireActivity(), FullScreenImageActivity.class);
-        intent.putExtra(FullScreenImageActivity.EXTRA_IMAGE_PATH, content.imageFile.getAbsolutePath());
-        startActivity(intent);
+        if (longClick) {
+            mViewModel.changeDeletionMode(true);
+        } else {
+            if (Boolean.TRUE.equals(mViewModel.getDeletionModeLiveData().getValue())) {
+                if (binding.list.getAdapter() instanceof HistoryAdapter) {
+                    ((HistoryAdapter) binding.list.getAdapter()).toggleSelection(position);
+                }
+            } else {
+                AbstractMessageModel model = messageModels.get(position);
+                if (model.getImageFile() != null) {
+                    Intent intent = new Intent(requireActivity(), FullScreenImageActivity.class);
+                    intent.putExtra(FullScreenImageActivity.EXTRA_IMAGE_PATH, model.getImageFile().getAbsolutePath());
+                    startActivity(intent);
+                }
+            }
+        }
     }
 
     private void loadImageContents() {
@@ -80,17 +138,11 @@ public class HistoryFragment extends Fragment {
             if (getContext() == null) {
                 return;
             }
-            ArrayList<ImageUtils.ImageContent> imageContents = Output.getOutputFiles(getContext());
-            mImageContents.clear();
-            if (imageContents != null) {
-                imageContents.sort((o1, o2) -> {
-                    if (o1.getParams() == null || o2.getParams() == null) {
-                        return 0;
-                    }
-                    return Math.toIntExact(o2.getParams().getTimestamp() - o1.getParams().getTimestamp());
-                });
-                mImageContents.addAll(imageContents);
-            }
+            List<AbstractMessageModel> models = DataIO.copyMessageModels(getContext());
+            messageModels.clear();
+            models.removeIf(m -> m.getImageFile() == null || !m.getImageFile().exists());
+            models.sort((o1, o2) -> Math.toIntExact(o2.getUTCTimestamp() - o1.getUTCTimestamp()));
+            messageModels.addAll(models);
 
             requireActivity().runOnUiThread(() -> {
                 if (binding.list.getAdapter() != null) {
@@ -103,5 +155,26 @@ public class HistoryFragment extends Fragment {
     @Override
     public void onDestroy() {
         super.onDestroy();
+    }
+
+    private void doDelete() {
+        if (binding.list.getAdapter() instanceof HistoryAdapter) {
+            List<Integer> indices = ((HistoryAdapter) binding.list.getAdapter()).getSelectedIndices();
+            if (indices.isEmpty()) {
+                return;
+            }
+
+            new OptionalDialog().setTitle("提示")
+                    .setMessage(String.format(Locale.getDefault(), "删除 %d 项！", indices.size()))
+                    .setPositive(() -> {
+                        List<AbstractMessageModel> deletedModels = ((HistoryAdapter) binding.list.getAdapter()).deleteSelection();
+                        mViewModel.changeDeletionMode(false);
+                        Map<String, List<AbstractMessageModel>> deletedModelsMap = new HashMap<>();
+                        deletedModelsMap.put(HistoryFragment.class.getName(), deletedModels);
+                        mViewModel.changeDeletedModels(deletedModelsMap);
+                    })
+                    .setNegative(null)
+                    .show(getChildFragmentManager());
+        }
     }
 }

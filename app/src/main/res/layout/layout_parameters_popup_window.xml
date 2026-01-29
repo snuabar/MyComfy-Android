@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content">
+
+    <TableLayout
+        android:layout_width="300dp"
+        android:layout_height="wrap_content"
+        android:padding="10dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="工作流"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <TableRow>
+
+            <Spinner
+                android:id="@+id/spinnerWorkflow"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:layout_weight="1" />
+
+            <Button
+                android:id="@+id/btnLoadWorkflows"
+                android:layout_width="60dp"
+                android:layout_height="40dp"
+                android:layout_span="1"
+                android:text="刷新"
+                android:textSize="11sp" />
+        </TableRow>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="模型"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <TableRow
+            android:id="@+id/tableRowModels">
+
+            <Spinner
+                android:id="@+id/spinnerModels"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:layout_weight="1" />
+
+            <Button
+                android:id="@+id/btnLoadModels"
+                android:layout_width="60dp"
+                android:layout_height="40dp"
+                android:text="刷新"
+                android:textSize="11sp" />
+
+        </TableRow>
+        <!-- 参数设置 -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="参数设置"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <TableRow android:layout_marginStart="6dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="图像宽度:" />
+
+            <EditText
+                android:id="@+id/etWidth"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:layout_weight="1"
+                android:inputType="number"
+                android:maxLength="4"
+                android:text="512"
+                android:textSize="14sp" />
+
+        </TableRow>
+
+        <TableRow android:layout_marginStart="6dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="图像高度:" />
+
+            <EditText
+                android:id="@+id/etHeight"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:layout_weight="1"
+                android:inputType="number"
+                android:maxLength="4"
+                android:text="512"
+                android:textSize="14sp" />
+
+        </TableRow>
+
+        <TableRow android:layout_marginStart="6dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="种子:" />
+
+            <EditText
+                android:id="@+id/etSeed"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="6dp"
+                android:layout_weight="1"
+                android:hint="可选"
+                android:inputType="numberSigned"
+                android:text="216"
+                android:textSize="14sp" />
+
+            <Button
+                android:id="@+id/btnRandom"
+                android:layout_width="60dp"
+                android:layout_height="40dp"
+                android:text="随机"
+                android:textSize="11sp" />
+
+        </TableRow>
+
+        <TableRow android:layout_marginStart="6dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="2dp"
+                android:text="步数:" />
+
+            <EditText
+                android:id="@+id/etStep"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:layout_weight="1"
+                android:inputType="number"
+                android:text="20"
+                android:textSize="14sp" />
+
+        </TableRow>
+
+        <TableRow android:layout_marginStart="6dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="2dp"
+                android:text="CFG:" />
+
+            <EditText
+                android:id="@+id/etCFG"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:layout_weight="1"
+                android:inputType="numberDecimal"
+                android:text="8.0"
+                android:textSize="14sp" />
+
+        </TableRow>
+
+        <TableRow android:layout_marginStart="6dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="放大:" />
+
+            <EditText
+                android:id="@+id/etUpscaleFactor"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:layout_weight="1"
+                android:inputType="numberDecimal"
+                android:text="1.0"
+                android:textSize="14sp" />
+        </TableRow>
+    </TableLayout>
+</ScrollView>

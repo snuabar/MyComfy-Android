@@ -1,62 +1,61 @@
 package com.snuabar.mycomfy.main;
 
+import android.content.Intent;
 import android.content.SharedPreferences;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
+import android.os.SystemClock;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.documentfile.provider.DocumentFile;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.Lifecycle;
 import androidx.lifecycle.ViewModelProvider;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.snuabar.mycomfy.R;
+import com.snuabar.mycomfy.client.EnqueueResponse;
 import com.snuabar.mycomfy.client.ImageRequest;
 import com.snuabar.mycomfy.client.ImageResponse;
-import com.snuabar.mycomfy.client.ModelResponse;
+import com.snuabar.mycomfy.client.InterruptRequest;
+import com.snuabar.mycomfy.client.Parameters;
 import com.snuabar.mycomfy.client.RetrofitClient;
-import com.snuabar.mycomfy.client.StatusResponse;
-import com.snuabar.mycomfy.client.WorkflowsResponse;
 import com.snuabar.mycomfy.common.Callbacks;
 import com.snuabar.mycomfy.databinding.FragmentHomeBinding;
+import com.snuabar.mycomfy.main.data.AbstractMessageModel;
+import com.snuabar.mycomfy.main.model.ReceivedMessageModel;
+import com.snuabar.mycomfy.main.model.SentMessageModel;
+import com.snuabar.mycomfy.preview.FullScreenImageActivity;
 import com.snuabar.mycomfy.setting.Settings;
 import com.snuabar.mycomfy.utils.FileOperator;
 import com.snuabar.mycomfy.utils.FilePicker;
-import com.snuabar.mycomfy.utils.Output;
+import com.snuabar.mycomfy.main.data.DataIO;
+import com.snuabar.mycomfy.view.ParametersPopup;
+import com.snuabar.mycomfy.view.dialog.OptionalDialog;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.Stack;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 import okhttp3.ResponseBody;
 import retrofit2.Call;
@@ -70,18 +69,15 @@ public class HomeFragment extends Fragment {
     private FragmentHomeBinding binding;
 
     private RetrofitClient retrofitClient;
-    private String currentRequestId;
-    private ScheduledExecutorService statusChecker;
-    private final Executor executor = Executors.newSingleThreadExecutor();
 
     private MainViewModel mViewModel;
     private FilePicker filePicker;
-    private File latestImageFile;
-    private final Map<String, List<String>> workflows = new HashMap<>();
-    private final List<String> models = new ArrayList<>();
-    private ArrayAdapter<String> workflowAdapter, modelAdapter;
-
-    private Handler mainHandler;
+    private MessageAdapter messageAdapter = null;
+    private ParametersPopup popup;
+    private final Stack<String> promptIdStack = new Stack<>();
+    private Executor promptCheckExecutor = null;
+    private boolean isPromptCheckExecutorStop = false;
+    private String promptIdToInterrupt = null;
 
     public static HomeFragment newInstance() {
         return new HomeFragment();
@@ -93,8 +89,8 @@ public class HomeFragment extends Fragment {
         mViewModel = new ViewModelProvider(requireActivity()).get(MainViewModel.class);
         filePicker = mViewModel.getFilePicker();
         // 初始化Retrofit客户端
-        retrofitClient = RetrofitClient.getInstance(requireContext());
-        mainHandler = new Handler(Looper.getMainLooper());
+        retrofitClient = RetrofitClient.getInstance();
+        popup = new ParametersPopup(requireContext());
     }
 
     @Nullable
@@ -104,188 +100,130 @@ public class HomeFragment extends Fragment {
         initViews();
         // 设置按钮点击事件
         setupClickListeners();
-        // 设置工作流控件
-        setupWorkflowAdapter();
         return binding.getRoot();
     }
 
-    private void setupWorkflowAdapter() {
-        workflowAdapter = new ArrayAdapter<>(requireContext(), R.layout.layout_workflow_item, R.id.text1);
-        modelAdapter = new ArrayAdapter<>(requireContext(), R.layout.layout_model_item, R.id.text1);
-        binding.spinnerWorkflow.setAdapter(workflowAdapter);
-        binding.spinnerModels.setAdapter(modelAdapter);
-        binding.spinnerWorkflow.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                String selectedWorkflow = binding.spinnerWorkflow.getItemAtPosition(position).toString();
-                Settings.getInstance().getPreferences().edit().putString("workflow", selectedWorkflow).apply();
-                loadModels();
-            }
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+        messageAdapter = new MessageAdapter(requireContext(), this::onMessageElementClick);
+        binding.recyclerView.setAdapter(messageAdapter);
 
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {
-
+        mViewModel.getDeletionHasPressLiveData().observe(this, aBoolean -> {
+            if (getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.RESUMED)) {
+                if (aBoolean) {
+                    doDelete();
+                }
             }
         });
-        binding.spinnerModels.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                String selectedModel = binding.spinnerModels.getItemAtPosition(position).toString();
-                Settings.getInstance().getPreferences().edit().putString("model", selectedModel).apply();
-            }
-
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {
-
+        mViewModel.getDeletionModeLiveData().observe(this, aBoolean -> {
+            if (getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.RESUMED)) {
+                messageAdapter.setEditMode(aBoolean);
             }
         });
+        mViewModel.getDeletedModelsLiveData().observe(this, stringListMap -> {
+            stringListMap.remove(HomeFragment.class.getName());
+            if (!stringListMap.isEmpty()) {
+                for (String key : stringListMap.keySet()) {
+                    for (AbstractMessageModel model : Objects.requireNonNull(stringListMap.get(key))) {
+                        messageAdapter.remove(model, false);
+                    }
+                }
+            }
+        });
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        messageAdapter.setEditMode(false);
+    }
+
+    private void onMessageElementClick(int position, int ope) {
+        if (position == RecyclerView.NO_POSITION) {
+            return;
+        }
+
+        AbstractMessageModel model = messageAdapter.get(position);
+        if (model == null) {
+            return;
+        }
+
+        File imageFile = model.getImageFile();
+        String promptId = model.getPromptId();
+        if (ope == MessageAdapter.OnElementClickListener.OPE_NONE) {
+            if (Boolean.TRUE.equals(mViewModel.getDeletionModeLiveData().getValue())) {
+                messageAdapter.toggleSelection(position);
+            } else {
+                if (imageFile != null && imageFile.exists()) {
+                    Intent intent = new Intent(requireActivity(), FullScreenImageActivity.class);
+                    intent.putExtra(FullScreenImageActivity.EXTRA_IMAGE_PATH, imageFile.getAbsolutePath());
+                    startActivity(intent);
+                }
+            }
+        } else if (ope == MessageAdapter.OnElementClickListener.OPE_LONG_CLICK) {
+            mViewModel.changeDeletionMode(true);
+        } else if (ope == MessageAdapter.OnElementClickListener.OPE_INTERRUPT) {
+            requireInterruption(promptId);
+        } else if (ope == MessageAdapter.OnElementClickListener.OPE_SAVE) {
+            if (imageFile != null && imageFile.exists()) {
+                // 使用文档创建API
+                filePicker.pickDirectory(imageFile, this::onDirectoryPickerWithFileCallback);
+            }
+        } else if (ope == MessageAdapter.OnElementClickListener.OPE_SHARE) {
+            if (imageFile != null && imageFile.exists()) {
+                FileOperator.shareImageFromLocal(requireContext(), imageFile);
+            }
+        }
+    }
+
+    private void onDirectoryPickerWithFileCallback(Uri[] uris, File file) {
+        if (uris == null || uris.length == 0 || file == null) {
+            return;
+        }
+
+        Uri uri = uris[0];
+        DocumentFile destDir = DocumentFile.fromTreeUri(requireContext(), uri);
+        if (destDir != null && destDir.exists()) {
+            if (!destDir.isDirectory() || !destDir.exists()) {
+                Toast.makeText(getContext(), "保存失败！无效目录！", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            DocumentFile zipDocumentFile = DocumentFile.fromFile(file);
+            if (!FileOperator.copyDocumentFile(requireContext(), zipDocumentFile, destDir, false)) {
+                Toast.makeText(getContext(), "保存失败！", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(getContext(), "保存成功！", Toast.LENGTH_SHORT).show();
+            }
+        } else {
+            Toast.makeText(getContext(), "保存失败！", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void requireInterruption(String promptId) {
+        promptIdToInterrupt = promptId;
     }
 
     private void initViews() {
         binding.etPrompt.setText(Settings.getInstance().getPreferences().getString("prompt", getString(R.string.default_prompt)));
-        binding.etWidth.setText(Settings.getInstance().getPreferences().getString("width", "512"));
-        binding.etHeight.setText(Settings.getInstance().getPreferences().getString("height", "512"));
-        binding.etSeed.setText(Settings.getInstance().getPreferences().getString("seed", "0"));
-        binding.etStep.setText(Settings.getInstance().getPreferences().getString("step", "22"));
-        binding.etCFG.setText(Settings.getInstance().getPreferences().getString("cfg", "8.0"));
-        binding.etUpscaleFactor.setText(Settings.getInstance().getPreferences().getString("upscale_factor", "1.0"));
     }
 
     private void setupClickListeners() {
-        // 更新工作流按扭
-        binding.btnLoadWorkflows.setOnClickListener(v -> loadWorkflows());
-        // 更新工作流按扭
-        binding.btnLoadModels.setOnClickListener(v -> loadModels());
         // 生成图像按钮
-        binding.btnGenerate.setOnClickListener(v -> generateImage());
-        // 保存图像按钮
-        binding.btnDownload.setOnClickListener(v -> saveImageWithPicker());
-        // 分享图像按钮
-        binding.btnShare.setOnClickListener(v -> shareImage());
+        binding.btnSubmit.setOnClickListener(v -> enqueue());
+        binding.btnParam.setOnClickListener(v -> popup.showAsDropDown(v));
     }
 
-    private void shareImage() {
-        if (latestImageFile != null && latestImageFile.exists()) {
-            FileOperator.shareImageFromLocal(requireContext(), latestImageFile);
-        }
-    }
-
-    private void loadWorkflows() {
-        log("发送请求: 加载工作流。");
-        binding.tvStatus.setText("正在加载工作流列表……");
-        // 发送请求
-        retrofitClient.getApiService().loadWorkflow().enqueue(new Callback<>() {
-            @Override
-            public void onResponse(@NonNull Call<WorkflowsResponse> call, @NonNull Response<WorkflowsResponse> response) {
-                if (response.isSuccessful() && response.body() != null) {
-                    WorkflowsResponse workflowsResponse = response.body();
-                    workflows.clear();
-                    workflows.putAll(workflowsResponse.getWorkflows());
-                    mainHandler.post(() -> {
-                        List<String> workflowNames = new ArrayList<>(workflows.keySet());
-                        workflowAdapter.clear();
-                        workflowAdapter.addAll(workflowNames);
-                        String selectedWorkflow = Settings.getInstance().getPreferences().getString("workflow", null);
-                        int index = workflowNames.indexOf(selectedWorkflow);
-                        if (index < 0 || index >= workflows.size()) {
-                            index = 0;
-                            Settings.getInstance().getPreferences().edit().putString("workflow", workflowNames.get(index)).apply();
-                        }
-                        binding.spinnerWorkflow.setSelection(index);
-                        binding.tvStatus.setText("成功加载模型列表");
-
-                        loadModels();
-                    });
-                } else {
-                    mainHandler.post(() -> {
-                        binding.tvStatus.setText("请求失败: " + response.code());
-                        log("请求失败，状态码: " + response.code());
-                    });
-                }
-            }
-
-            @Override
-            public void onFailure(@NonNull Call<WorkflowsResponse> call, @NonNull Throwable t) {
-                mainHandler.post(() -> {
-                    binding.tvStatus.setText("请求失败: " + t.getMessage());
-                    log("请求失败: " + t.getMessage());
-                });
-            }
-        });
-    }
-
-    private void loadModels() {
-        modelAdapter.clear();
-        if (binding.spinnerWorkflow.getSelectedItem() == null) {
-            return;
-        }
-
-        String selectedWorkflow = binding.spinnerWorkflow.getSelectedItem().toString();
-        List<String> modelTypes = workflows.get(selectedWorkflow);
-        if (modelTypes == null) {
-            return;
-        }
-
-        binding.layoutModels.setAlpha(modelTypes.isEmpty() ? 0.3f : 1.0f);
-        binding.spinnerModels.setEnabled(!modelTypes.isEmpty());
-        binding.btnLoadModels.setEnabled(!modelTypes.isEmpty());
-
-        if (modelTypes.isEmpty()) {
-            return;
-        }
-
-        log("发送请求: 加载模型列表。");
-        binding.tvStatus.setText("正在加载模型列表……");
-        for (String modelType : modelTypes) {
-            // 发送请求
-            retrofitClient.getApiService().loadModels(modelType).enqueue(new Callback<>() {
-                @Override
-                public void onResponse(@NonNull Call<ModelResponse> call, @NonNull Response<ModelResponse> response) {
-                    if (response.isSuccessful() && response.body() != null) {
-                        ModelResponse modelResponse = response.body();
-                        models.clear();
-                        models.addAll(modelResponse.getModels());
-                        mainHandler.post(() -> {
-                            modelAdapter.clear();
-                            modelAdapter.addAll(models);
-                            String selectedModels = Settings.getInstance().getPreferences().getString("model", null);
-                            int index = models.indexOf(selectedModels);
-                            if (index < 0 || index >= models.size()) {
-                                index = 0;
-                                Settings.getInstance().getPreferences().edit().putString("model", models.get(index)).apply();
-                            }
-                            binding.spinnerModels.setSelection(index);
-                            binding.tvStatus.setText("成功加载模型列表");
-                        });
-                    } else {
-                        mainHandler.post(() -> {
-                            binding.tvStatus.setText("请求失败: " + response.code());
-                            log("请求失败，状态码: " + response.code());
-                        });
-                    }
-                }
-
-                @Override
-                public void onFailure(@NonNull Call<ModelResponse> call, @NonNull Throwable t) {
-                    mainHandler.post(() -> {
-                        binding.tvStatus.setText("请求失败: " + t.getMessage());
-                        log("请求失败: " + t.getMessage());
-                    });
-                }
-            });
-        }
-    }
-
-    private void generateImage() {
-        String workflow = binding.spinnerWorkflow.getSelectedItem().toString();
-        String model = null;
+    private void enqueue() {
+        String workflow = popup.getParameter(ParametersPopup.KEY_PARAM_WORKFLOW);
+        String model = popup.getParameter(ParametersPopup.KEY_PARAM_MODEL);
         String prompt = binding.etPrompt.getText().toString().trim();
-        String widthStr = binding.etWidth.getText().toString().trim();
-        String heightStr = binding.etHeight.getText().toString().trim();
-        String seedStr = binding.etSeed.getText().toString().trim();
-        String upscaleFactorStr = binding.etUpscaleFactor.getText().toString().trim();
-        String stepStr = binding.etStep.getText().toString().trim();
-        String cfgStr = binding.etCFG.getText().toString().trim();
+        String widthStr = popup.getParameter(ParametersPopup.KEY_PARAM_WIDTH);
+        String heightStr = popup.getParameter(ParametersPopup.KEY_PARAM_HEIGHT);
+        String seedStr = popup.getParameter(ParametersPopup.KEY_PARAM_SEED);
+        String upscaleFactorStr = popup.getParameter(ParametersPopup.KEY_PARAM_UPSCALE_FACTOR);
+        String stepStr = popup.getParameter(ParametersPopup.KEY_PARAM_STEP);
+        String cfgStr = popup.getParameter(ParametersPopup.KEY_PARAM_CFG);
 
         // 验证输入
         if (workflow.isEmpty()) {
@@ -294,12 +232,9 @@ public class HomeFragment extends Fragment {
         }
 
         // 验证输入
-        if (binding.spinnerModels.getSelectedItem() != null) {
-            model = binding.spinnerModels.getSelectedItem().toString();
-            if (!models.contains(model)) {
-                showToast("请选择模型");
-                return;
-            }
+        if (TextUtils.isEmpty(model) && !popup.isModelAllowedEmpty()) {
+            showToast("请选择模型");
+            return;
         }
 
         // 验证输入
@@ -377,400 +312,68 @@ public class HomeFragment extends Fragment {
             newSet.add(getPromptForSave(prompt));
             editor.putStringSet("prompts", newSet);
             editor.putString("prompt", prompt);
+            editor.apply();
         }
-        editor.putString("workflow", workflow);
-        editor.putString("width", width + "");
-        editor.putString("height", height + "");
-        editor.putString("seed", seed + "");
-        editor.putString("upscale_factor", upscaleFactor + "");
-        editor.putString("step", step + "");
-        editor.putString("cfg", cfg + "");
-        editor.apply();
 
         // 创建请求对象
         ImageRequest request = new ImageRequest(workflow, model, prompt, seed, width, height, step, cfg, upscaleFactor);
-
-        // 显示进度条
-        binding.progressBar.setVisibility(View.VISIBLE);
-        binding.tvStatus.setText("正在生成图像...");
-        binding.btnGenerate.setEnabled(false);
-
-        log("发送生成请求：\n" +
-                "工作流: " + workflow + "\n" +
-                "模型: " + (model == null ? "不指定" : model) + "\n" +
-                "提示词: " + prompt + "\n" +
-                "尺寸: " + width + "x" + height + "\n" +
-                "种子: " + (seed != null ? seed : "随机") + "\n" +
-                "放大: " + upscaleFactor + "\n" +
-                "步数: " + step + "\n" +
-                "CFG: " + cfg + "\n"
-        );
-
-        currentRequestId = null;
-        binding.btnDownload.setEnabled(false);
-        binding.btnShare.setEnabled(false);
-
+        final SentMessageModel sentMessageModel = new SentMessageModel(request);
+        messageAdapter.add(sentMessageModel);
         // 发送请求
-        retrofitClient.getApiService().generateImage(request).enqueue(new Callback<>() {
+        retrofitClient.getApiService().enqueue(request).enqueue(new Callback<>() {
             @Override
-            public void onResponse(@NonNull Call<ImageResponse> call, @NonNull Response<ImageResponse> response) {
+            public void onResponse(@NonNull Call<EnqueueResponse> call, @NonNull Response<EnqueueResponse> response) {
+                EnqueueResponse enqueueResponse;
                 if (response.isSuccessful() && response.body() != null) {
-                    ImageResponse imageResponse = response.body();
-                    currentRequestId = imageResponse.getRequest_id();
-
-                    mainHandler.post(() -> {
-                        binding.progressBar.setVisibility(View.INVISIBLE);
-                        binding.btnGenerate.setEnabled(true);
-
-                        if ("success".equals(imageResponse.getStatus())) {
-                            binding.tvStatus.setText("图像生成成功");
-                            binding.tvRequestId.setText("请求ID: " + currentRequestId);
-
-                            log("生成成功！\n" + "请求ID: " + currentRequestId + "\n" + "处理时间: " + imageResponse.getProcessing_time() + "秒");
-
-                            // 自动下载并显示图像
-                            downloadAndDisplayImage(imageResponse);
+                    enqueueResponse = response.body();
+                    if (enqueueResponse.getCode() == 200) { // OK
+                        if (enqueueResponse.isFile_exists()) { // 相同图像已经生成
+                            downloadImage(enqueueResponse.getPrompt_id());
                         } else {
-                            binding.tvStatus.setText("生成失败: " + imageResponse.getMessage());
-                            log("生成失败: " + imageResponse.getMessage());
+                            addToPromptCheck(enqueueResponse.getPrompt_id());
                         }
-                    });
+                        ReceivedMessageModel receivedMessageModel = new ReceivedMessageModel(enqueueResponse);
+                        messageAdapter.add(receivedMessageModel);
+                    } else if (enqueueResponse.getCode() == 409) { // conflict 已存在相同任务
+                        messageAdapter.remove(sentMessageModel);
+                    }
                 } else {
-                    mainHandler.post(() -> {
-                        binding.progressBar.setVisibility(View.INVISIBLE);
-                        binding.btnGenerate.setEnabled(true);
-                        binding.tvStatus.setText("请求失败: " + response.code());
-                        log("请求失败，状态码: " + response.code());
-                    });
+                    enqueueResponse = EnqueueResponse.create(response.code(), response.message(),
+                            new Parameters().loadFromRequest(request));
+                    ReceivedMessageModel receivedMessageModel = new ReceivedMessageModel(enqueueResponse);
+                    messageAdapter.add(receivedMessageModel);
                 }
             }
 
             @Override
-            public void onFailure(@NonNull Call<ImageResponse> call, @NonNull Throwable t) {
-                mainHandler.post(() -> {
-                    binding.progressBar.setVisibility(View.INVISIBLE);
-                    binding.btnGenerate.setEnabled(true);
-                    binding.tvStatus.setText("请求失败: " + t.getMessage());
-                    log("请求失败: " + t.getMessage());
-                });
+            public void onFailure(@NonNull Call<EnqueueResponse> call, @NonNull Throwable t) {
+                messageAdapter.setSentFailureMessage(sentMessageModel, t.getMessage());
             }
         });
     }
 
-
-    private void saveImageWithPicker() {
-        if (currentRequestId == null || currentRequestId.isEmpty()) {
-            showToast("没有可保存的图像");
-            return;
-        }
-
-        // 使用文档创建API
-        filePicker.pickDirectory(this::onDirectoryPickerCallback);
-    }
-
-    private void onDirectoryPickerCallback(Uri[] uris) {
-        if (uris == null || uris.length == 0) {
-            return;
-        }
-
-        Uri uri = uris[0];
-        DocumentFile destDir = DocumentFile.fromTreeUri(requireContext(), uri);
-        if (destDir != null && destDir.exists()) {
-            if (!destDir.isDirectory() || !destDir.exists()) {
-                Toast.makeText(getContext(), "保存失败！无效目录！", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            DocumentFile zipDocumentFile = DocumentFile.fromFile(latestImageFile);
-            if (!FileOperator.moveDocumentFile(requireContext(), zipDocumentFile, destDir)) {
-                Toast.makeText(getContext(), "保存失败！", Toast.LENGTH_SHORT).show();
-            } else {
-                Toast.makeText(getContext(), "保存成功！", Toast.LENGTH_SHORT).show();
-            }
-        } else {
-            Toast.makeText(getContext(), "保存失败！", Toast.LENGTH_SHORT).show();
-        }
-    }
-
-    private void saveImageWithUri(Uri uri) {
-        if (currentRequestId == null || currentRequestId.isEmpty()) {
-            showToast("没有可保存的图像");
-            return;
-        }
-
-        binding.tvStatus.setText("正在保存图像...");
-
-        executor.execute(() -> {
-            try {
-                // 下载图像
-                retrofitClient.getApiService().downloadImage(currentRequestId).enqueue(new Callback<>() {
-                    @Override
-                    public void onResponse(@NonNull Call<ResponseBody> call, @NonNull Response<ResponseBody> response) {
-                        if (response.isSuccessful()) {
-                            try (ResponseBody body = response.body()) {
-                                try {
-                                    // 将图像保存到Uri指定的位置
-                                    saveImageToUri(body, uri);
-                                } catch (IOException e) {
-                                    mainHandler.post(() -> {
-                                        showToast("保存失败: " + e.getMessage());
-                                        binding.tvStatus.setText("保存失败");
-                                        log("保存失败: " + e.getMessage());
-                                    });
-                                }
-                            }
-                        }
-                    }
-
-                    @Override
-                    public void onFailure(@NonNull Call<ResponseBody> call, @NonNull Throwable t) {
-                        mainHandler.post(() -> {
-                            showToast("下载失败: " + t.getMessage());
-                            binding.tvStatus.setText("下载失败");
-                        });
-                    }
-                });
-            } catch (Exception e) {
-                mainHandler.post(() -> {
-                    showToast("保存异常: " + e.getMessage());
-                    binding.tvStatus.setText("保存异常");
-                });
-            }
-        });
-    }
-
-    private void saveImageToUri(ResponseBody body, Uri uri) throws IOException {
-        try (InputStream inputStream = body.byteStream(); OutputStream outputStream = requireContext().getContentResolver().openOutputStream(uri)) {
-
-            if (outputStream == null) {
-                throw new IOException("无法打开输出流");
-            }
-
-            byte[] buffer = new byte[4096];
-            int bytesRead;
-
-            while ((bytesRead = inputStream.read(buffer)) != -1) {
-                outputStream.write(buffer, 0, bytesRead);
-            }
-
-            outputStream.flush();
-
-            mainHandler.post(() -> {
-                showToast("图像保存成功");
-                binding.tvStatus.setText("图像保存完成");
-                log("图像已保存到: " + uri.toString());
-            });
-        }
-    }
-
-    private void downloadAndDisplayImage(ImageResponse imageResponse) {
-        if (currentRequestId == null || currentRequestId.isEmpty()) {
-            showToast("没有可下载的图像");
-            return;
-        }
-
-        binding.tvStatus.setText("正在下载图像...");
-
-        executor.execute(() -> {
-            try {
-                retrofitClient.getApiService().downloadImage(currentRequestId).enqueue(new Callback<>() {
-                    @Override
-                    public void onResponse(@NonNull Call<ResponseBody> call, @NonNull Response<ResponseBody> response) {
-                        if (response.isSuccessful()) {
-                            try (ResponseBody body = response.body()) {
-                                // 保存图像到文件
-                                File imageFile = saveImageToFile(body, imageResponse, (total, progress) -> {
-                                    mainHandler.post(() -> {
-                                        binding.progressBar.setVisibility(View.VISIBLE);
-                                        binding.progressBar.setMax(Math.toIntExact(total));
-                                        binding.progressBar.setProgress(Math.toIntExact(progress));
-                                    });
-                                });
-                                if (imageFile != null) {
-                                    mainHandler.post(() -> {
-                                        binding.tvStatus.setText("图像下载完成");
-                                        displayImage(imageFile);
-                                        binding.btnDownload.setEnabled(true);
-                                        binding.btnShare.setEnabled(true);
-                                        log("图像已保存到: " + imageFile.getAbsolutePath());
-                                    });
-                                }
-                            }
-                        } else {
-                            mainHandler.post(() -> {
-                                binding.tvStatus.setText("下载失败: " + response.code());
-                                log("下载失败，状态码: " + response.code());
-                            });
-                        }
-                    }
-
-                    @Override
-                    public void onFailure(@NonNull Call<ResponseBody> call, @NonNull Throwable t) {
-                        mainHandler.post(() -> {
-                            binding.tvStatus.setText("下载失败: " + t.getMessage());
-                            log("下载失败: " + t.getMessage());
-                        });
-                    }
-                });
-            } catch (Exception e) {
-                mainHandler.post(() -> {
-                    binding.tvStatus.setText("下载异常: " + e.getMessage());
-                    log("下载异常: " + e.getMessage());
-                });
-            }
-        });
-    }
-
-    private void downloadImage() {
-        if (currentRequestId == null || currentRequestId.isEmpty()) {
-            showToast("没有可下载的图像");
-            return;
-        }
-
-        binding.tvStatus.setText("正在下载图像...");
-
-        executor.execute(() -> {
-            try {
-                retrofitClient.getApiService().downloadImage(currentRequestId).enqueue(new Callback<>() {
-                    @Override
-                    public void onResponse(@NonNull Call<ResponseBody> call, @NonNull Response<ResponseBody> response) {
-                        if (response.isSuccessful()) {
-                            try (ResponseBody body = response.body()) {
-                                File imageFile = saveImageToFile(body, null, (total, progress) -> {
-                                    mainHandler.post(() -> {
-                                        binding.progressBar.setVisibility(View.VISIBLE);
-                                        binding.progressBar.setMax(Math.toIntExact(total));
-                                        binding.progressBar.setProgress(Math.toIntExact(progress));
-                                    });
-                                });
-                                if (imageFile != null) {
-                                    mainHandler.post(() -> {
-                                        showToast("图像已保存到: " + imageFile.getAbsolutePath());
-                                        binding.tvStatus.setText("图像保存完成");
-                                        log("图像已保存: " + imageFile.getName());
-                                    });
-                                }
-                            }
-                        }
-                    }
-
-                    @Override
-                    public void onFailure(@NonNull Call<ResponseBody> call, @NonNull Throwable t) {
-                        mainHandler.post(() -> {
-                            showToast("下载失败: " + t.getMessage());
-                            binding.tvStatus.setText("下载失败");
-                        });
-                    }
-                });
-            } catch (Exception e) {
-                mainHandler.post(() -> {
-                    showToast("下载异常: " + e.getMessage());
-                    binding.tvStatus.setText("下载异常");
-                });
-            }
-        });
-    }
-
-    private File saveImageToFile(ResponseBody body, ImageResponse imageResponse, Callbacks.Callback2T<Long, Long> callback) {
+    private File saveImageToFile(ResponseBody body, Callbacks.Callback2T<Long, Long> callback) {
         try {
-            File[] outputFiles = Output.newOutputFile(requireContext());
-            File imageFile = outputFiles[0];
+            File imageFile = DataIO.newImageFile(requireContext());
 
             // 保存文件
             if (RetrofitClient.downloadFile(body, imageFile, callback)) {
-                latestImageFile = imageFile;
-                if (imageResponse != null && imageResponse.getParameters() != null) {
-                    imageResponse.getParameters().setTimestamp(System.currentTimeMillis());
-                    JSONObject jsonObject = imageResponse.getParameters().toJson();
-                    if (jsonObject != null) {
-                        File requestJsonFile = outputFiles[1];
-                        try (FileWriter writer = new FileWriter(requestJsonFile, StandardCharsets.UTF_8, false)) {
-                            writer.append(jsonObject.toString());
-                        }
-                    }
-                }
-
-                SharedPreferences preferences = Settings.getInstance().getPreferences();
-                Set<String> imageSet = preferences.getStringSet("images", new HashSet<>());
-
-                SharedPreferences.Editor editor = preferences.edit();
-                editor.apply();
-
                 return imageFile;
             }
         } catch (Exception e) {
-            log("保存文件失败: " + e.getMessage());
+            log("保存文件失败: " + e.getMessage(), true);
         }
         return null;
     }
 
-    private void displayImage(File imageFile) {
-        try {
-            Bitmap bitmap = BitmapFactory.decodeFile(imageFile.getAbsolutePath());
-            if (bitmap != null) {
-                binding.ivGeneratedImage.setImageBitmap(bitmap);
-                log("图像显示成功，尺寸: " + bitmap.getWidth() + "x" + bitmap.getHeight());
-            } else {
-                log("无法解码图像文件");
-            }
-        } catch (Exception e) {
-            log("显示图像失败: " + e.getMessage());
-        }
-    }
-
-    private void startStatusChecker() {
-        if (statusChecker != null && !statusChecker.isShutdown()) {
-            statusChecker.shutdown();
-        }
-
-        statusChecker = Executors.newSingleThreadScheduledExecutor();
-        statusChecker.scheduleAtFixedRate(() -> {
-            if (currentRequestId != null && !currentRequestId.isEmpty()) {
-                checkImageStatus();
-            }
-        }, 0, 2, TimeUnit.SECONDS);
-    }
-
-    private void checkImageStatus() {
-        if (currentRequestId == null || currentRequestId.isEmpty()) {
-            return;
-        }
-
-        retrofitClient.getApiService().checkStatus(currentRequestId).enqueue(new Callback<>() {
-            @Override
-            public void onResponse(@NonNull Call<StatusResponse> call, @NonNull Response<StatusResponse> response) {
-                if (response.isSuccessful() && response.body() != null) {
-                    StatusResponse statusResponse = response.body();
-                    mainHandler.post(() -> {
-                        binding.tvStatus.setText("状态: " + statusResponse.getStatus() + " - " + statusResponse.getMessage());
-                        log("状态更新: " + statusResponse.getStatus());
-
-                        if ("success".equals(statusResponse.getStatus())) {
-                            stopStatusChecker();
-                            downloadAndDisplayImage(null);
-                        }
-                    });
-                }
-            }
-
-            @Override
-            public void onFailure(@NonNull Call<StatusResponse> call, @NonNull Throwable t) {
-                log("状态检查失败: " + t.getMessage());
-            }
-        });
-    }
-
-    private void stopStatusChecker() {
-        if (statusChecker != null && !statusChecker.isShutdown()) {
-            statusChecker.shutdown();
-            statusChecker = null;
-        }
-    }
-
-    private void log(String message) {
-        String currentLog = binding.tvLog.getText().toString();
+    private void log(String message, boolean isError) {
         String timestamp = new SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(new Date());
-        String newLog = "[" + timestamp + "] " + message + "\n" + currentLog;
-        binding.tvLog.setText(newLog);
+        String newLog = "[" + timestamp + "] " + message;
+        if (isError) {
+            Log.e(TAG, newLog);
+        } else {
+            Log.i(TAG, newLog);
+        }
     }
 
     private void showToast(String message) {
@@ -780,24 +383,13 @@ public class HomeFragment extends Fragment {
     @Override
     public void onDestroy() {
         super.onDestroy();
-        stopStatusChecker();
-        if (statusChecker != null) {
-            statusChecker.shutdown();
-        }
+        isPromptCheckExecutorStop = true;
     }
 
     @Override
     public void onResume() {
         super.onResume();
         updateBaseUrl();
-        if (binding.spinnerWorkflow.getCount() == 0) {
-            // 更新工作流
-            loadWorkflows();
-        }
-        if (binding.spinnerModels.getCount() == 0) {
-            // 更新工作流
-            loadModels();
-        }
     }
 
     private void updateBaseUrl() {
@@ -805,6 +397,94 @@ public class HomeFragment extends Fragment {
         String port = Settings.getInstance().getPreferences().getString("server_port", "8000");
         // 更新Base URL
         retrofitClient.setBaseUrl(ip, port);
+    }
+
+    private void addToPromptCheck(String promptId) {
+        promptIdStack.removeIf(s -> s.equals(promptId));
+        promptIdStack.push(promptId);
+
+        if (promptCheckExecutor != null) {
+            return;
+        }
+
+        promptCheckExecutor = Executors.newSingleThreadExecutor();
+        promptCheckExecutor.execute(() -> {
+            while (!isPromptCheckExecutorStop) {
+                SystemClock.sleep(2000);
+                if (promptIdStack.isEmpty()) {
+                    continue;
+                }
+
+                String promptIdInner = promptIdStack.pop();
+                if (promptIdInner.equals(promptIdToInterrupt)) {
+                    promptIdToInterrupt = null;
+                    try {
+                        Response<ResponseBody> response = retrofitClient.getApiService().interrupt(new InterruptRequest(promptIdInner)).execute();
+                        if (response.isSuccessful()) {
+                            messageAdapter.setFinished(promptIdInner, null, 200, "已取消");
+                        } else {
+                            promptIdStack.push(promptIdInner);
+                        }
+                    } catch (IOException e) {
+                        log("请求失败: " + e.getMessage(), true);
+                    }
+                    SystemClock.sleep(300);
+                    continue;
+                }
+
+                try {
+                    retrofit2.Response<ImageResponse> response = retrofitClient.getApiService().getImageStatus(promptIdInner).execute();
+                    if (response.isSuccessful()) {
+                        ImageResponse body = response.body();
+                        if (body != null) {
+                            if (body.getCode() == 200) {
+                                downloadImage(body.getPrompt_id());
+                            } else if (body.getCode() == 204) {
+                                Log.e(TAG, promptIdInner + " is being processing.");
+                                promptIdStack.add(promptIdInner);
+                            } else {
+                                Log.e(TAG, "Failed." + response.code() + ", " + response.message());
+                                messageAdapter.setFinished(promptIdInner, null, body.getCode(), body.getMessage());
+                            }
+                        } else {
+                            Log.e(TAG, "Failed." + response.code() + ", " + response.message());
+                            messageAdapter.setFinished(promptIdInner, null, 999, "unknown.");
+                        }
+                    } else {
+                        Log.e(TAG, "Failed." + response.code() + ", " + response.message());
+                        messageAdapter.setFinished(promptIdInner, null, response.code(), response.message());
+                    }
+                } catch (Throwable t) {
+                    Log.e(TAG, "failed to execute downloadImage(" + promptIdInner + ")", t);
+                    messageAdapter.setFinished(promptIdInner, null, 1000, t.getMessage());
+                }
+
+                SystemClock.sleep(300);
+            }
+        });
+    }
+
+    private void downloadImage(String promptId) {
+        retrofitClient.getApiService().download(promptId).enqueue(new Callback<>() {
+            @Override
+            public void onResponse(@NonNull Call<ResponseBody> call, @NonNull Response<ResponseBody> response) {
+                if (response.isSuccessful()) {
+                    try (ResponseBody body = response.body()) {
+                        File imageFile = saveImageToFile(body, (total, progress) -> {
+                            log("下载图像: " + progress + "/" + total, false);
+                        });
+                        if (imageFile != null) {
+                            messageAdapter.setFinished(promptId, imageFile, response.code(), response.message());
+                        }
+                    }
+                }
+            }
+
+            @Override
+            public void onFailure(@NonNull Call<ResponseBody> call, @NonNull Throwable t) {
+                messageAdapter.setFinished(promptId, null, 1000, t.getMessage());
+            }
+        });
     }
 
     private String getFileInfoForSave(File imageFile) {
@@ -849,5 +529,21 @@ public class HomeFragment extends Fragment {
         promptArray.sort((o1, o2) -> Math.toIntExact((long) o2[0] - (long) o1[0]));
 
         return promptArray;
+    }
+
+    private void doDelete() {
+        List<Integer> indices = messageAdapter.getSelectedIndices();
+        if (indices.isEmpty()) {
+            return;
+        }
+
+        new OptionalDialog().setTitle("提示")
+                .setMessage(String.format(Locale.getDefault(), "删除 %d 项！", indices.size()))
+                .setPositive(() -> {
+                    messageAdapter.deleteSelection();
+                    mViewModel.changeDeletionMode(false);
+                })
+                .setNegative(null)
+                .show(getChildFragmentManager());
     }
 }

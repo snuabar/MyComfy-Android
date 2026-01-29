@@ -30,6 +30,19 @@ public class FileOperator {
      * @return 移动成功返回true
      */
     public static boolean moveDocumentFile(Context context, DocumentFile sourceFile, DocumentFile targetFolder) {
+        return copyDocumentFile(context, sourceFile, targetFolder, true);
+    }
+
+    /**
+     * 复制DocumentFile文件到目标目录
+     *
+     * @param context      上下文
+     * @param sourceFile   要移动的源文件
+     * @param targetFolder 目标文件夹
+     * @param deleteSource 是否删除源文件
+     * @return 移动成功返回true
+     */
+    public static boolean copyDocumentFile(Context context, DocumentFile sourceFile, DocumentFile targetFolder, boolean deleteSource) {
         if (sourceFile == null || !sourceFile.exists() ||
                 targetFolder == null || !targetFolder.isDirectory()) {
             return false;
@@ -48,8 +61,11 @@ public class FileOperator {
             return false;
         }
 
-        // 3. 删除原文件
-        return sourceFile.delete();
+        if (deleteSource) {
+            // 3. 删除原文件
+            return sourceFile.delete();
+        }
+        return true;
     }
 
     /**
