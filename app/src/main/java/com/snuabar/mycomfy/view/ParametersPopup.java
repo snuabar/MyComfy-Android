@@ -84,13 +84,13 @@ public class ParametersPopup extends PopupWindow {
         setHeight(WindowManager.LayoutParams.WRAP_CONTENT);
         setFocusable(true);
         setBackgroundDrawable(AppCompatResources.getDrawable(context, R.drawable.parameters_popup_bg));
+        setElevation(8);
         retrofitClient = RetrofitClient.getInstance();
         loadValues();
         // 设置按钮点击事件
         setupClickListeners();
         // 设置工作流控件
         setupAdapters();
-
     }
 
     @Override
@@ -123,6 +123,7 @@ public class ParametersPopup extends PopupWindow {
         binding.btnLoadWorkflows.setOnClickListener(v -> loadWorkflows());
         // 更新工作流按扭
         binding.btnLoadModels.setOnClickListener(v -> loadModels());
+        binding.btnSwitchWH.setOnClickListener(v -> switchWidthAndHeight());
         binding.btnRandom.setOnClickListener(v -> {
             String seedStr = binding.etSeed.getText().toString().trim();
             int seed = 0;
@@ -136,6 +137,13 @@ public class ParametersPopup extends PopupWindow {
             seed = Math.abs(random.nextInt());
             binding.etSeed.setText(seed + "");
         });
+    }
+
+    private void switchWidthAndHeight() {
+        String widthStr = binding.etWidth.getText().toString();
+        String heightStr = binding.etHeight.getText().toString();
+        binding.etWidth.setText(heightStr);
+        binding.etHeight.setText(widthStr);
     }
 
     private void setupAdapters() {

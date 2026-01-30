@@ -14,25 +14,23 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.snuabar.mycomfy.R;
+import com.snuabar.mycomfy.client.Parameters;
 import com.snuabar.mycomfy.common.Common;
 import com.snuabar.mycomfy.databinding.LayoutReceivedMsgItemBinding;
 import com.snuabar.mycomfy.databinding.LayoutSentMsgItemBinding;
 import com.snuabar.mycomfy.main.data.AbstractMessageModel;
 import com.snuabar.mycomfy.main.data.DataIO;
-import com.snuabar.mycomfy.main.model.AbstractParameters;
 import com.snuabar.mycomfy.main.model.ReceivedMessageModel;
 import com.snuabar.mycomfy.main.model.SentMessageModel;
 import com.snuabar.mycomfy.utils.ImageUtils;
 
-import java.io.File;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Set;
 
 public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHolder> {
@@ -42,7 +40,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
 
     private final Handler mHandler;
     private final List<AbstractMessageModel> models;
-    private final Map<Integer, String> indexToPromptIdMap;
+//    private final Map<Integer, String> indexToPromptIdMap;
     private final OnElementClickListener listener;
     private WeakReference<RecyclerView> mRecyclerViewRef = null;
     private final Context context;
@@ -52,9 +50,9 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
     public MessageAdapter(Context context, OnElementClickListener listener) {
         this.context = context.getApplicationContext();
         this.mHandler = new Handler(Looper.getMainLooper());
-        this.models = DataIO.copyMessageModels(context);
+        this.models = Collections.synchronizedList(DataIO.copyMessageModels(context));
         this.listener = listener;
-        this.indexToPromptIdMap = new HashMap<>();
+//        this.indexToPromptIdMap = new HashMap<>();
         this.models.sort(Comparator.comparingLong(AbstractMessageModel::getUTCTimestamp));
         this.selections = new HashSet<>();
     }
@@ -88,7 +86,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
     public void onBindSentViewHolder(@NonNull SentViewHolder holder, int position) {
         SentMessageModel model = (SentMessageModel) models.get(position);
 
-        AbstractParameters param = model.getParameters();
+        Parameters param = model.getParameters();
         if (param != null) {
             holder.binding.textView.setText(param.getPrompt());
             holder.binding.textView0.setText(String.format(Locale.getDefault(),
@@ -120,7 +118,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
             ImageUtils.makeThumbnailAsync(model, width, height, this::onThumbnailMake);
         }
         holder.setTip(model.getMessage(), model.getCode() != 200);
-        holder.binding.btnInterrupt.setVisibility(model.getCode() == 200 ? View.GONE : View.VISIBLE);
+        holder.binding.btnInterrupt.setVisibility(model.getCode() == 200 || model.getInterruptionFlag() ? View.GONE : View.VISIBLE);
         holder.binding.tvDateCompletion.setText(model.isFinished() ? Common.formatTimestamp(model.getUTCTimestampCompletion()) : "");
     }
 
@@ -161,15 +159,15 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
     }
 
     private void updateIndexToPromptIdMap() {
-        indexToPromptIdMap.clear();
-        for (int i = 0; i < models.size(); i++) {
-            indexToPromptIdMap.put(i, models.get(i).getPromptId());
-        }
+//        indexToPromptIdMap.clear();
+//        for (int i = 0; i < models.size(); i++) {
+//            indexToPromptIdMap.put(i, models.get(i).getPromptId());
+//        }
     }
 
     public void add(AbstractMessageModel model) {
         models.add(model);
-        indexToPromptIdMap.put(models.size() - 1, model.getPromptId());
+//        indexToPromptIdMap.put(models.size() - 1, model.getPromptId());
 
         DataIO.writeModelFile(context, model);
 
@@ -180,22 +178,22 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
         }
     }
 
-    public void setFinished(String promptId, File imageFile, int code, String message) {
-        Set<Integer> indices = indexToPromptIdMap.keySet();
-        for (int index : indices) {
-            if (promptId != null && promptId.equals(indexToPromptIdMap.get(index))) {
-                if (index >= 0 && index < getItemCount()) {
-                    AbstractMessageModel model = models.get(index);
-                    model.setImageFile(imageFile);
-                    model.setImageResponseCode(code);
-                    model.setImageResponseMessage(message);
-                    model.setFinished();
-                    DataIO.writeModelFile(context, model);
-                    mHandler.post(() -> notifyItemChanged(index));
-                }
-            }
-        }
-    }
+//    public void setFinished(String promptId, File imageFile, int code, String message) {
+//        Set<Integer> indices = indexToPromptIdMap.keySet();
+//        for (int index : indices) {
+//            if (promptId != null && promptId.equals(indexToPromptIdMap.get(index))) {
+//                if (index >= 0 && index < getItemCount()) {
+//                    AbstractMessageModel model = models.get(index);
+//                    model.setImageFile(imageFile);
+//                    model.setImageResponseCode(code);
+//                    model.setImageResponseMessage(message);
+//                    model.setFinished(, , );
+//                    DataIO.writeModelFile(context, model);
+//                    mHandler.post(() -> notifyItemChanged(index));
+//                }
+//            }
+//        }
+//    }
 
     public AbstractMessageModel get(int position) {
         if (position < 0 || position >= models.size()) {
@@ -225,8 +223,15 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
         if (index >= 0 && index < models.size()) {
             sentMessageModel = models.get(index);
             sentMessageModel.setFailureMessage(message);
-            notifyItemChanged(index);
             DataIO.writeModelFile(context, sentMessageModel);
+            notifyItemChanged(index);
+        }
+    }
+
+    public void notifyModelChanged(AbstractMessageModel model) {
+        int index = models.lastIndexOf(model);
+        if (index >= 0 && index < models.size()) {
+            mHandler.post(() -> notifyItemChanged(index));
         }
     }
 
@@ -266,6 +271,16 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
         return deletedModels;
     }
 
+    public void interrupt(AbstractMessageModel model) {
+        int index = models.indexOf(model);
+        if (model != null && index != -1) {
+            model = models.get(index);
+            model.setInterruptionFlag(true);
+            DataIO.writeModelFile(context, model);
+            notifyItemChanged(index);
+        }
+    }
+
     public class ViewHolder extends RecyclerView.ViewHolder {
         public TextView tvTip;
         public TextView tvDate;
@@ -288,8 +303,8 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
 
         void setTip(String text, boolean isErr) {
             if (tvTip != null) {
-                tvTip.setTextColor(isErr ? android.R.color.holo_red_light : R.color.gray_83);
                 tvTip.setText(text);
+                tvTip.setTextColor(isErr ? android.R.color.holo_red_light : R.color.gray_83);
             }
         }
     }
@@ -303,6 +318,12 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
             this.tvDate = binding.tvDate;
             this.tvTip = binding.tvTip;
             this.checkBox = binding.checkbox;
+
+            binding.btnResent.setOnClickListener(V -> {
+                if (listener != null) {
+                    listener.onClick(getAbsoluteAdapterPosition(), OnElementClickListener.OPE_RESENT);
+                }
+            });
         }
     }
 
@@ -339,6 +360,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
         int OPE_INTERRUPT = 1;
         int OPE_SAVE = 2;
         int OPE_SHARE = 3;
+        int OPE_RESENT = 4;
         void onClick(int index, int ope);
     }
 }

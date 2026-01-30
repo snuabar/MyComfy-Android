@@ -19,6 +19,7 @@ import androidx.lifecycle.Lifecycle;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.internal.TextWatcherAdapter;
 import com.snuabar.mycomfy.R;
 import com.snuabar.mycomfy.client.EnqueueResponse;
 import com.snuabar.mycomfy.client.ImageRequest;
@@ -37,6 +38,7 @@ import com.snuabar.mycomfy.utils.FileOperator;
 import com.snuabar.mycomfy.utils.FilePicker;
 import com.snuabar.mycomfy.main.data.DataIO;
 import com.snuabar.mycomfy.view.ParametersPopup;
+import com.snuabar.mycomfy.view.PromptEditPopup;
 import com.snuabar.mycomfy.view.dialog.OptionalDialog;
 
 import java.io.File;
@@ -47,7 +49,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
-import java.util.Stack;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
@@ -67,11 +68,10 @@ public class HomeFragment extends Fragment {
     private MainViewModel mViewModel;
     private FilePicker filePicker;
     private MessageAdapter messageAdapter = null;
-    private ParametersPopup popup;
-    private final Stack<String> promptIdStack = new Stack<>();
+    private ParametersPopup parametersPopup;
+    private PromptEditPopup promptEditPopup;
     private Executor promptCheckExecutor = null;
     private boolean isPromptCheckExecutorStop = false;
-    private String promptIdToInterrupt = null;
 
     public static HomeFragment newInstance() {
         return new HomeFragment();
@@ -84,7 +84,8 @@ public class HomeFragment extends Fragment {
         filePicker = mViewModel.getFilePicker();
         // 初始化Retrofit客户端
         retrofitClient = RetrofitClient.getInstance();
-        popup = new ParametersPopup(requireContext());
+        parametersPopup = new ParametersPopup(requireContext());
+        promptEditPopup = new PromptEditPopup(requireContext(), promptTextWatcherAdapter);
     }
 
     @Nullable
@@ -125,9 +126,6 @@ public class HomeFragment extends Fragment {
                 }
             }
         });
-        mViewModel.getPromptLiveData().observe(this, s -> {
-            binding.tvPrompt.setText(s);
-        });
     }
 
     @Override
@@ -148,7 +146,16 @@ public class HomeFragment extends Fragment {
     public void onResume() {
         super.onResume();
         updateBaseUrl();
+        startStatusCheck();
     }
+
+    private final TextWatcherAdapter promptTextWatcherAdapter = new TextWatcherAdapter() {
+        @Override
+        public void onTextChanged(@NonNull CharSequence s, int start, int before, int count) {
+            super.onTextChanged(s, start, before, count);
+            binding.tvPrompt.setText(s.toString());
+        }
+    };
 
     private void onMessageElementClick(int position, int ope) {
         if (position == RecyclerView.NO_POSITION) {
@@ -161,7 +168,6 @@ public class HomeFragment extends Fragment {
         }
 
         File imageFile = model.getImageFile();
-        String promptId = model.getPromptId();
         if (ope == MessageAdapter.OnElementClickListener.OPE_NONE) {
             if (Boolean.TRUE.equals(mViewModel.getDeletionModeLiveData().getValue())) {
                 messageAdapter.toggleSelection(position);
@@ -175,7 +181,7 @@ public class HomeFragment extends Fragment {
         } else if (ope == MessageAdapter.OnElementClickListener.OPE_LONG_CLICK) {
             mViewModel.changeDeletionMode(true);
         } else if (ope == MessageAdapter.OnElementClickListener.OPE_INTERRUPT) {
-            requireInterruption(promptId);
+            messageAdapter.interrupt(model);
         } else if (ope == MessageAdapter.OnElementClickListener.OPE_SAVE) {
             if (imageFile != null && imageFile.exists()) {
                 // 使用文档创建API
@@ -184,6 +190,10 @@ public class HomeFragment extends Fragment {
         } else if (ope == MessageAdapter.OnElementClickListener.OPE_SHARE) {
             if (imageFile != null && imageFile.exists()) {
                 FileOperator.shareImageFromLocal(requireContext(), imageFile);
+            }
+        } else if (ope == MessageAdapter.OnElementClickListener.OPE_RESENT) {
+            if (model instanceof SentMessageModel) {
+                enqueue((SentMessageModel) model);
             }
         }
     }
@@ -211,157 +221,156 @@ public class HomeFragment extends Fragment {
         }
     }
 
-    private void requireInterruption(String promptId) {
-        promptIdToInterrupt = promptId;
-    }
-
     private void initViews() {
         binding.tvPrompt.setText(Settings.getInstance().getPreferences().getString("prompt", getString(R.string.default_prompt)));
     }
 
     private void setupClickListeners() {
         // 提示词
-        binding.tvPrompt.setOnClickListener(v -> openPromptEditor());
+        binding.tvPrompt.setOnClickListener(this::openPromptEditor);
         // 生成图像按钮
-        binding.btnSubmit.setOnClickListener(v -> enqueue());
+        binding.btnSubmit.setOnClickListener(v -> enqueue(null));
         // 更改参数按扭
-        binding.btnParam.setOnClickListener(v -> popup.showAsDropDown(v));
+        binding.btnParam.setOnClickListener(v -> parametersPopup.showAsDropDown(v));
     }
 
-    private void openPromptEditor() {
-
+    private void openPromptEditor(View v) {
+        promptEditPopup.showAsDropDown(v);
+        promptEditPopup.setText(binding.tvPrompt.getText().toString());
     }
 
-    private void enqueue() {
-        String workflow = popup.getParameter(ParametersPopup.KEY_PARAM_WORKFLOW);
-        String model = popup.getParameter(ParametersPopup.KEY_PARAM_MODEL);
-        String prompt = binding.tvPrompt.getText().toString().trim();
-        String widthStr = popup.getParameter(ParametersPopup.KEY_PARAM_WIDTH);
-        String heightStr = popup.getParameter(ParametersPopup.KEY_PARAM_HEIGHT);
-        String seedStr = popup.getParameter(ParametersPopup.KEY_PARAM_SEED);
-        String upscaleFactorStr = popup.getParameter(ParametersPopup.KEY_PARAM_UPSCALE_FACTOR);
-        String stepStr = popup.getParameter(ParametersPopup.KEY_PARAM_STEP);
-        String cfgStr = popup.getParameter(ParametersPopup.KEY_PARAM_CFG);
+    private void enqueue(SentMessageModel sentMessageModel) {
+        ImageRequest request;
+        if (sentMessageModel == null) {
+            String workflow = parametersPopup.getParameter(ParametersPopup.KEY_PARAM_WORKFLOW);
+            String modelName = parametersPopup.getParameter(ParametersPopup.KEY_PARAM_MODEL);
+            String prompt = binding.tvPrompt.getText().toString().trim();
+            String widthStr = parametersPopup.getParameter(ParametersPopup.KEY_PARAM_WIDTH);
+            String heightStr = parametersPopup.getParameter(ParametersPopup.KEY_PARAM_HEIGHT);
+            String seedStr = parametersPopup.getParameter(ParametersPopup.KEY_PARAM_SEED);
+            String upscaleFactorStr = parametersPopup.getParameter(ParametersPopup.KEY_PARAM_UPSCALE_FACTOR);
+            String stepStr = parametersPopup.getParameter(ParametersPopup.KEY_PARAM_STEP);
+            String cfgStr = parametersPopup.getParameter(ParametersPopup.KEY_PARAM_CFG);
 
-        // 验证输入
-        if (workflow.isEmpty()) {
-            showToast("请选择工作流");
-            return;
-        }
-
-        // 验证输入
-        if (TextUtils.isEmpty(model) && !popup.isModelAllowedEmpty()) {
-            showToast("请选择模型");
-            return;
-        }
-
-        // 验证输入
-        if (prompt.isEmpty()) {
-            showToast("请输入图像描述");
-            return;
-        }
-
-        int width, height;
-        try {
-            width = Integer.parseInt(widthStr);
-            height = Integer.parseInt(heightStr);
-
-            if (width < 64 || width > 4096 || height < 64 || height > 4096) {
-                showToast("图像尺寸应在 64 ~ 4096 之间");
+            // 验证输入
+            if (workflow.isEmpty()) {
+                showToast("请选择工作流");
                 return;
             }
-        } catch (NumberFormatException e) {
-            showToast("请输入有效的尺寸");
-            return;
-        }
 
-        Integer seed = null;
-        if (!seedStr.isEmpty()) {
-            try {
-                seed = Integer.parseInt(seedStr);
-            } catch (NumberFormatException e) {
-                showToast("种子必须是数字");
+            // 验证输入
+            if (TextUtils.isEmpty(modelName) && !parametersPopup.isModelAllowedEmpty()) {
+                showToast("请选择模型");
                 return;
             }
-        }
 
-        double upscaleFactor = 1.0;
-        if (!upscaleFactorStr.isEmpty()) {
+            // 验证输入
+            if (prompt.isEmpty()) {
+                showToast("请输入图像描述");
+                return;
+            }
+
+            int width, height;
             try {
-                upscaleFactor = Double.parseDouble(upscaleFactorStr);
-                if (upscaleFactor < 1.0 || upscaleFactor > 4.0) {
-                    showToast("放大系数应在 1.0 ~ 4.0 之间");
+                width = Integer.parseInt(widthStr);
+                height = Integer.parseInt(heightStr);
+
+                if (width < 64 || width > 4096 || height < 64 || height > 4096) {
+                    showToast("图像尺寸应在 64 ~ 4096 之间");
                     return;
                 }
             } catch (NumberFormatException e) {
-                showToast("放大系数必须是数字");
+                showToast("请输入有效的尺寸");
                 return;
             }
-        }
 
-        int step = 20;
-        if (!stepStr.isEmpty()) {
-            try {
-                step = Integer.parseInt(stepStr);
-            } catch (NumberFormatException e) {
-                showToast("种子必须是数字");
-                return;
-            }
-        }
-
-        double cfg = 8.0;
-        if (!cfgStr.isEmpty()) {
-            try {
-                cfg = Double.parseDouble(cfgStr);
-                if (cfg < 0.1 || cfg > 100.0) {
-                    showToast("CFG应在 0.1 ~ 100.0 之间");
+            Integer seed = null;
+            if (!seedStr.isEmpty()) {
+                try {
+                    seed = Integer.parseInt(seedStr);
+                } catch (NumberFormatException e) {
+                    showToast("种子必须是数字");
                     return;
                 }
-            } catch (NumberFormatException e) {
-                showToast("CFG必须是数字");
-                return;
             }
+
+            double upscaleFactor = 1.0;
+            if (!upscaleFactorStr.isEmpty()) {
+                try {
+                    upscaleFactor = Double.parseDouble(upscaleFactorStr);
+                    if (upscaleFactor < 1.0 || upscaleFactor > 4.0) {
+                        showToast("放大系数应在 1.0 ~ 4.0 之间");
+                        return;
+                    }
+                } catch (NumberFormatException e) {
+                    showToast("放大系数必须是数字");
+                    return;
+                }
+            }
+
+            int step = 20;
+            if (!stepStr.isEmpty()) {
+                try {
+                    step = Integer.parseInt(stepStr);
+                } catch (NumberFormatException e) {
+                    showToast("种子必须是数字");
+                    return;
+                }
+            }
+
+            double cfg = 8.0;
+            if (!cfgStr.isEmpty()) {
+                try {
+                    cfg = Double.parseDouble(cfgStr);
+                    if (cfg < 0.1 || cfg > 100.0) {
+                        showToast("CFG应在 0.1 ~ 100.0 之间");
+                        return;
+                    }
+                } catch (NumberFormatException e) {
+                    showToast("CFG必须是数字");
+                    return;
+                }
+            }
+
+            // 创建请求对象
+            request = new ImageRequest(workflow, modelName, prompt, seed, width, height, step, cfg, upscaleFactor);
+            sentMessageModel = new SentMessageModel(request);
+            messageAdapter.add(sentMessageModel);
+        } else {
+            request = new ImageRequest(sentMessageModel.getParameters());
         }
 
-        // 创建请求对象
-        ImageRequest request = new ImageRequest(workflow, model, prompt, seed, width, height, step, cfg, upscaleFactor);
-        final SentMessageModel sentMessageModel = new SentMessageModel(request);
-        messageAdapter.add(sentMessageModel);
         // 发送请求
+        SentMessageModel finalSentMessageModel = sentMessageModel;
         retrofitClient.getApiService().enqueue(request).enqueue(new Callback<>() {
             @Override
             public void onResponse(@NonNull Call<EnqueueResponse> call, @NonNull Response<EnqueueResponse> response) {
-                EnqueueResponse enqueueResponse;
                 if (response.isSuccessful() && response.body() != null) {
-                    enqueueResponse = response.body();
+                    EnqueueResponse enqueueResponse = response.body();
                     if (enqueueResponse.getCode() == 200) { // OK
                         // 时间纠正（服务器时间不正确的情况下）
-                        if (enqueueResponse.getUTCTimestamp() <= sentMessageModel.getUTCTimestamp()) {
+                        if (enqueueResponse.getUTCTimestamp() <= finalSentMessageModel.getUTCTimestamp()) {
                             enqueueResponse.setUtc_timestamp(String.valueOf(Clock.systemUTC().millis()));
                         }
                         // 保存响应对应，更新列表
                         ReceivedMessageModel receivedMessageModel = new ReceivedMessageModel(enqueueResponse);
                         messageAdapter.add(receivedMessageModel);
-                        // 图像获取
-                        if (enqueueResponse.isFile_exists()) { // 相同图像已经生成
-                            downloadImage(enqueueResponse.getPrompt_id());
-                        } else {
-                            addToPromptCheck(enqueueResponse.getPrompt_id());
-                        }
+                        startStatusCheck();
                     } else if (enqueueResponse.getCode() == 409) { // conflict 已存在相同任务
-                        messageAdapter.remove(sentMessageModel);
+                        messageAdapter.remove(finalSentMessageModel);
                     }
                 } else {
-                    enqueueResponse = EnqueueResponse.create(response.code(), response.message(),
-                            new Parameters().loadFromRequest(request));
-                    ReceivedMessageModel receivedMessageModel = new ReceivedMessageModel(enqueueResponse);
-                    messageAdapter.add(receivedMessageModel);
+//                    enqueueResponse = EnqueueResponse.create(response.code(), response.message(),
+//                            new Parameters().loadFromRequest(request));
+//                    ReceivedMessageModel receivedMessageModel = new ReceivedMessageModel(enqueueResponse);
+//                    messageAdapter.add(receivedMessageModel);
+                    messageAdapter.setSentFailureMessage(finalSentMessageModel, response.message());
                 }
             }
 
             @Override
             public void onFailure(@NonNull Call<EnqueueResponse> call, @NonNull Throwable t) {
-                messageAdapter.setSentFailureMessage(sentMessageModel, t.getMessage());
+                messageAdapter.setSentFailureMessage(finalSentMessageModel, t.getMessage());
             }
         });
     }
@@ -401,10 +410,7 @@ public class HomeFragment extends Fragment {
         retrofitClient.setBaseUrl(ip, port);
     }
 
-    private void addToPromptCheck(String promptId) {
-        promptIdStack.removeIf(s -> s.equals(promptId));
-        promptIdStack.push(promptId);
-
+    private void startStatusCheck() {
         if (promptCheckExecutor != null) {
             return;
         }
@@ -412,81 +418,98 @@ public class HomeFragment extends Fragment {
         promptCheckExecutor = Executors.newSingleThreadExecutor();
         promptCheckExecutor.execute(() -> {
             while (!isPromptCheckExecutorStop) {
-                SystemClock.sleep(2000);
-                if (promptIdStack.isEmpty()) {
-                    continue;
-                }
-
-                String promptIdInner = promptIdStack.pop();
-                if (promptIdInner.equals(promptIdToInterrupt)) {
-                    promptIdToInterrupt = null;
-                    try {
-                        Response<ResponseBody> response = retrofitClient.getApiService().interrupt(new InterruptRequest(promptIdInner)).execute();
-                        if (response.isSuccessful()) {
-                            messageAdapter.setFinished(promptIdInner, null, 200, "已取消");
-                        } else {
-                            promptIdStack.push(promptIdInner);
-                        }
-                    } catch (IOException e) {
-                        log("请求失败: " + e.getMessage(), true);
+                for (int i = messageAdapter.getItemCount() - 1; i >= 0; i--) {
+                    if (!getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.RESUMED)) {
+                        break;
                     }
-                    SystemClock.sleep(300);
-                    continue;
-                }
+                    AbstractMessageModel model = messageAdapter.get(i);
+                    if (!(model instanceof ReceivedMessageModel) ||
+                            TextUtils.isEmpty(model.getPromptId()) ||
+                            model.isFinished()) {
+                        continue;
+                    }
 
-                try {
-                    retrofit2.Response<ImageResponse> response = retrofitClient.getApiService().getImageStatus(promptIdInner).execute();
-                    if (response.isSuccessful()) {
-                        ImageResponse body = response.body();
-                        if (body != null) {
-                            if (body.getCode() == 200) {
-                                downloadImage(body.getPrompt_id());
-                            } else if (body.getCode() == 204) {
-                                Log.e(TAG, promptIdInner + " is being processing.");
-                                promptIdStack.add(promptIdInner);
+                    if (model.getInterruptionFlag()) {
+                        try {
+                            Response<ResponseBody> response = retrofitClient.getApiService().interrupt(new InterruptRequest(model.getPromptId())).execute();
+                            if (response.isSuccessful()) {
+//                                messageAdapter.setFinished(promptIdInner, null, 200, "已取消");
+                                model.setFinished(null, 998, "已取消");
+                                DataIO.writeModelFile(requireContext(), model);
+                                messageAdapter.notifyModelChanged(model);
+                            }
+                        } catch (IOException e) {
+                            log("请求失败: " + e.getMessage(), true);
+                        }
+                        SystemClock.sleep(300);
+                        continue;
+                    }
+
+                    try {
+                        if (model.isFileExistsOnServer()) {
+                            downloadImageSync(model);
+                        } else {
+                            retrofit2.Response<ImageResponse> response = retrofitClient.getApiService().getImageStatus(model.getPromptId()).execute();
+                            if (response.isSuccessful()) {
+                                ImageResponse body = response.body();
+                                if (body != null) {
+                                    if (body.getCode() == 200) {
+                                        downloadImageSync(model);
+                                    } else if (body.getCode() == 204) {
+                                        Log.e(TAG, model.getPromptId() + " is being processing.");
+                                    } else {
+                                        Log.e(TAG, "Failed." + response.code() + ", " + response.message());
+                                        //                                    messageAdapter.setFinished(promptIdInner, null, body.getCode(), body.getMessage());
+                                        model.setFinished(null, body.getCode(), body.getMessage());
+                                        DataIO.writeModelFile(requireContext(), model);
+                                        messageAdapter.notifyModelChanged(model);
+                                    }
+                                } else {
+                                    Log.e(TAG, "Failed." + response.code() + ", " + response.message());
+                                    //                                messageAdapter.setFinished(promptIdInner, null, 999, "unknown.");
+                                    model.setFinished(null, 999, "unknown.");
+                                    DataIO.writeModelFile(requireContext(), model);
+                                    messageAdapter.notifyModelChanged(model);
+                                }
                             } else {
                                 Log.e(TAG, "Failed." + response.code() + ", " + response.message());
-                                messageAdapter.setFinished(promptIdInner, null, body.getCode(), body.getMessage());
+                                //                            messageAdapter.setFinished(promptIdInner, null, response.code(), response.message());
+                                model.setFinished(null, response.code(), response.message());
+                                DataIO.writeModelFile(requireContext(), model);
+                                messageAdapter.notifyModelChanged(model);
                             }
-                        } else {
-                            Log.e(TAG, "Failed." + response.code() + ", " + response.message());
-                            messageAdapter.setFinished(promptIdInner, null, 999, "unknown.");
                         }
-                    } else {
-                        Log.e(TAG, "Failed." + response.code() + ", " + response.message());
-                        messageAdapter.setFinished(promptIdInner, null, response.code(), response.message());
+                    } catch (Throwable t) {
+                        Log.e(TAG, "failed to execute downloadImage(" + model.getPromptId() + ")", t);
+                        //                        messageAdapter.setFinished(promptIdInner, null, 1000, t.getMessage());
+                        model.setFinished(null, 1000, t.getMessage());
+                        DataIO.writeModelFile(requireContext(), model);
+                        messageAdapter.notifyModelChanged(model);
                     }
-                } catch (Throwable t) {
-                    Log.e(TAG, "failed to execute downloadImage(" + promptIdInner + ")", t);
-                    messageAdapter.setFinished(promptIdInner, null, 1000, t.getMessage());
+
+                    SystemClock.sleep(100);
                 }
 
-                SystemClock.sleep(300);
+                SystemClock.sleep(2000);
             }
         });
     }
 
-    private void downloadImage(String promptId) {
-        retrofitClient.getApiService().download(promptId).enqueue(new Callback<>() {
-            @Override
-            public void onResponse(@NonNull Call<ResponseBody> call, @NonNull Response<ResponseBody> response) {
-                if (response.isSuccessful()) {
-                    try (ResponseBody body = response.body()) {
-                        File imageFile = saveImageToFile(body, (total, progress) -> {
-                            log("下载图像: " + progress + "/" + total, false);
-                        });
-                        if (imageFile != null) {
-                            messageAdapter.setFinished(promptId, imageFile, response.code(), response.message());
-                        }
-                    }
+    private void downloadImageSync(AbstractMessageModel model) throws IOException {
+        Response<ResponseBody> response = retrofitClient.getApiService().download(model.getPromptId()).execute();
+        if (response.isSuccessful()) {
+            try (ResponseBody body = response.body()) {
+                File imageFile = saveImageToFile(body, (total, progress) -> {
+                    log("下载图像: " + progress + "/" + total, false);
+                });
+                if (imageFile != null) {
+//                            messageAdapter.setFinished(promptId, imageFile, response.code(), response.message());
+                    model.setFinished(imageFile, response.code(), response.message());
+                    DataIO.writeModelFile(requireContext(), model);
+                    messageAdapter.notifyModelChanged(model);
                 }
             }
-
-            @Override
-            public void onFailure(@NonNull Call<ResponseBody> call, @NonNull Throwable t) {
-                messageAdapter.setFinished(promptId, null, 1000, t.getMessage());
-            }
-        });
+        }
     }
 
     private void doDelete() {
