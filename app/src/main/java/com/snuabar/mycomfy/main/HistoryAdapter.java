@@ -13,6 +13,7 @@ import android.view.ViewGroup;
 
 import com.snuabar.mycomfy.R;
 import com.snuabar.mycomfy.common.Callbacks;
+import com.snuabar.mycomfy.common.Common;
 import com.snuabar.mycomfy.databinding.LayoutHistoryItemBinding;
 import com.snuabar.mycomfy.main.data.AbstractMessageModel;
 import com.snuabar.mycomfy.main.data.DataIO;
@@ -64,16 +65,9 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
             ImageUtils.makeThumbnailAsync(model, width, height, this::onThumbnailMake);
         }
         if (model.getParameters() != null) {
-            String title = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-                    .format(Date.from(Instant.ofEpochMilli(model.getParameters().getTimestamp())));
-            holder.binding.tvTitle.setText(title);
-            holder.binding.tvInfo.setText(String.format(Locale.getDefault(),
-                            "%d x %d x%.01f",
-                            model.getParameters().getImg_width(),
-                            model.getParameters().getImg_height(),
-                            model.getParameters().getUpscale_factor()
-                    )
-            );
+            holder.binding.tvTitle.setText(Common.formatTimestamp(model.getUTCTimestampCompletion()));
+            int[] size = ImageUtils.getImageSize(model.getImageFile());
+            holder.binding.tvInfo.setText(String.format(Locale.getDefault(), "%d x %d", size[0], size[1]));
         }
     }
 

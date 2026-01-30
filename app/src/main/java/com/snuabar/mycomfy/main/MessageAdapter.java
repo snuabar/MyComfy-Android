@@ -14,6 +14,7 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.snuabar.mycomfy.R;
+import com.snuabar.mycomfy.common.Common;
 import com.snuabar.mycomfy.databinding.LayoutReceivedMsgItemBinding;
 import com.snuabar.mycomfy.databinding.LayoutSentMsgItemBinding;
 import com.snuabar.mycomfy.main.data.AbstractMessageModel;
@@ -26,6 +27,7 @@ import com.snuabar.mycomfy.utils.ImageUtils;
 import java.io.File;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -40,7 +42,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
 
     private final Handler mHandler;
     private final List<AbstractMessageModel> models;
-    private final Map<String, Integer> indexMap;
+    private final Map<Integer, String> indexToPromptIdMap;
     private final OnElementClickListener listener;
     private WeakReference<RecyclerView> mRecyclerViewRef = null;
     private final Context context;
@@ -52,8 +54,8 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
         this.mHandler = new Handler(Looper.getMainLooper());
         this.models = DataIO.copyMessageModels(context);
         this.listener = listener;
-        this.indexMap = new HashMap<>();
-        this.models.sort((o1, o2) -> Math.toIntExact(o1.getUTCTimestamp() - o2.getUTCTimestamp()));
+        this.indexToPromptIdMap = new HashMap<>();
+        this.models.sort(Comparator.comparingLong(AbstractMessageModel::getUTCTimestamp));
         this.selections = new HashSet<>();
     }
 
@@ -72,6 +74,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
 
     @Override
     public void onBindViewHolder(@NonNull MessageAdapter.ViewHolder holder, int position) {
+        holder.tvDate.setText(Common.formatTimestamp(models.get(position).getUTCTimestamp()));
         holder.checkBox.setVisibility(isEditMode ? View.VISIBLE : View.GONE);
         holder.checkBox.setChecked(selections.contains(position));
 
@@ -118,6 +121,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
         }
         holder.setTip(model.getMessage(), model.getCode() != 200);
         holder.binding.btnInterrupt.setVisibility(model.getCode() == 200 ? View.GONE : View.VISIBLE);
+        holder.binding.tvDateCompletion.setText(model.isFinished() ? Common.formatTimestamp(model.getUTCTimestampCompletion()) : "");
     }
 
     private void onThumbnailMake(AbstractMessageModel model) {
@@ -156,12 +160,19 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
         return super.getItemViewType(position);
     }
 
+    private void updateIndexToPromptIdMap() {
+        indexToPromptIdMap.clear();
+        for (int i = 0; i < models.size(); i++) {
+            indexToPromptIdMap.put(i, models.get(i).getPromptId());
+        }
+    }
+
     public void add(AbstractMessageModel model) {
         models.add(model);
-        if (model instanceof ReceivedMessageModel) {
-            indexMap.put(model.getPromptId(), models.size() - 1);
-        }
+        indexToPromptIdMap.put(models.size() - 1, model.getPromptId());
+
         DataIO.writeModelFile(context, model);
+
         mHandler.post(() -> notifyItemInserted(getItemCount()));
 
         if (getRecyclerView() != null) {
@@ -170,20 +181,18 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
     }
 
     public void setFinished(String promptId, File imageFile, int code, String message) {
-        if (indexMap.containsKey(promptId)) {
-            Integer index = indexMap.get(promptId);
-            if (index == null) {
-                index = -1;
-            }
-
-            if (index >= 0 && index < getItemCount()) {
-                ReceivedMessageModel model = ((ReceivedMessageModel) models.get(index));
-                model.setImageFile(imageFile);
-                model.setImageResponseCode(code);
-                model.setImageResponseMessage(message);
-                Integer finalIndex = index;
-                mHandler.post(() -> notifyItemChanged(finalIndex));
-                DataIO.writeModelFile(context, model);
+        Set<Integer> indices = indexToPromptIdMap.keySet();
+        for (int index : indices) {
+            if (promptId != null && promptId.equals(indexToPromptIdMap.get(index))) {
+                if (index >= 0 && index < getItemCount()) {
+                    AbstractMessageModel model = models.get(index);
+                    model.setImageFile(imageFile);
+                    model.setImageResponseCode(code);
+                    model.setImageResponseMessage(message);
+                    model.setFinished();
+                    DataIO.writeModelFile(context, model);
+                    mHandler.post(() -> notifyItemChanged(index));
+                }
             }
         }
     }
@@ -207,6 +216,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
             if (includeFile) {
                 DataIO.deleteModelFile(context, sentMessageModel);
             }
+            updateIndexToPromptIdMap();
         }
     }
 
@@ -252,11 +262,13 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
                 notifyItemRemoved(i);
             }
         }
+        updateIndexToPromptIdMap();
         return deletedModels;
     }
 
     public class ViewHolder extends RecyclerView.ViewHolder {
         public TextView tvTip;
+        public TextView tvDate;
         public CheckBox checkBox;
         public ViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -276,7 +288,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
 
         void setTip(String text, boolean isErr) {
             if (tvTip != null) {
-                tvTip.setTextColor(isErr ? android.R.color.holo_red_dark : R.color.gray_83);
+                tvTip.setTextColor(isErr ? android.R.color.holo_red_light : R.color.gray_83);
                 tvTip.setText(text);
             }
         }
@@ -288,6 +300,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
         public SentViewHolder(@NonNull LayoutSentMsgItemBinding binding) {
             super(binding.getRoot());
             this.binding = binding;
+            this.tvDate = binding.tvDate;
             this.tvTip = binding.tvTip;
             this.checkBox = binding.checkbox;
         }
@@ -299,6 +312,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
         public ReceivedViewHolder(@NonNull LayoutReceivedMsgItemBinding binding) {
             super(binding.getRoot());
             this.binding = binding;
+            this.tvDate = binding.tvDate;
             this.tvTip = binding.tvTip;
             this.checkBox = binding.checkbox;
             binding.btnInterrupt.setOnClickListener(v -> {

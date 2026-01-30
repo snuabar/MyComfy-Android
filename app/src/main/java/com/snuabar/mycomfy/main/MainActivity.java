@@ -9,6 +9,7 @@ import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
 
+import com.google.android.material.internal.EdgeToEdgeUtils;
 import com.snuabar.mycomfy.R;
 import com.snuabar.mycomfy.client.RetrofitClient;
 import com.snuabar.mycomfy.setting.Settings;
@@ -27,6 +28,7 @@ public class MainActivity extends AppCompatActivity {
         mViewModel = new ViewModelProvider(this).get(MainViewModel.class);
         mViewModel.setFilePicker(new FilePicker(this));
         setContentView(R.layout.activity_main);
+        EdgeToEdgeUtils.applyEdgeToEdge(getWindow(), true);
         if (savedInstanceState == null) {
             getSupportFragmentManager().beginTransaction()
                     .replace(R.id.container, MainFragment.newInstance())

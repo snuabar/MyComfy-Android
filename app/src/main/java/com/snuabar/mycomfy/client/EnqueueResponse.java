@@ -9,6 +9,8 @@ import java.io.Serializable;
 import java.time.Clock;
 
 public class EnqueueResponse implements Serializable {
+    private final static String TAG = EnqueueResponse.class.getName();
+
     private String prompt_id;
     private int code;
     private String message;
@@ -42,6 +44,15 @@ public class EnqueueResponse implements Serializable {
 
     public String getUtc_timestamp() {
         return utc_timestamp;
+    }
+
+    public long getUTCTimestamp() {
+        try {
+            return Long.parseLong(utc_timestamp);
+        } catch (NumberFormatException e) {
+            Log.e(TAG, "getUTCTimestamp: failed to convert " + utc_timestamp + " to Long.");
+        }
+        return 0;
     }
 
     public void setUtc_timestamp(String utc_timestamp) {

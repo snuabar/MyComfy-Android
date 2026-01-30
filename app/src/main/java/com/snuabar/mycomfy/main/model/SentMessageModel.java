@@ -22,7 +22,7 @@ public class SentMessageModel extends MessageModel {
 
     public SentMessageModel(JSONObject object) {
         super();
-        loadJson(object);
+        this.fromJson(object);
     }
 
 
@@ -50,8 +50,8 @@ public class SentMessageModel extends MessageModel {
     }
 
     @Override
-    public void loadJson(JSONObject jsonObject) {
-        super.loadJson(jsonObject);
+    public void fromJson(JSONObject jsonObject) {
+        super.fromJson(jsonObject);
         failureMessage = jsonObject.optString("failureMessage", null);
     }
 

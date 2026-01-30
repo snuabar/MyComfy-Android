@@ -31,7 +31,7 @@ public class ReceivedMessageModel extends MessageModel {
 
     public ReceivedMessageModel(JSONObject object) {
         super();
-        loadJson(object);
+        this.fromJson(object);
     }
 
     @Override
@@ -41,10 +41,12 @@ public class ReceivedMessageModel extends MessageModel {
 
     @Override
     public long getUTCTimestamp() {
-        if (super.getUTCTimestamp() == 0) {
-            return utcTimestamp;
-        }
-        return 0;
+        return response.getUTCTimestamp();
+    }
+
+    @Override
+    public long getUTCTimestampCompletion() {
+        return utcTimestamp;
     }
 
     @Override
@@ -126,8 +128,8 @@ public class ReceivedMessageModel extends MessageModel {
     }
 
     @Override
-    public void loadJson(JSONObject jsonObject) {
-        super.loadJson(jsonObject);
+    public void fromJson(JSONObject jsonObject) {
+        super.fromJson(jsonObject);
         JSONObject resJson = jsonObject.optJSONObject("response");
         if (resJson != null) {
             response = new EnqueueResponse();
