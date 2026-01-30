@@ -141,7 +141,7 @@ public class HistoryFragment extends Fragment {
             List<AbstractMessageModel> models = DataIO.copyMessageModels(getContext());
             messageModels.clear();
             models.removeIf(m -> m.getImageFile() == null || !m.getImageFile().exists());
-            models.sort((o1, o2) -> Math.toIntExact(o2.getUTCTimestamp() - o1.getUTCTimestamp()));
+            models.sort((o1, o2) -> Long.compare(o2.getUTCTimestamp(), o1.getUTCTimestamp()));
             messageModels.addAll(models);
 
             requireActivity().runOnUiThread(() -> {

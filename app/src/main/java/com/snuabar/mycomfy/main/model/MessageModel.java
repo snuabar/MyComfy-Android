@@ -12,6 +12,8 @@ import java.io.File;
 import java.util.Objects;
 
 public class MessageModel extends AbstractMessageModel {
+    private final static String TAG = MessageModel.class.getName();
+
     protected Parameters parameters;
 
     @Override
@@ -24,6 +26,11 @@ public class MessageModel extends AbstractMessageModel {
         if (parameters != null) {
             return parameters.getTimestamp();
         }
+        return 0;
+    }
+
+    @Override
+    public long getUTCTimestampCompletion() {
         return 0;
     }
 
@@ -94,22 +101,23 @@ public class MessageModel extends AbstractMessageModel {
 
     @Override
     public JSONObject toJson() {
+        JSONObject jsonObject = super.toJson();
         try {
-            JSONObject jsonObject = new JSONObject();
             if (parameters != null) {
                 jsonObject.putOpt("parameters", parameters.toJson());
             }
             return jsonObject;
         } catch (JSONException e) {
-            Log.e("ImageRequest", "toJson. exception thrown.", e);
+            Log.e(TAG, "toJson. exception thrown.", e);
         }
         return null;
     }
 
     @Override
-    public void loadJson(JSONObject jsonObject) {
+    public void fromJson(JSONObject jsonObject) {
+        super.fromJson(jsonObject);
         parameters = new Parameters();
-        parameters.loadJson(jsonObject);
+        parameters.loadJson(jsonObject.optJSONObject("parameters"));
     }
 
     @Override

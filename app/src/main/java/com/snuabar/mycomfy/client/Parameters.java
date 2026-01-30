@@ -36,7 +36,9 @@ public class Parameters extends ImageRequest {
     @Override
     public void loadJson(JSONObject jsonObject) {
         super.loadJson(jsonObject);
-        timestamp = jsonObject.optLong("timestamp", 0L);
+        if (jsonObject.has("timestamp")) {
+            timestamp = jsonObject.optLong("timestamp", 0L);
+        }
     }
 
     public Parameters loadFromRequest(ImageRequest request) {

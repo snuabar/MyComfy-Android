@@ -23,7 +23,7 @@
         <domain includeSubdomains="true">192.168.1.17</domain>
         <domain includeSubdomains="true">192.168.0.100</domain>
         <domain includeSubdomains="true">10.0.0.100</domain>
-        <domain includeSubdomains="true">2408:820c:680d:83d0:bcda:7fa8:e2b4:b5d9</domain>
+        <domain includeSubdomains="true">2408:820c:680e:720:b95:2cf1:83ab:81df</domain>
 
         <!-- 本地测试 -->
         <domain includeSubdomains="true">localhost</domain>

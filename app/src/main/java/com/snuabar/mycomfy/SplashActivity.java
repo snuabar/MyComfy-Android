@@ -10,6 +10,7 @@ import android.os.Looper;
 import android.view.View;
 import android.view.WindowInsets;
 
+import com.google.android.material.internal.EdgeToEdgeUtils;
 import com.snuabar.mycomfy.databinding.ActivitySplashBinding;
 import com.snuabar.mycomfy.main.MainActivity;
 
@@ -35,13 +36,14 @@ public class SplashActivity extends AppCompatActivity {
 
         ActivitySplashBinding binding = ActivitySplashBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
+        EdgeToEdgeUtils.applyEdgeToEdge(getWindow(), true);
 
         View contentView = binding.fullscreenContent;
 
         // Delayed removal of status and navigation bar
         if (Build.VERSION.SDK_INT >= 30) {
             Objects.requireNonNull(contentView.getWindowInsetsController()).hide(
-                    WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars());
+                    WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars() | WindowInsets.Type.captionBar());
         } else {
             // Note that some of these constants are new as of API 16 (Jelly Bean)
             // and API 19 (KitKat). It is safe to use them, as they are inlined
@@ -51,7 +53,12 @@ public class SplashActivity extends AppCompatActivity {
                     | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                     | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
                     | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                    | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION);
+                    | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+            );
+        }
+
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().hide();
         }
 
         // Set up the user interaction to manually show or hide the system UI.

@@ -1,25 +1,25 @@
 package com.snuabar.mycomfy.main.data;
 
 import android.content.Context;
-import android.text.TextUtils;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
 
 import com.snuabar.mycomfy.utils.ImageUtils;
+import com.snuabar.mycomfy.utils.TextCompressor;
+
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import java.nio.file.Files;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
-import java.util.UUID;
 
 public class DataIO {
 
@@ -64,7 +64,7 @@ public class DataIO {
         }
 
         for (File file : files) {
-            AbstractMessageModel model = readModel(file);
+            AbstractMessageModel model = readModelFile(file);
             if (model != null) {
                 models.add(model);
             }
@@ -89,30 +89,57 @@ public class DataIO {
     //region 模型读写
 
     public static void writeModelFile(Context context, AbstractMessageModel model) {
-        if (TextUtils.isEmpty(model.id)) {
-            model.id = UUID.randomUUID().toString().replaceAll("-", "");
-        }
-
         File msgDir = getMsgDir(context);
-        String fileName = PREFIX + model.id + MSG_EXT;
+        String fileName = PREFIX + model.getId() + MSG_EXT;
         File modelFile = new File(msgDir, fileName);
 
-        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(modelFile))) {
-            oos.writeObject(model);
-            oos.flush();
-        } catch (IOException e) {
-            modelFile.delete();
-            throw new RuntimeException(e);
+//        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(modelFile))) {
+//            oos.writeObject(model);
+//            oos.flush();
+//        } catch (IOException e) {
+//            modelFile.delete();
+//            throw new RuntimeException(e);
+//        }
+
+        JSONObject jsonObject = model.toJson();
+        if (jsonObject != null) {
+            String jsonStr = jsonObject.toString();
+            byte[] bytes = TextCompressor.INSTANCE.compress(jsonStr);
+            try (FileOutputStream fos = new FileOutputStream(modelFile)) {
+                fos.write(bytes);
+                fos.flush();
+            } catch (IOException e) {
+                Log.e(TAG, "writeModelFile: failed to output model.");
+            }
         }
     }
 
-    public static boolean deleteModelFile(Context context, AbstractMessageModel model) {
-        if (TextUtils.isEmpty(model.id)) {
-            model.id = UUID.randomUUID().toString().replaceAll("-", "");
+    public static AbstractMessageModel readModelFile(File modelFile) {
+        if (modelFile.exists() && modelFile.isFile()) {
+//            AbstractMessageModel model;
+//            try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(modelFile))) {
+//                model = (AbstractMessageModel) ois.readObject();
+//            } catch (IOException | ClassNotFoundException e) {
+//                throw new RuntimeException(e);
+//            }
+//            return model;
+
+            try {
+                byte[] bytes = Files.readAllBytes(modelFile.toPath());
+                String jsonStr = TextCompressor.INSTANCE.decompress(bytes);
+                JSONObject jsonObject = new JSONObject(jsonStr);
+                return AbstractMessageModel.Create(jsonObject);
+            } catch (IOException | JSONException e) {
+                Log.e(TAG, "readModelFile: failed to read model.");
+            }
         }
+        return null;
+    }
+
+    public static boolean deleteModelFile(Context context, AbstractMessageModel model) {
 
         File msgDir = getMsgDir(context);
-        String fileName = PREFIX + model.id + MSG_EXT;
+        String fileName = PREFIX + model.getId() + MSG_EXT;
         File modelFile = new File(msgDir, fileName);
 
         if (modelFile.delete()) {
@@ -126,19 +153,6 @@ public class DataIO {
             return true;
         }
         return false;
-    }
-
-    public static AbstractMessageModel readModel(File modelFile) {
-        if (modelFile.exists() && modelFile.isFile()) {
-            AbstractMessageModel model;
-            try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(modelFile))) {
-                model = (AbstractMessageModel) ois.readObject();
-            } catch (IOException | ClassNotFoundException e) {
-                throw new RuntimeException(e);
-            }
-            return model;
-        }
-        return null;
     }
 
     //endregion

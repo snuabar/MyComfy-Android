@@ -20,17 +20,17 @@
             <Spinner
                 android:id="@+id/spinnerWorkflow"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="match_parent"
                 android:layout_marginEnd="8dp"
                 android:layout_weight="1" />
 
-            <Button
+            <ImageButton
                 android:id="@+id/btnLoadWorkflows"
-                android:layout_width="60dp"
+                style="@style/ButtonBorderless"
+                android:src="@drawable/ic_refresh"
+                android:layout_width="40dp"
                 android:layout_height="40dp"
-                android:layout_span="1"
-                android:text="刷新"
-                android:textSize="11sp" />
+                android:layout_span="1" />
         </TableRow>
 
         <TextView
@@ -46,16 +46,16 @@
             <Spinner
                 android:id="@+id/spinnerModels"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="match_parent"
                 android:layout_marginEnd="8dp"
                 android:layout_weight="1" />
 
-            <Button
+            <ImageButton
                 android:id="@+id/btnLoadModels"
-                android:layout_width="60dp"
-                android:layout_height="40dp"
-                android:text="刷新"
-                android:textSize="11sp" />
+                style="@style/ButtonBorderless"
+                android:src="@drawable/ic_refresh"
+                android:layout_width="40dp"
+                android:layout_height="40dp" />
 
         </TableRow>
         <!-- 参数设置 -->
@@ -125,12 +125,12 @@
                 android:text="216"
                 android:textSize="14sp" />
 
-            <Button
+            <ImageButton
                 android:id="@+id/btnRandom"
-                android:layout_width="60dp"
-                android:layout_height="40dp"
-                android:text="随机"
-                android:textSize="11sp" />
+                style="@style/ButtonBorderless"
+                android:src="@drawable/ic_refresh"
+                android:layout_width="40dp"
+                android:layout_height="40dp" />
 
         </TableRow>
 

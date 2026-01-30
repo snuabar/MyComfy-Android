@@ -16,11 +16,13 @@ public class MainViewModel extends ViewModel {
     private final MutableLiveData<Boolean> deletionHasPressed;
     private final MutableLiveData<Boolean> deletionModeLiveData;
     private final MutableLiveData<Map<String, List<AbstractMessageModel>>> deletedModelsLiveData;
+    private final MutableLiveData<String> promptLiveData;
 
     public MainViewModel() {
         deletionHasPressed = new MutableLiveData<>();
         deletionModeLiveData = new MutableLiveData<>();
         deletedModelsLiveData = new MutableLiveData<>();
+        promptLiveData = new MutableLiveData<>();
     }
 
     public LiveData<Boolean> getDeletionModeLiveData() {
@@ -45,6 +47,14 @@ public class MainViewModel extends ViewModel {
 
     public void changeDeletedModels(Map<String, List<AbstractMessageModel>> deletedModels) {
         deletedModelsLiveData.setValue(deletedModels);
+    }
+
+    public LiveData<String> getPromptLiveData() {
+        return promptLiveData;
+    }
+
+    public void changePrompt(String prompt) {
+        promptLiveData.postValue(prompt);
     }
 
     public void setFilePicker(FilePicker filePicker) {

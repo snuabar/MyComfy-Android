@@ -1,7 +1,6 @@
 package com.snuabar.mycomfy.main;
 
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.SystemClock;
@@ -40,19 +39,14 @@ import com.snuabar.mycomfy.main.data.DataIO;
 import com.snuabar.mycomfy.view.ParametersPopup;
 import com.snuabar.mycomfy.view.dialog.OptionalDialog;
 
-import org.json.JSONException;
-import org.json.JSONObject;
-
 import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
+import java.time.Clock;
 import java.util.Date;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
-import java.util.Set;
 import java.util.Stack;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -131,12 +125,29 @@ public class HomeFragment extends Fragment {
                 }
             }
         });
+        mViewModel.getPromptLiveData().observe(this, s -> {
+            binding.tvPrompt.setText(s);
+        });
     }
 
     @Override
     public void onPause() {
         super.onPause();
         messageAdapter.setEditMode(false);
+        // 保存上一次的提示词
+        Settings.getInstance().getPreferences().edit().putString("prompt", binding.tvPrompt.getText().toString());
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        isPromptCheckExecutorStop = true;
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        updateBaseUrl();
     }
 
     private void onMessageElementClick(int position, int ope) {
@@ -205,19 +216,26 @@ public class HomeFragment extends Fragment {
     }
 
     private void initViews() {
-        binding.etPrompt.setText(Settings.getInstance().getPreferences().getString("prompt", getString(R.string.default_prompt)));
+        binding.tvPrompt.setText(Settings.getInstance().getPreferences().getString("prompt", getString(R.string.default_prompt)));
     }
 
     private void setupClickListeners() {
+        // 提示词
+        binding.tvPrompt.setOnClickListener(v -> openPromptEditor());
         // 生成图像按钮
         binding.btnSubmit.setOnClickListener(v -> enqueue());
+        // 更改参数按扭
         binding.btnParam.setOnClickListener(v -> popup.showAsDropDown(v));
+    }
+
+    private void openPromptEditor() {
+
     }
 
     private void enqueue() {
         String workflow = popup.getParameter(ParametersPopup.KEY_PARAM_WORKFLOW);
         String model = popup.getParameter(ParametersPopup.KEY_PARAM_MODEL);
-        String prompt = binding.etPrompt.getText().toString().trim();
+        String prompt = binding.tvPrompt.getText().toString().trim();
         String widthStr = popup.getParameter(ParametersPopup.KEY_PARAM_WIDTH);
         String heightStr = popup.getParameter(ParametersPopup.KEY_PARAM_HEIGHT);
         String seedStr = popup.getParameter(ParametersPopup.KEY_PARAM_SEED);
@@ -305,16 +323,6 @@ public class HomeFragment extends Fragment {
             }
         }
 
-        SharedPreferences.Editor editor = Settings.getInstance().getPreferences().edit();
-        Set<String> prompts = Settings.getInstance().getPreferences().getStringSet("prompts", new HashSet<>());
-        if (!Settings.getInstance().getPreferences().getString("prompt", getString(R.string.default_prompt)).equals(prompt)) {
-            HashSet<String> newSet = new HashSet<>(prompts);
-            newSet.add(getPromptForSave(prompt));
-            editor.putStringSet("prompts", newSet);
-            editor.putString("prompt", prompt);
-            editor.apply();
-        }
-
         // 创建请求对象
         ImageRequest request = new ImageRequest(workflow, model, prompt, seed, width, height, step, cfg, upscaleFactor);
         final SentMessageModel sentMessageModel = new SentMessageModel(request);
@@ -327,13 +335,19 @@ public class HomeFragment extends Fragment {
                 if (response.isSuccessful() && response.body() != null) {
                     enqueueResponse = response.body();
                     if (enqueueResponse.getCode() == 200) { // OK
+                        // 时间纠正（服务器时间不正确的情况下）
+                        if (enqueueResponse.getUTCTimestamp() <= sentMessageModel.getUTCTimestamp()) {
+                            enqueueResponse.setUtc_timestamp(String.valueOf(Clock.systemUTC().millis()));
+                        }
+                        // 保存响应对应，更新列表
+                        ReceivedMessageModel receivedMessageModel = new ReceivedMessageModel(enqueueResponse);
+                        messageAdapter.add(receivedMessageModel);
+                        // 图像获取
                         if (enqueueResponse.isFile_exists()) { // 相同图像已经生成
                             downloadImage(enqueueResponse.getPrompt_id());
                         } else {
                             addToPromptCheck(enqueueResponse.getPrompt_id());
                         }
-                        ReceivedMessageModel receivedMessageModel = new ReceivedMessageModel(enqueueResponse);
-                        messageAdapter.add(receivedMessageModel);
                     } else if (enqueueResponse.getCode() == 409) { // conflict 已存在相同任务
                         messageAdapter.remove(sentMessageModel);
                     }
@@ -378,18 +392,6 @@ public class HomeFragment extends Fragment {
 
     private void showToast(String message) {
         Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show();
-    }
-
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
-        isPromptCheckExecutorStop = true;
-    }
-
-    @Override
-    public void onResume() {
-        super.onResume();
-        updateBaseUrl();
     }
 
     private void updateBaseUrl() {
@@ -485,50 +487,6 @@ public class HomeFragment extends Fragment {
                 messageAdapter.setFinished(promptId, null, 1000, t.getMessage());
             }
         });
-    }
-
-    private String getFileInfoForSave(File imageFile) {
-        JSONObject jsonObject = new JSONObject();
-        try {
-            jsonObject.putOpt("timestamp", System.currentTimeMillis());
-            jsonObject.putOpt("image", imageFile.getAbsolutePath());
-            return jsonObject.toString();
-        } catch (JSONException e) {
-            Log.e(TAG, "getFileInfoForSave. error thrown.", e);
-        }
-
-        return null;
-    }
-
-    private String getPromptForSave(String prompt) {
-        JSONObject jsonObject = new JSONObject();
-        try {
-            jsonObject.putOpt("timestamp", System.currentTimeMillis());
-            jsonObject.putOpt("prompt", prompt);
-            return jsonObject.toString();
-        } catch (JSONException e) {
-            Log.e(TAG, "getPromptForSave. error thrown.", e);
-        }
-
-        return null;
-    }
-
-    private ArrayList<Object[]> getPromptsFromSaved() {
-        Set<String> prompts = Settings.getInstance().getPreferences().getStringSet("prompts", new HashSet<>());
-        ArrayList<Object[]> promptArray = new ArrayList<>();
-        for (String jsonString : prompts) {
-            try {
-                JSONObject jsonObject = new JSONObject(jsonString);
-                Object[] promptInfo = new Object[]{jsonObject.optLong("timestamp", 0), jsonObject.optString("prompt", "")};
-                promptArray.add(promptInfo);
-            } catch (JSONException e) {
-                Log.e(TAG, "getPromptFromSaved. error thrown.", e);
-            }
-        }
-
-        promptArray.sort((o1, o2) -> Math.toIntExact((long) o2[0] - (long) o1[0]));
-
-        return promptArray;
     }
 
     private void doDelete() {
