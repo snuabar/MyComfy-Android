@@ -5,7 +5,7 @@ import android.util.Log;
 import androidx.annotation.CallSuper;
 import androidx.annotation.Nullable;
 
-import com.snuabar.mycomfy.main.model.AbstractParameters;
+import com.snuabar.mycomfy.client.Parameters;
 import com.snuabar.mycomfy.main.model.ReceivedMessageModel;
 import com.snuabar.mycomfy.main.model.SentMessageModel;
 
@@ -31,8 +31,9 @@ public abstract class AbstractMessageModel implements Serializable {
         return id;
     }
 
-    public abstract AbstractParameters getParameters();
+    public abstract Parameters getParameters();
 
+    public abstract boolean isFileExistsOnServer();
     /**
      * 响应收到的时间
      *
@@ -65,13 +66,17 @@ public abstract class AbstractMessageModel implements Serializable {
 
     public abstract void setImageResponseMessage(String imageResponseMessage);
 
-    public abstract void setFinished();
+    public abstract void setFinished(File imageFile, int code, String message);
 
     public abstract boolean isFinished();
 
     public abstract void setFailureMessage(String failureMessage);
 
     public abstract String getFailureMessage();
+
+    public abstract boolean getInterruptionFlag();
+
+    public abstract void setInterruptionFlag(boolean interruption);
 
     @CallSuper
     public JSONObject toJson() {

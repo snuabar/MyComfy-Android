@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:orientation="vertical"
+    android:background="@android:color/transparent">
+
+    <ListView xmlns:android="http://schemas.android.com/apk/res/android"
+        android:id="@+id/suggestion_list"
+        android:layout_width="260dp"
+        android:layout_height="match_parent"
+        android:maxHeight="300dp"
+        android:background="@android:color/white"
+        android:divider="@color/gray_3383"
+        android:dividerHeight="1dp"
+        tools:listitem="@layout/layout_suggestion_item"/>
+
+</LinearLayout>

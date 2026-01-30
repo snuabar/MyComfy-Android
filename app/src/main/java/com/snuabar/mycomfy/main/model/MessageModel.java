@@ -17,8 +17,13 @@ public class MessageModel extends AbstractMessageModel {
     protected Parameters parameters;
 
     @Override
-    public AbstractParameters getParameters() {
+    public Parameters getParameters() {
         return parameters;
+    }
+
+    @Override
+    public boolean isFileExistsOnServer() {
+        return false;
     }
 
     @Override
@@ -80,7 +85,7 @@ public class MessageModel extends AbstractMessageModel {
     }
 
     @Override
-    public void setFinished() {
+    public void setFinished(File imageFile, int code, String message) {
 
     }
 
@@ -97,6 +102,15 @@ public class MessageModel extends AbstractMessageModel {
     @Override
     public String getFailureMessage() {
         return "";
+    }
+
+    @Override
+    public boolean getInterruptionFlag() {
+        return false;
+    }
+
+    @Override
+    public void setInterruptionFlag(boolean interruption) {
     }
 
     @Override

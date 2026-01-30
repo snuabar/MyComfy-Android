@@ -16,12 +16,13 @@ public class ReceivedMessageModel extends MessageModel {
 
     private static final String TAG = ReceivedMessageModel.class.getName();
 
-    protected EnqueueResponse response;
-    protected File imageFile;
-    protected File thumbnailFile;
-    protected int imageResponseCode;
-    protected String imageResponseMessage;
-    protected long utcTimestamp = 0;
+    private EnqueueResponse response;
+    private File imageFile;
+    private File thumbnailFile;
+    private int imageResponseCode;
+    private String imageResponseMessage;
+    private long utcTimestamp = 0;
+    private boolean interruptionFlag = false;
 
     public ReceivedMessageModel(EnqueueResponse response) {
         super();
@@ -37,6 +38,11 @@ public class ReceivedMessageModel extends MessageModel {
     @Override
     public String getPromptId() {
         return response != null ? response.getPrompt_id() : null;
+    }
+
+    @Override
+    public boolean isFileExistsOnServer() {
+        return response != null && response.isFile_exists();
     }
 
     @Override
@@ -96,13 +102,26 @@ public class ReceivedMessageModel extends MessageModel {
     }
 
     @Override
-    public void setFinished() {
+    public void setFinished(File imageFile, int code, String message) {
         utcTimestamp = Clock.systemUTC().millis();
+        this.imageFile = imageFile;
+        imageResponseCode = code;
+        imageResponseMessage = message;
     }
 
     @Override
     public boolean isFinished() {
         return utcTimestamp != 0;
+    }
+
+    @Override
+    public void setInterruptionFlag(boolean interruption) {
+        this.interruptionFlag = interruption;
+    }
+
+    @Override
+    public boolean getInterruptionFlag() {
+        return interruptionFlag;
     }
 
     @Override
@@ -121,6 +140,7 @@ public class ReceivedMessageModel extends MessageModel {
             jsonObject.putOpt("imageResponseCode", imageResponseCode);
             jsonObject.putOpt("imageResponseMessage", imageResponseMessage);
             jsonObject.putOpt("utcTimestamp", utcTimestamp);
+            jsonObject.putOpt("interruptionFlag", interruptionFlag);
         } catch (JSONException e) {
             Log.e(TAG, "toJson. Failed to execute putOpt.", e);
         }
@@ -146,18 +166,19 @@ public class ReceivedMessageModel extends MessageModel {
         imageResponseCode = jsonObject.optInt("imageResponseCode");
         imageResponseMessage = jsonObject.optString("imageResponseMessage");
         utcTimestamp = jsonObject.optLong("utcTimestamp");
+        interruptionFlag = jsonObject.optBoolean("interruptionFlag");
     }
 
     @Override
     public boolean equals(Object o) {
         if (o == null || getClass() != o.getClass()) return false;
         if (!super.equals(o)) return false;
-        ReceivedMessageModel model = (ReceivedMessageModel) o;
-        return imageResponseCode == model.imageResponseCode && utcTimestamp == model.utcTimestamp && Objects.equals(response, model.response) && Objects.equals(imageFile, model.imageFile) && Objects.equals(thumbnailFile, model.thumbnailFile) && Objects.equals(imageResponseMessage, model.imageResponseMessage);
+        ReceivedMessageModel that = (ReceivedMessageModel) o;
+        return imageResponseCode == that.imageResponseCode && utcTimestamp == that.utcTimestamp && interruptionFlag == that.interruptionFlag && Objects.equals(response, that.response) && Objects.equals(imageFile, that.imageFile) && Objects.equals(thumbnailFile, that.thumbnailFile) && Objects.equals(imageResponseMessage, that.imageResponseMessage);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(super.hashCode(), response, imageFile, thumbnailFile, imageResponseCode, imageResponseMessage, utcTimestamp);
+        return Objects.hash(super.hashCode(), response, imageFile, thumbnailFile, imageResponseCode, imageResponseMessage, utcTimestamp, interruptionFlag);
     }
 }

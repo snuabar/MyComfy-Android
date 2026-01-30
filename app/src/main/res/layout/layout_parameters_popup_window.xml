@@ -15,10 +15,11 @@
             android:textSize="11sp"
             android:textStyle="bold" />
 
-        <TableRow>
+        <TableRow android:layout_marginStart="6dp">
 
             <Spinner
                 android:id="@+id/spinnerWorkflow"
+                style="@style/ParameterSpinnerStyle"
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_marginEnd="8dp"
@@ -27,24 +28,27 @@
             <ImageButton
                 android:id="@+id/btnLoadWorkflows"
                 style="@style/ButtonBorderless"
-                android:src="@drawable/ic_refresh"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
-                android:layout_span="1" />
+                android:layout_span="1"
+                android:src="@drawable/ic_refresh" />
         </TableRow>
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
             android:text="模型"
             android:textSize="11sp"
             android:textStyle="bold" />
 
         <TableRow
-            android:id="@+id/tableRowModels">
+            android:id="@+id/tableRowModels"
+            android:layout_marginStart="6dp">
 
             <Spinner
                 android:id="@+id/spinnerModels"
+                style="@style/ParameterSpinnerStyle"
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_marginEnd="8dp"
@@ -53,9 +57,9 @@
             <ImageButton
                 android:id="@+id/btnLoadModels"
                 style="@style/ButtonBorderless"
-                android:src="@drawable/ic_refresh"
                 android:layout_width="40dp"
-                android:layout_height="40dp" />
+                android:layout_height="40dp"
+                android:src="@drawable/ic_refresh" />
 
         </TableRow>
         <!-- 参数设置 -->
@@ -72,42 +76,44 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="图像宽度:" />
+                android:text="尺寸:" />
 
             <EditText
                 android:id="@+id/etWidth"
+                style="@style/ParameterEditTextStyle"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
                 android:layout_weight="1"
+                android:layout_marginStart="6dp"
                 android:inputType="number"
                 android:maxLength="4"
-                android:text="512"
-                android:textSize="14sp" />
+                android:text="512" />
 
-        </TableRow>
-
-        <TableRow android:layout_marginStart="6dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="图像高度:" />
+            <ImageButton
+                android:id="@+id/btnSwitchWH"
+                style="@style/ButtonBorderless"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="0.4"
+                android:src="@drawable/ic_switch_wh"
+                android:layout_gravity="center" />
 
             <EditText
                 android:id="@+id/etHeight"
-                android:layout_width="wrap_content"
+                style="@style/ParameterEditTextStyle"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
                 android:layout_weight="1"
+                android:layout_span="1"
                 android:inputType="number"
                 android:maxLength="4"
-                android:text="512"
-                android:textSize="14sp" />
+                android:text="512" />
 
         </TableRow>
 
-        <TableRow android:layout_marginStart="6dp">
+        <TableRow
+            android:layout_marginStart="6dp"
+            android:layout_marginTop="4dp">
 
             <TextView
                 android:layout_width="wrap_content"
@@ -116,65 +122,69 @@
 
             <EditText
                 android:id="@+id/etSeed"
+                style="@style/ParameterEditTextStyle"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginHorizontal="6dp"
                 android:layout_weight="1"
                 android:hint="可选"
                 android:inputType="numberSigned"
-                android:text="216"
-                android:textSize="14sp" />
+                android:text="216" />
 
             <ImageButton
                 android:id="@+id/btnRandom"
                 style="@style/ButtonBorderless"
-                android:src="@drawable/ic_refresh"
                 android:layout_width="40dp"
-                android:layout_height="40dp" />
+                android:layout_height="40dp"
+                android:src="@drawable/ic_refresh" />
 
         </TableRow>
 
-        <TableRow android:layout_marginStart="6dp">
+        <TableRow
+            android:layout_marginStart="6dp"
+            android:layout_marginTop="4dp">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="2dp"
                 android:text="步数:" />
 
             <EditText
                 android:id="@+id/etStep"
+                style="@style/ParameterEditTextStyle"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="6dp"
                 android:layout_weight="1"
                 android:inputType="number"
-                android:text="20"
-                android:textSize="14sp" />
+                android:text="20" />
 
         </TableRow>
 
-        <TableRow android:layout_marginStart="6dp">
+        <TableRow
+            android:layout_marginStart="6dp"
+            android:layout_marginTop="4dp">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="2dp"
                 android:text="CFG:" />
 
             <EditText
                 android:id="@+id/etCFG"
+                style="@style/ParameterEditTextStyle"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="6dp"
                 android:layout_weight="1"
                 android:inputType="numberDecimal"
-                android:text="8.0"
-                android:textSize="14sp" />
+                android:text="8.0" />
 
         </TableRow>
 
-        <TableRow android:layout_marginStart="6dp">
+        <TableRow
+            android:layout_marginStart="6dp"
+            android:layout_marginTop="4dp">
 
             <TextView
                 android:layout_width="wrap_content"
@@ -183,13 +193,13 @@
 
             <EditText
                 android:id="@+id/etUpscaleFactor"
+                style="@style/ParameterEditTextStyle"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="6dp"
                 android:layout_weight="1"
                 android:inputType="numberDecimal"
-                android:text="1.0"
-                android:textSize="14sp" />
+                android:text="1.0" />
         </TableRow>
     </TableLayout>
 </ScrollView>
