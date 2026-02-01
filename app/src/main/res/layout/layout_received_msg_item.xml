@@ -1,22 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:paddingVertical="10dp">
-
-    <CheckBox
-        android:id="@+id/checkbox"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:clickable="false"
-        android:focusable="false"
-        android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="@id/constraintLayout"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="@id/constraintLayout"
-        tools:visibility="visible" />
+    android:background="@drawable/ripple_effect"
+    android:padding="10dp">
 
     <TextView
         android:id="@+id/tvDate"
@@ -25,9 +13,10 @@
         android:layout_marginHorizontal="4dp"
         android:background="@android:color/transparent"
         android:gravity="end"
-        android:inputType="textMultiLine"
+        android:clickable="false"
+        android:focusable="false"
         android:text="yyyy年MM月dd日 HH:mm:ss"
-        android:textSize="10sp"
+        android:textSize="11sp"
         app:layout_constraintBottom_toTopOf="@id/constraintLayout"
         app:layout_constraintEnd_toEndOf="@+id/constraintLayout"
         app:layout_constraintHeight_default="wrap" />
@@ -38,7 +27,8 @@
         android:layout_height="0dp"
         android:layout_marginHorizontal="4dp"
         android:background="@android:color/transparent"
-        android:inputType="textMultiLine"
+        android:clickable="false"
+        android:focusable="false"
         android:text="Comfy"
         android:textStyle="bold"
         app:layout_constraintBottom_toTopOf="@id/constraintLayout"
@@ -56,7 +46,7 @@
         android:padding="10dp"
         app:layout_constrainedWidth="true"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toEndOf="@id/checkbox"
+        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/tvTitle"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintVertical_bias="0"
@@ -122,10 +112,11 @@
         android:layout_marginHorizontal="4dp"
         android:background="@android:color/transparent"
         android:gravity="start|top"
-        android:inputType="textMultiLine"
+        android:clickable="false"
+        android:focusable="false"
         android:text="unknown error"
         android:textColor="@color/gray_83"
-        android:textSize="10sp"
+        android:textSize="11sp"
         app:layout_constrainedHeight="true"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintHeight_default="wrap"
@@ -141,9 +132,10 @@
         android:layout_marginHorizontal="4dp"
         android:background="@android:color/transparent"
         android:gravity="end"
-        android:inputType="textMultiLine"
+        android:clickable="false"
+        android:focusable="false"
         android:text="yyyy年MM月dd日 HH:mm:ss"
-        android:textSize="10sp"
+        android:textSize="11sp"
         app:layout_constraintEnd_toEndOf="@+id/constraintLayout"
         app:layout_constraintHeight_default="wrap"
         app:layout_constraintTop_toBottomOf="@id/constraintLayout" />

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- 底层框 -->
+    <path
+        android:fillColor="?attr/colorOnPrimary"
+        android:fillAlpha="0.3"
+        android:pathData="M4,4h8v8H4z" />
+
+    <!-- 中层框 -->
+    <path
+        android:fillColor="?attr/colorOnPrimary"
+        android:fillAlpha="0.6"
+        android:pathData="M8,8h8v8H8z" />
+
+    <!-- 顶层框 -->
+    <path
+        android:fillColor="?attr/colorOnPrimary"
+        android:pathData="M12,12h8v8h-8z" />
+</vector>
