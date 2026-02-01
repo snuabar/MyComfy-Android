@@ -17,7 +17,7 @@ public class ImageRequest {
     private int img_height;
     private int num_images = 1;
     private String style = "realistic";
-    private String negative_prompt;
+    private String negative_prompt = null;
     private double upscale_factor;
     private int step;
     private double cfg;
@@ -30,9 +30,9 @@ public class ImageRequest {
         this.seed = seed;
         this.img_width = img_width;
         this.img_height = img_height;
+        this.upscale_factor = upscale_factor;
         this.step = step;
         this.cfg = cfg;
-        this.upscale_factor = upscale_factor;
     }
 
     public ImageRequest(Parameters parameters) {
@@ -137,10 +137,6 @@ public class ImageRequest {
         this.cfg = cfg;
     }
 
-    public long getTimestamp() {
-        return 0;
-    }
-
     public JSONObject toJson() {
         try {
             JSONObject jsonObject = new JSONObject();
@@ -165,14 +161,14 @@ public class ImageRequest {
 
     public void loadJson(JSONObject jsonObject) {
         setWorkflow(jsonObject.optString("workflow"));
-        setModel(jsonObject.optString("model"));
-        setPrompt(jsonObject.optString("prompt"));
+        setModel(jsonObject.optString("model", null));
+        setPrompt(jsonObject.optString("prompt", null));
         setSeed(jsonObject.optInt("seed"));
         setImg_width(jsonObject.optInt("img_width"));
         setImg_height(jsonObject.optInt("img_height"));
         setNum_images(jsonObject.optInt("num_images"));
         setStyle(jsonObject.optString("style"));
-        setNegative_prompt(jsonObject.optString("negative_prompt"));
+        setNegative_prompt(jsonObject.optString("negative_prompt", null));
         setUpscale_factor(jsonObject.optDouble("upscale_factor"));
         setStep(jsonObject.optInt("step"));
         setCfg(jsonObject.optDouble("cfg"));

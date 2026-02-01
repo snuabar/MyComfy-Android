@@ -1,5 +1,6 @@
 package com.snuabar.mycomfy.main;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.BitmapFactory;
 import android.os.Handler;
@@ -100,7 +101,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
                     ));
         }
         holder.setTip(model.getFailureMessage() != null ? model.getFailureMessage() : "", model.getFailureMessage() != null);
-        holder.binding.btnResent.setVisibility(model.getFailureMessage() != null ? View.VISIBLE : View.GONE);
+        holder.binding.btnResent.setVisibility(model.getFailureMessage() != null && !isEditMode ? View.VISIBLE : View.GONE);
     }
 
     public void onBindReceivedViewHolder(@NonNull ReceivedViewHolder holder, int position) {
@@ -118,8 +119,10 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
             ImageUtils.makeThumbnailAsync(model, width, height, this::onThumbnailMake);
         }
         holder.setTip(model.getMessage(), model.getCode() != 200);
-        holder.binding.btnInterrupt.setVisibility(model.getCode() == 200 || model.getInterruptionFlag() ? View.GONE : View.VISIBLE);
+        holder.binding.btnInterrupt.setVisibility(model.getCode() == 200 || model.getInterruptionFlag() || isEditMode ? View.GONE : View.VISIBLE);
         holder.binding.tvDateCompletion.setText(model.isFinished() ? Common.formatTimestamp(model.getUTCTimestampCompletion()) : "");
+        holder.binding.btnSave.setVisibility(isEditMode ? View.INVISIBLE : View.VISIBLE);
+        holder.binding.btnShare.setVisibility(isEditMode ? View.INVISIBLE : View.VISIBLE);
     }
 
     private void onThumbnailMake(AbstractMessageModel model) {
@@ -235,6 +238,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
         }
     }
 
+    @SuppressLint("NotifyDataSetChanged")
     public void setEditMode(boolean editMode) {
         this.isEditMode = editMode;
         selections.clear();
@@ -304,7 +308,9 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
         void setTip(String text, boolean isErr) {
             if (tvTip != null) {
                 tvTip.setText(text);
-                tvTip.setTextColor(isErr ? android.R.color.holo_red_light : R.color.gray_83);
+                tvTip.setTextColor(isErr ?
+                        itemView.getResources().getColor(android.R.color.holo_red_light, null) :
+                        itemView.getResources().getColor(R.color.gray_83, null));
             }
         }
     }

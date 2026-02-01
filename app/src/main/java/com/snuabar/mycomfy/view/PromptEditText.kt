@@ -3,15 +3,21 @@ package com.snuabar.mycomfy.view
 // PromptEditText.kt
 import android.content.Context
 import android.graphics.Rect
+import android.text.Editable
 import android.util.AttributeSet
 import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.LinearLayout
-import android.widget.ListView
 import android.widget.PopupWindow
+import android.widget.TextView
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.appcompat.widget.AppCompatEditText
 import com.snuabar.mycomfy.R
+import com.snuabar.mycomfy.databinding.LayoutSuggestionPopupBinding
+import com.snuabar.mycomfy.main.data.prompt.AdvancedTranslator
+import com.snuabar.mycomfy.main.data.prompt.PromptManager
 
 class PromptEditText @JvmOverloads constructor(
     context: Context,
@@ -19,12 +25,24 @@ class PromptEditText @JvmOverloads constructor(
     defStyleAttr: Int = android.R.attr.editTextStyle
 ) : AppCompatEditText(context, attrs, defStyleAttr) {
 
-    private var suggestionList: ListView? = null
     private var popupWindow: PopupWindow? = null
-    private var suggestionAdapter: ArrayAdapter<String>? = null
+    private var suggestionAdapter: SuggestionAdapter? = null
     private var suggestions: MutableList<String> = mutableListOf()
+    private val popupViewBinding: LayoutSuggestionPopupBinding
+    private var directlyInsert: Boolean = false
+    var showSuggestions: Boolean = true
+        set(value) {
+            field = value
+            if (!value) {
+                popupWindow?.dismiss()
+            }
+        }
+    private var untranslatedText: Editable? = null
 
     init {
+        val inflater = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
+        popupViewBinding = LayoutSuggestionPopupBinding.inflate(inflater)
+
         setupPopupWindow()
         loadDefaultSuggestions()
 
@@ -39,21 +57,24 @@ class PromptEditText @JvmOverloads constructor(
     }
 
     private fun setupPopupWindow() {
-        val inflater = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
-        val popupView = inflater.inflate(R.layout.layout_suggestion_popup, null)
-
-        suggestionList = popupView.findViewById(R.id.suggestion_list)
-        suggestionAdapter = ArrayAdapter(context, R.layout.layout_suggestion_item, R.id.text1)
-        suggestionList?.adapter = suggestionAdapter
+        suggestionAdapter = SuggestionAdapter(context)
+        popupViewBinding.suggestionList.adapter = suggestionAdapter
 
         // 设置ListView点击事件
-        suggestionList?.setOnItemClickListener { _, _, position, _ ->
+        popupViewBinding.suggestionList.setOnItemClickListener { _, _, position, _ ->
             val selected = suggestionAdapter?.getItem(position) as String
-            insertSuggestion(selected)
+            when {
+                directlyInsert -> {
+                    this.text?.append("$selected,")
+                }
+                else -> {
+                    insertSuggestion(selected)
+                }
+            }
         }
 
         popupWindow = PopupWindow(
-            popupView,
+            popupViewBinding.root,
             LinearLayout.LayoutParams.WRAP_CONTENT,
             LinearLayout.LayoutParams.WRAP_CONTENT,
             false
@@ -69,50 +90,14 @@ class PromptEditText @JvmOverloads constructor(
     }
 
     private fun loadDefaultSuggestions() {
-        // AI提示词常用词汇库
-        val aiPromptKeywords = listOf(
-            // 质量相关
-            "high quality", "masterpiece", "best quality", "ultra detailed", "4k", "8k",
-            "photorealistic", "cinematic", "professional",
-
-            // 艺术风格
-            "realistic", "anime", "cartoon", "painting", "watercolor", "oil painting",
-            "digital art", "concept art", "vector art", "minimalist",
-
-            // 光照和氛围
-            "dramatic lighting", "soft lighting", "golden hour", "sunset", "morning light",
-            "neon lights", "volumetric lighting", "rim light", "ambient light",
-
-            // 视角和构图
-            "wide angle", "close-up", "portrait", "landscape", "bird's eye view",
-            "low angle", "macro shot", "panoramic", "symmetrical",
-
-            // 渲染引擎
-            "unreal engine", "unity", "octane render", "cycles", "v-ray",
-            "blender", "maya", "3ds max",
-
-            // 特殊效果
-            "bokeh", "depth of field", "motion blur", "HDR", "glow", "shadows",
-            "reflections", "transparency", "particles",
-
-            // AI模型相关
-            "stable diffusion", "midjourney", "dalle", "chatgpt", "GPT-4",
-            "prompt engineering", "negative prompt", "weights",
-
-            // 常用参数
-            "--ar", "--v", "--quality", "--style", "--chaos", "--stylize",
-            "--no", "--iw", "--seed",
-
-            // 艺术家和工作室
-            "art by Studio Ghibli", "by Pixar", "by Van Gogh", "by Monet",
-            "by James Cameron", "by Wes Anderson",
-
-            // 主题和场景
-            "fantasy", "sci-fi", "cyberpunk", "steampunk", "post-apocalyptic",
-            "medieval", "futuristic", "retro", "vintage"
-        )
-
-        suggestions.addAll(aiPromptKeywords.sorted())
+        val set = HashSet<String>()
+        // 加载提示词常用词汇库
+        PromptManager.getInstance().getAllCategories().forEach { (_, _, keywords) ->
+            set.addAll(keywords)
+        }
+        suggestions.addAll(set)
+        suggestions.sort()
+        AdvancedTranslator.getInstance()?.translateBatch(suggestions, "en", "zh") { }
     }
 
     private fun handleTextChanged(text: String) {
@@ -131,11 +116,27 @@ class PromptEditText @JvmOverloads constructor(
             textBeforeCursor.substring(lastSpaceIndex + 1).trim()
         }
 
-        if (currentWord.isNotEmpty()) {
+        if (currentWord.isNotEmpty() && showSuggestions) {
             showSuggestions(currentWord)
         } else {
             popupWindow?.dismiss()
         }
+    }
+
+    private fun measurePopupWindowSize() {
+        // 手动测量和布局
+        popupViewBinding.root.measure(
+            MeasureSpec.makeMeasureSpec(
+                200,
+                MeasureSpec.EXACTLY
+            ),
+            MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
+        )
+        popupViewBinding.root.layout(
+            0, 0,
+            popupViewBinding.root.measuredWidth,
+            popupViewBinding.root.measuredHeight
+        )
     }
 
     private fun showSuggestions(prefix: String) {
@@ -148,13 +149,16 @@ class PromptEditText @JvmOverloads constructor(
             return
         }
 
+        directlyInsert = false
+
         val cursorRect = Rect()
         getFocusedRect(cursorRect)
 
         // 使PopupWindow出现在光标下方
-        val x = cursorRect.left
-        val y = cursorRect.bottom
+        val x = cursorRect.right
+        val y = cursorRect.bottom - (height + scrollY + paddingBottom)
 
+        popupWindow?.isOutsideTouchable = false
         if (popupWindow?.isShowing == true) {
             popupWindow?.update(this, x, y, -1, -1)
         } else {
@@ -164,7 +168,33 @@ class PromptEditText @JvmOverloads constructor(
             suggestionAdapter?.clear()
             suggestionAdapter?.addAll(filtered)
             suggestionAdapter?.notifyDataSetChanged()
+        }
+    }
 
+    fun showPrompts(anchor: View, prompts: List<String>) {
+        if (prompts.isEmpty()) {
+            return
+        }
+
+        directlyInsert = true
+
+        measurePopupWindowSize()
+
+        // 使PopupWindow出现在光标下方
+        val x = 0
+        val y = -anchor.height - popupViewBinding.suggestionList.height
+
+        popupWindow?.isOutsideTouchable = true
+        if (popupWindow?.isShowing == true) {
+            popupWindow?.update(anchor, x, y, -1, -1)
+        } else {
+            popupWindow?.showAsDropDown(anchor, x, y);
+        }
+
+        post {
+            suggestionAdapter?.clear()
+            suggestionAdapter?.addAll(prompts)
+            suggestionAdapter?.notifyDataSetChanged()
         }
     }
 
@@ -202,5 +232,38 @@ class PromptEditText @JvmOverloads constructor(
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
         popupWindow?.dismiss()
+    }
+
+    fun translateToEN() {
+        untranslatedText = text
+        val list = text?.split(',')
+        if (list != null) {
+            AdvancedTranslator.getInstance()?.translateBatch(list, "zh", "en") {
+                if (it != null) {
+                    setText(it.joinToString(","))
+                }
+            }
+        }
+    }
+
+    fun translateNone() {
+        setText(untranslatedText)
+    }
+
+    private class SuggestionAdapter(context: Context) :
+        ArrayAdapter<String>(context, R.layout.layout_suggestion_item, R.id.text1) {
+
+        override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+            val v = super.getView(position, convertView, parent)
+            val text0 = v.findViewById<TextView>(R.id.text0)
+            val text1 = v.findViewById<TextView>(R.id.text1)
+            text0.text = if (getItem(position) != null) {
+                val text = getItem(position) ?: ""
+                AdvancedTranslator.getInstance()?.get(text, "en", "zh") ?: (text1.text ?: "")
+            } else {
+                text1.text ?: ""
+            }
+            return v
+        }
     }
 }

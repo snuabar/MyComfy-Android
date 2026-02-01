@@ -1,5 +1,6 @@
 package com.snuabar.mycomfy.main;
 
+import androidx.activity.EdgeToEdge;
 import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.lifecycle.ViewModelProvider;
@@ -9,9 +10,10 @@ import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
 
-import com.google.android.material.internal.EdgeToEdgeUtils;
 import com.snuabar.mycomfy.R;
 import com.snuabar.mycomfy.client.RetrofitClient;
+import com.snuabar.mycomfy.main.data.prompt.AdvancedTranslator;
+import com.snuabar.mycomfy.main.data.prompt.PromptManager;
 import com.snuabar.mycomfy.setting.Settings;
 import com.snuabar.mycomfy.setting.SettingsActivity;
 import com.snuabar.mycomfy.utils.FilePicker;
@@ -23,12 +25,17 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        EdgeToEdge.enable(this);
         Settings.init(this);
+        AdvancedTranslator translator = AdvancedTranslator.Companion.init(this);
+        assert translator != null;
+        translator.initTranslator("en", "zh", true, null);
+        translator.initTranslator("zh", "en", true, null);
+        PromptManager.Companion.init(this);
         RetrofitClient.init(this);
         mViewModel = new ViewModelProvider(this).get(MainViewModel.class);
         mViewModel.setFilePicker(new FilePicker(this));
         setContentView(R.layout.activity_main);
-        EdgeToEdgeUtils.applyEdgeToEdge(getWindow(), true);
         if (savedInstanceState == null) {
             getSupportFragmentManager().beginTransaction()
                     .replace(R.id.container, MainFragment.newInstance())

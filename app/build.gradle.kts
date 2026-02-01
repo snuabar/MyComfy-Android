@@ -61,4 +61,6 @@ dependencies {
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
     // 图片加载库
     implementation("com.github.bumptech.glide:glide:4.16.0")
+    // google MLKit 实时翻译
+    implementation("com.google.mlkit:translate:17.0.2")
 }

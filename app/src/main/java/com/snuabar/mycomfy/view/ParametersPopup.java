@@ -28,6 +28,7 @@ import org.json.JSONObject;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -98,7 +99,7 @@ public class ParametersPopup extends PopupWindow {
         // 手动测量和布局
         getContentView().measure(
                 View.MeasureSpec.makeMeasureSpec(
-                        View.MeasureSpec.EXACTLY,
+                        300,
                         View.MeasureSpec.EXACTLY
                 ),
                 View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
@@ -109,6 +110,7 @@ public class ParametersPopup extends PopupWindow {
                 getContentView().getMeasuredHeight()
         );
         super.showAsDropDown(anchor, 0, -anchor.getHeight() - getContentView().getMeasuredHeight(), Gravity.TOP | Gravity.START);
+        binding.btnSwitchWH.setEnabled(false);
         handler.post(this::loadWorkflows);
     }
 
@@ -125,17 +127,9 @@ public class ParametersPopup extends PopupWindow {
         binding.btnLoadModels.setOnClickListener(v -> loadModels());
         binding.btnSwitchWH.setOnClickListener(v -> switchWidthAndHeight());
         binding.btnRandom.setOnClickListener(v -> {
-            String seedStr = binding.etSeed.getText().toString().trim();
-            int seed = 0;
-            if (!seedStr.isEmpty()) {
-                try {
-                    seed = Integer.parseInt(seedStr);
-                } catch (NumberFormatException ignore) {
-                }
-            }
-            random.setSeed(seed);
-            seed = Math.abs(random.nextInt());
-            binding.etSeed.setText(seed + "");
+            random.setSeed(Clock.systemUTC().millis());
+            int seed = Math.abs(random.nextInt());
+            binding.etSeed.setText(String.valueOf(seed));
         });
     }
 
@@ -308,6 +302,7 @@ public class ParametersPopup extends PopupWindow {
         } catch (JSONException e) {
             Log.e(TAG, "loadValues. Failed to execute getXXX.", e);
         }
+        binding.btnSwitchWH.setEnabled(true);
     }
 
     private void saveValues() {

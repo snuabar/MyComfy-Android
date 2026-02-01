@@ -11,13 +11,21 @@ import java.util.Objects;
 public class Parameters extends ImageRequest {
     private long timestamp;
     public Parameters() {
-        super(null, null, null, 0, 0, 0, 0, 0.0, 0.0);
+        this(null, null, null, 0, 0, 0, 0, 0.0, 0.0);
+    }
+
+    public Parameters(String workflow, String modelName, String prompt, Integer seed, int width, int height, int step, double cfg, double upscaleFactor) {
+        super(workflow, modelName, prompt, seed, width, height, step, cfg, upscaleFactor);
         timestamp = Clock.systemUTC().millis();
     }
 
-    @Override
     public long getTimestamp() {
         return timestamp;
+    }
+
+    public Parameters setResent() {
+        timestamp = Clock.systemUTC().millis();
+        return this;
     }
 
     @Override

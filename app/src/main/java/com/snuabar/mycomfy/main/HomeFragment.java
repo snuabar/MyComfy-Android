@@ -19,7 +19,6 @@ import androidx.lifecycle.Lifecycle;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.google.android.material.internal.TextWatcherAdapter;
 import com.snuabar.mycomfy.R;
 import com.snuabar.mycomfy.client.EnqueueResponse;
 import com.snuabar.mycomfy.client.ImageRequest;
@@ -85,7 +84,7 @@ public class HomeFragment extends Fragment {
         // 初始化Retrofit客户端
         retrofitClient = RetrofitClient.getInstance();
         parametersPopup = new ParametersPopup(requireContext());
-        promptEditPopup = new PromptEditPopup(requireContext(), promptTextWatcherAdapter);
+        promptEditPopup = new PromptEditPopup(requireContext(), onPromptChangeListener);
     }
 
     @Nullable
@@ -104,19 +103,19 @@ public class HomeFragment extends Fragment {
         messageAdapter = new MessageAdapter(requireContext(), this::onMessageElementClick);
         binding.recyclerView.setAdapter(messageAdapter);
 
-        mViewModel.getDeletionHasPressLiveData().observe(this, aBoolean -> {
+        mViewModel.getDeletionHasPressLiveData().observe(getViewLifecycleOwner(), aBoolean -> {
             if (getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.RESUMED)) {
                 if (aBoolean) {
                     doDelete();
                 }
             }
         });
-        mViewModel.getDeletionModeLiveData().observe(this, aBoolean -> {
+        mViewModel.getDeletionModeLiveData().observe(getViewLifecycleOwner(), aBoolean -> {
             if (getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.RESUMED)) {
                 messageAdapter.setEditMode(aBoolean);
             }
         });
-        mViewModel.getDeletedModelsLiveData().observe(this, stringListMap -> {
+        mViewModel.getDeletedModelsLiveData().observe(getViewLifecycleOwner(), stringListMap -> {
             stringListMap.remove(HomeFragment.class.getName());
             if (!stringListMap.isEmpty()) {
                 for (String key : stringListMap.keySet()) {
@@ -133,7 +132,7 @@ public class HomeFragment extends Fragment {
         super.onPause();
         messageAdapter.setEditMode(false);
         // 保存上一次的提示词
-        Settings.getInstance().getPreferences().edit().putString("prompt", binding.tvPrompt.getText().toString());
+        Settings.getInstance().getPreferences().edit().putString("prompt", binding.tvPrompt.getText().toString()).apply();
     }
 
     @Override
@@ -149,13 +148,8 @@ public class HomeFragment extends Fragment {
         startStatusCheck();
     }
 
-    private final TextWatcherAdapter promptTextWatcherAdapter = new TextWatcherAdapter() {
-        @Override
-        public void onTextChanged(@NonNull CharSequence s, int start, int before, int count) {
-            super.onTextChanged(s, start, before, count);
-            binding.tvPrompt.setText(s.toString());
-        }
-    };
+    private final PromptEditPopup.OnPromptChangeListener onPromptChangeListener = prompt ->
+            binding.tvPrompt.setText(prompt);
 
     private void onMessageElementClick(int position, int ope) {
         if (position == RecyclerView.NO_POSITION) {
@@ -239,109 +233,120 @@ public class HomeFragment extends Fragment {
         promptEditPopup.setText(binding.tvPrompt.getText().toString());
     }
 
-    private void enqueue(SentMessageModel sentMessageModel) {
-        ImageRequest request;
-        if (sentMessageModel == null) {
-            String workflow = parametersPopup.getParameter(ParametersPopup.KEY_PARAM_WORKFLOW);
-            String modelName = parametersPopup.getParameter(ParametersPopup.KEY_PARAM_MODEL);
-            String prompt = binding.tvPrompt.getText().toString().trim();
-            String widthStr = parametersPopup.getParameter(ParametersPopup.KEY_PARAM_WIDTH);
-            String heightStr = parametersPopup.getParameter(ParametersPopup.KEY_PARAM_HEIGHT);
-            String seedStr = parametersPopup.getParameter(ParametersPopup.KEY_PARAM_SEED);
-            String upscaleFactorStr = parametersPopup.getParameter(ParametersPopup.KEY_PARAM_UPSCALE_FACTOR);
-            String stepStr = parametersPopup.getParameter(ParametersPopup.KEY_PARAM_STEP);
-            String cfgStr = parametersPopup.getParameter(ParametersPopup.KEY_PARAM_CFG);
+    private Parameters newParameters() {
+        String workflow = parametersPopup.getParameter(ParametersPopup.KEY_PARAM_WORKFLOW);
+        String modelName = parametersPopup.getParameter(ParametersPopup.KEY_PARAM_MODEL);
+        String prompt = binding.tvPrompt.getText().toString().trim();
+        String widthStr = parametersPopup.getParameter(ParametersPopup.KEY_PARAM_WIDTH);
+        String heightStr = parametersPopup.getParameter(ParametersPopup.KEY_PARAM_HEIGHT);
+        String seedStr = parametersPopup.getParameter(ParametersPopup.KEY_PARAM_SEED);
+        String upscaleFactorStr = parametersPopup.getParameter(ParametersPopup.KEY_PARAM_UPSCALE_FACTOR);
+        String stepStr = parametersPopup.getParameter(ParametersPopup.KEY_PARAM_STEP);
+        String cfgStr = parametersPopup.getParameter(ParametersPopup.KEY_PARAM_CFG);
 
-            // 验证输入
-            if (workflow.isEmpty()) {
-                showToast("请选择工作流");
-                return;
+        // 验证输入
+        if (workflow.isEmpty()) {
+            showToast("请选择工作流");
+            return null;
+        }
+
+        // 验证输入
+        if (TextUtils.isEmpty(modelName) && !parametersPopup.isModelAllowedEmpty()) {
+            showToast("请选择模型");
+            return null;
+        }
+
+        // 验证输入
+        if (prompt.isEmpty()) {
+            showToast("请输入图像描述");
+            return null;
+        }
+
+        int width, height;
+        try {
+            width = Integer.parseInt(widthStr);
+            height = Integer.parseInt(heightStr);
+
+            if (width < 64 || width > 4096 || height < 64 || height > 4096) {
+                showToast("图像尺寸应在 64 ~ 4096 之间");
+                return null;
             }
+        } catch (NumberFormatException e) {
+            showToast("请输入有效的尺寸");
+            return null;
+        }
 
-            // 验证输入
-            if (TextUtils.isEmpty(modelName) && !parametersPopup.isModelAllowedEmpty()) {
-                showToast("请选择模型");
-                return;
-            }
-
-            // 验证输入
-            if (prompt.isEmpty()) {
-                showToast("请输入图像描述");
-                return;
-            }
-
-            int width, height;
+        Integer seed = null;
+        if (!seedStr.isEmpty()) {
             try {
-                width = Integer.parseInt(widthStr);
-                height = Integer.parseInt(heightStr);
+                seed = Integer.parseInt(seedStr);
+            } catch (NumberFormatException e) {
+                showToast("种子必须是数字");
+                return null;
+            }
+        }
 
-                if (width < 64 || width > 4096 || height < 64 || height > 4096) {
-                    showToast("图像尺寸应在 64 ~ 4096 之间");
-                    return;
+        double upscaleFactor = 1.0;
+        if (!upscaleFactorStr.isEmpty()) {
+            try {
+                upscaleFactor = Double.parseDouble(upscaleFactorStr);
+                if (upscaleFactor < 1.0 || upscaleFactor > 4.0) {
+                    showToast("放大系数应在 1.0 ~ 4.0 之间");
+                    return null;
                 }
             } catch (NumberFormatException e) {
-                showToast("请输入有效的尺寸");
+                showToast("放大系数必须是数字");
+                return null;
+            }
+        }
+
+        int step = 20;
+        if (!stepStr.isEmpty()) {
+            try {
+                step = Integer.parseInt(stepStr);
+            } catch (NumberFormatException e) {
+                showToast("种子必须是数字");
+                return null;
+            }
+        }
+
+        double cfg = 8.0;
+        if (!cfgStr.isEmpty()) {
+            try {
+                cfg = Double.parseDouble(cfgStr);
+                if (cfg < 0.1 || cfg > 100.0) {
+                    showToast("CFG应在 0.1 ~ 100.0 之间");
+                    return null;
+                }
+            } catch (NumberFormatException e) {
+                showToast("CFG必须是数字");
+                return null;
+            }
+        }
+
+        // 创建请求对象
+        return new Parameters(workflow, modelName, prompt, seed, width, height, step, cfg, upscaleFactor);
+    }
+
+    private void enqueue(SentMessageModel model) {
+        final SentMessageModel sentMessageModel;
+        final ImageRequest request;
+        if (model == null) {
+            Parameters parameters = newParameters();
+            if (parameters == null) {
                 return;
-            }
-
-            Integer seed = null;
-            if (!seedStr.isEmpty()) {
-                try {
-                    seed = Integer.parseInt(seedStr);
-                } catch (NumberFormatException e) {
-                    showToast("种子必须是数字");
-                    return;
-                }
-            }
-
-            double upscaleFactor = 1.0;
-            if (!upscaleFactorStr.isEmpty()) {
-                try {
-                    upscaleFactor = Double.parseDouble(upscaleFactorStr);
-                    if (upscaleFactor < 1.0 || upscaleFactor > 4.0) {
-                        showToast("放大系数应在 1.0 ~ 4.0 之间");
-                        return;
-                    }
-                } catch (NumberFormatException e) {
-                    showToast("放大系数必须是数字");
-                    return;
-                }
-            }
-
-            int step = 20;
-            if (!stepStr.isEmpty()) {
-                try {
-                    step = Integer.parseInt(stepStr);
-                } catch (NumberFormatException e) {
-                    showToast("种子必须是数字");
-                    return;
-                }
-            }
-
-            double cfg = 8.0;
-            if (!cfgStr.isEmpty()) {
-                try {
-                    cfg = Double.parseDouble(cfgStr);
-                    if (cfg < 0.1 || cfg > 100.0) {
-                        showToast("CFG应在 0.1 ~ 100.0 之间");
-                        return;
-                    }
-                } catch (NumberFormatException e) {
-                    showToast("CFG必须是数字");
-                    return;
-                }
             }
 
             // 创建请求对象
-            request = new ImageRequest(workflow, modelName, prompt, seed, width, height, step, cfg, upscaleFactor);
-            sentMessageModel = new SentMessageModel(request);
+            request = new ImageRequest(parameters);
+            sentMessageModel = new SentMessageModel(parameters);
             messageAdapter.add(sentMessageModel);
         } else {
-            request = new ImageRequest(sentMessageModel.getParameters());
+            request = new ImageRequest(model.getParameters().setResent());
+            sentMessageModel = model;
         }
 
         // 发送请求
-        SentMessageModel finalSentMessageModel = sentMessageModel;
         retrofitClient.getApiService().enqueue(request).enqueue(new Callback<>() {
             @Override
             public void onResponse(@NonNull Call<EnqueueResponse> call, @NonNull Response<EnqueueResponse> response) {
@@ -349,7 +354,7 @@ public class HomeFragment extends Fragment {
                     EnqueueResponse enqueueResponse = response.body();
                     if (enqueueResponse.getCode() == 200) { // OK
                         // 时间纠正（服务器时间不正确的情况下）
-                        if (enqueueResponse.getUTCTimestamp() <= finalSentMessageModel.getUTCTimestamp()) {
+                        if (enqueueResponse.getUTCTimestamp() <= sentMessageModel.getUTCTimestamp()) {
                             enqueueResponse.setUtc_timestamp(String.valueOf(Clock.systemUTC().millis()));
                         }
                         // 保存响应对应，更新列表
@@ -357,20 +362,20 @@ public class HomeFragment extends Fragment {
                         messageAdapter.add(receivedMessageModel);
                         startStatusCheck();
                     } else if (enqueueResponse.getCode() == 409) { // conflict 已存在相同任务
-                        messageAdapter.remove(finalSentMessageModel);
+                        messageAdapter.remove(sentMessageModel);
                     }
                 } else {
 //                    enqueueResponse = EnqueueResponse.create(response.code(), response.message(),
 //                            new Parameters().loadFromRequest(request));
 //                    ReceivedMessageModel receivedMessageModel = new ReceivedMessageModel(enqueueResponse);
 //                    messageAdapter.add(receivedMessageModel);
-                    messageAdapter.setSentFailureMessage(finalSentMessageModel, response.message());
+                    messageAdapter.setSentFailureMessage(sentMessageModel, response.message());
                 }
             }
 
             @Override
             public void onFailure(@NonNull Call<EnqueueResponse> call, @NonNull Throwable t) {
-                messageAdapter.setSentFailureMessage(finalSentMessageModel, t.getMessage());
+                messageAdapter.setSentFailureMessage(sentMessageModel, t.getMessage());
             }
         });
     }

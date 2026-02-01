@@ -2,7 +2,6 @@ package com.snuabar.mycomfy.main.model;
 
 import android.util.Log;
 
-import com.snuabar.mycomfy.client.ImageRequest;
 import com.snuabar.mycomfy.client.Parameters;
 
 import org.json.JSONException;
@@ -13,18 +12,17 @@ import java.util.Objects;
 public class SentMessageModel extends MessageModel {
     private static final String TAG = SentMessageModel.class.getName();
 
-    protected String failureMessage = null;
+    private String failureMessage = null;
 
-    public SentMessageModel(ImageRequest request) {
+    public SentMessageModel(Parameters parameters) {
         super();
-        parameters = new Parameters().loadFromRequest(request);
+        this.parameters = parameters;
     }
 
     public SentMessageModel(JSONObject object) {
         super();
         this.fromJson(object);
     }
-
 
     @Override
     public void setFailureMessage(String failureMessage) {
