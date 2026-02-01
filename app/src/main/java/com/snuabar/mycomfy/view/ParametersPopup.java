@@ -22,6 +22,7 @@ import com.snuabar.mycomfy.client.RetrofitClient;
 import com.snuabar.mycomfy.client.WorkflowsResponse;
 import com.snuabar.mycomfy.databinding.LayoutParametersPopupWindowBinding;
 import com.snuabar.mycomfy.setting.Settings;
+import com.snuabar.mycomfy.utils.ViewUtils;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -97,18 +98,7 @@ public class ParametersPopup extends PopupWindow {
     @Override
     public void showAsDropDown(View anchor, int xoff, int yoff, int gravity) {
         // 手动测量和布局
-        getContentView().measure(
-                View.MeasureSpec.makeMeasureSpec(
-                        300,
-                        View.MeasureSpec.EXACTLY
-                ),
-                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
-        );
-        getContentView().layout(
-                0, 0,
-                getContentView().getMeasuredWidth(),
-                getContentView().getMeasuredHeight()
-        );
+        ViewUtils.measure(getContentView(), 300);
         super.showAsDropDown(anchor, 0, -anchor.getHeight() - getContentView().getMeasuredHeight(), Gravity.TOP | Gravity.START);
         binding.btnSwitchWH.setEnabled(false);
         handler.post(this::loadWorkflows);

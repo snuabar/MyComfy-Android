@@ -1,11 +1,19 @@
 package com.snuabar.mycomfy.utils;
 
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
-import android.media.ExifInterface;
+import androidx.exifinterface.media.ExifInterface;
+import android.net.Uri;
 import android.os.Build;
 import android.util.Log;
+import android.widget.Toast;
+
+import androidx.core.content.FileProvider;
 
 import com.snuabar.mycomfy.common.Callbacks;
 import com.snuabar.mycomfy.main.data.AbstractMessageModel;
@@ -159,7 +167,7 @@ public class ImageUtils {
     private static Bitmap rotateImageIfRequired(Bitmap bitmap, File imageFile) throws IOException {
         ExifInterface exif;
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             exif = new ExifInterface(imageFile);
         } else {
             exif = new ExifInterface(imageFile.getAbsolutePath());
@@ -225,11 +233,7 @@ public class ImageUtils {
                 format = Bitmap.CompressFormat.JPEG;
 //                quality = 100; // PNG不支持质量设置
             } else if (fileName.endsWith(".webp") || fileName.endsWith(".webp.thumb")) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.ICE_CREAM_SANDWICH) {
-                    format = Bitmap.CompressFormat.WEBP;
-                } else {
-                    format = Bitmap.CompressFormat.JPEG;
-                }
+                format = Bitmap.CompressFormat.WEBP;
             } else {
                 format = Bitmap.CompressFormat.JPEG;
             }
@@ -279,5 +283,83 @@ public class ImageUtils {
         }
         File thumbFile = getThumbnailFile(imageFile);
         return thumbFile.exists() && thumbFile.delete();
+    }
+
+    /**
+     * 复制图像文件到剪贴板
+     * @param context 上下文
+     * @param imageFile 图像文件
+     */
+    public static void copyImageToClipboard(Context context, File imageFile) {
+        try {
+            ClipboardManager clipboard = (ClipboardManager)
+                    context.getSystemService(Context.CLIPBOARD_SERVICE);
+
+            // 创建文件的 URI
+            Uri imageUri = Uri.fromFile(imageFile);
+
+            // 创建 ClipData，支持图片类型
+            ClipData clipData = ClipData.newUri(
+                    context.getContentResolver(),
+                    "Image",
+                    imageUri
+            );
+
+            // 设置剪贴板内容
+            clipboard.setPrimaryClip(clipData);
+
+            Toast.makeText(context, "图片已复制到剪贴板", Toast.LENGTH_SHORT).show();
+
+        } catch (Exception e) {
+            Toast.makeText(context, "复制失败: " + e.getMessage(),
+                    Toast.LENGTH_SHORT).show();
+            Log.e(TAG, "copyImageToClipboard > exception thrown.", e);
+        }
+    }
+
+    /**
+     * 使用 ContentProvider 的 URI（更安全，支持 Android 10+）
+     */
+    public static void copyImageUsingContentUri(Context context, File imageFile) {
+        try {
+            ClipboardManager clipboard = (ClipboardManager)
+                    context.getSystemService(Context.CLIPBOARD_SERVICE);
+
+            // 使用 FileProvider 获取安全的 URI（Android 7.0+ 必须）
+            Uri imageUri = FileProvider.getUriForFile(
+                    context,
+                    context.getApplicationContext().getPackageName() + ".provider",
+                    imageFile
+            );
+
+            // 授予临时读取权限
+            context.grantUriPermission(
+                    "com.android.providers.media", // 媒体提供者的包名
+                    imageUri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+            );
+
+            // 创建 ClipData
+            ClipData clipData = ClipData.newUri(
+                    context.getContentResolver(),
+                    "Image",
+                    imageUri
+            );
+
+            // 添加 Intent 用于分享（可选，增强兼容性）
+            Intent shareIntent = new Intent(Intent.ACTION_SEND);
+            shareIntent.setType("image/*");
+            shareIntent.putExtra(Intent.EXTRA_STREAM, imageUri);
+
+            clipData.addItem(new ClipData.Item(shareIntent));
+
+            clipboard.setPrimaryClip(clipData);
+
+            Toast.makeText(context, "图片已复制到剪贴板", Toast.LENGTH_SHORT).show();
+
+        } catch (Exception e) {
+            Toast.makeText(context, "复制失败", Toast.LENGTH_SHORT).show();
+            Log.e(TAG, "copyImageUsingContentUri > exception thrown.", e);
+        }
     }
 }

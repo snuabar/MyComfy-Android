@@ -6,9 +6,9 @@ import android.graphics.BitmapFactory;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.CheckBox;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -29,9 +29,11 @@ import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHolder> {
@@ -41,7 +43,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
 
     private final Handler mHandler;
     private final List<AbstractMessageModel> models;
-//    private final Map<Integer, String> indexToPromptIdMap;
+    private final Map<String, Integer> idToIndexMap;
     private final OnElementClickListener listener;
     private WeakReference<RecyclerView> mRecyclerViewRef = null;
     private final Context context;
@@ -51,11 +53,12 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
     public MessageAdapter(Context context, OnElementClickListener listener) {
         this.context = context.getApplicationContext();
         this.mHandler = new Handler(Looper.getMainLooper());
-        this.models = Collections.synchronizedList(DataIO.copyMessageModels(context));
         this.listener = listener;
-//        this.indexToPromptIdMap = new HashMap<>();
-        this.models.sort(Comparator.comparingLong(AbstractMessageModel::getUTCTimestamp));
+        this.idToIndexMap = new HashMap<>();
         this.selections = new HashSet<>();
+        this.models = Collections.synchronizedList(DataIO.copyMessageModels(context));
+        this.models.sort(Comparator.comparingLong(AbstractMessageModel::getUTCTimestamp));
+        updateIdToIndexMap();
     }
 
     @NonNull
@@ -65,17 +68,17 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
         if (viewType == VIEW_TYPE_SENT) {
             return new SentViewHolder(LayoutSentMsgItemBinding.inflate(inflater, parent, false));
         }
-        if (viewType == VIEW_TYPE_RECEIVED) {
-            return new ReceivedViewHolder(LayoutReceivedMsgItemBinding.inflate(inflater, parent, false));
-        }
-        return null;
+        return new ReceivedViewHolder(LayoutReceivedMsgItemBinding.inflate(inflater, parent, false));
     }
 
     @Override
     public void onBindViewHolder(@NonNull MessageAdapter.ViewHolder holder, int position) {
         holder.tvDate.setText(Common.formatTimestamp(models.get(position).getUTCTimestamp()));
-        holder.checkBox.setVisibility(isEditMode ? View.VISIBLE : View.GONE);
-        holder.checkBox.setChecked(selections.contains(position));
+        if (selections.contains(position)) {
+            holder.itemView.setBackgroundColor(holder.itemView.getResources().getColor(R.color.black_overlay, null));
+        } else {
+            holder.itemView.setBackgroundResource(R.drawable.ripple_effect);
+        }
 
         if (holder instanceof SentViewHolder) {
             onBindSentViewHolder((SentViewHolder) holder, position);
@@ -126,8 +129,8 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
     }
 
     private void onThumbnailMake(AbstractMessageModel model) {
-        int index = models.indexOf(model);
-        if (index != -1) {
+        Integer index = idToIndexMap.get(model.getId());
+        if (index != null && index >= 0 && index < models.size()) {
             mHandler.post(() -> notifyItemChanged(index));
         }
     }
@@ -161,16 +164,16 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
         return super.getItemViewType(position);
     }
 
-    private void updateIndexToPromptIdMap() {
-//        indexToPromptIdMap.clear();
-//        for (int i = 0; i < models.size(); i++) {
-//            indexToPromptIdMap.put(i, models.get(i).getPromptId());
-//        }
+    private void updateIdToIndexMap() {
+        idToIndexMap.clear();
+        for (int i = 0; i < models.size(); i++) {
+            idToIndexMap.put(models.get(i).getId(), i);
+        }
     }
 
     public void add(AbstractMessageModel model) {
         models.add(model);
-//        indexToPromptIdMap.put(models.size() - 1, model.getPromptId());
+        idToIndexMap.put(model.getId(), models.size() - 1);
 
         DataIO.writeModelFile(context, model);
 
@@ -205,26 +208,26 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
         return models.get(position);
     }
 
-    public void remove(AbstractMessageModel sentMessageModel) {
-        remove(sentMessageModel, true);
+    public void delete(AbstractMessageModel model) {
+        delete(model, true);
     }
 
-    public void remove(AbstractMessageModel sentMessageModel, boolean includeFile) {
-        int index = models.lastIndexOf(sentMessageModel);
-        if (index >= 0 && index < models.size()) {
-            notifyItemRemoved(index);
-            models.remove(index);
+    public void delete(AbstractMessageModel model, boolean includeFile) {
+        Integer index = idToIndexMap.get(model.getId());
+        if (index != null && index >= 0 && index < models.size()) {
+            models.remove(index.intValue());
             if (includeFile) {
-                DataIO.deleteModelFile(context, sentMessageModel);
+                DataIO.deleteModelFile(context, model);
             }
-            updateIndexToPromptIdMap();
+            notifyItemRemoved(index);
+            updateIdToIndexMap();
         }
     }
 
-    public void setSentFailureMessage(AbstractMessageModel sentMessageModel, String message) {
-        int index = models.lastIndexOf(sentMessageModel);
-        if (index >= 0 && index < models.size()) {
-            sentMessageModel = models.get(index);
+    public void setSentFailureMessage(SentMessageModel sentMessageModel, String message) {
+        Integer index = idToIndexMap.get(sentMessageModel.getId());
+        if (index != null && index >= 0 && index < models.size()) {
+            sentMessageModel = (SentMessageModel) models.get(index);
             sentMessageModel.setFailureMessage(message);
             DataIO.writeModelFile(context, sentMessageModel);
             notifyItemChanged(index);
@@ -232,8 +235,8 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
     }
 
     public void notifyModelChanged(AbstractMessageModel model) {
-        int index = models.lastIndexOf(model);
-        if (index >= 0 && index < models.size()) {
+        Integer index = idToIndexMap.get(model.getId());
+        if (index != null && index >= 0 && index < models.size()) {
             mHandler.post(() -> notifyItemChanged(index));
         }
     }
@@ -271,13 +274,13 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
                 notifyItemRemoved(i);
             }
         }
-        updateIndexToPromptIdMap();
+        updateIdToIndexMap();
         return deletedModels;
     }
 
     public void interrupt(AbstractMessageModel model) {
-        int index = models.indexOf(model);
-        if (model != null && index != -1) {
+        Integer index = idToIndexMap.get(model.getId());
+        if (index != null && index >= 0 && index < models.size()) {
             model = models.get(index);
             model.setInterruptionFlag(true);
             DataIO.writeModelFile(context, model);
@@ -288,19 +291,31 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
     public class ViewHolder extends RecyclerView.ViewHolder {
         public TextView tvTip;
         public TextView tvDate;
-        public CheckBox checkBox;
+        private final float[] downLocation = new float[2];
         public ViewHolder(@NonNull View itemView) {
             super(itemView);
             itemView.setLongClickable(true);
             itemView.setOnLongClickListener(v -> {
                 if (listener != null) {
-                    listener.onClick(getAbsoluteAdapterPosition(), OnElementClickListener.OPE_LONG_CLICK);
+                    listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_LONG_CLICK, downLocation);
                 }
                 return false;
             });
             itemView.setOnClickListener(v -> {
                 if (listener != null) {
-                    listener.onClick(getAbsoluteAdapterPosition(), OnElementClickListener.OPE_NONE);
+                    listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_NONE, null);
+                }
+            });// 设置触摸监听器
+            itemView.setOnTouchListener(new View.OnTouchListener() {
+                @SuppressLint("ClickableViewAccessibility")
+                @Override
+                public boolean onTouch(View v, MotionEvent event) {
+                    if (event.getAction() == MotionEvent.ACTION_DOWN) {// 记录按下时的坐标和时间
+                        downLocation[0] = event.getX();
+                        downLocation[1] = event.getY();
+                        return false;
+                    }
+                    return false;
                 }
             });
         }
@@ -323,11 +338,10 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
             this.binding = binding;
             this.tvDate = binding.tvDate;
             this.tvTip = binding.tvTip;
-            this.checkBox = binding.checkbox;
 
-            binding.btnResent.setOnClickListener(V -> {
+            binding.btnResent.setOnClickListener(v -> {
                 if (listener != null) {
-                    listener.onClick(getAbsoluteAdapterPosition(), OnElementClickListener.OPE_RESENT);
+                    listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_RESENT, null);
                 }
             });
         }
@@ -341,20 +355,19 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
             this.binding = binding;
             this.tvDate = binding.tvDate;
             this.tvTip = binding.tvTip;
-            this.checkBox = binding.checkbox;
             binding.btnInterrupt.setOnClickListener(v -> {
                 if (listener != null) {
-                    listener.onClick(getAbsoluteAdapterPosition(), OnElementClickListener.OPE_INTERRUPT);
+                    listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_INTERRUPT, null);
                 }
             });
             binding.btnSave.setOnClickListener(v -> {
                 if (listener != null) {
-                    listener.onClick(getAbsoluteAdapterPosition(), OnElementClickListener.OPE_SAVE);
+                    listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_SAVE, null);
                 }
             });
             binding.btnShare.setOnClickListener(v -> {
                 if (listener != null) {
-                    listener.onClick(getAbsoluteAdapterPosition(), OnElementClickListener.OPE_SHARE);
+                    listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_SHARE, null);
                 }
             });
         }
@@ -367,6 +380,6 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
         int OPE_SAVE = 2;
         int OPE_SHARE = 3;
         int OPE_RESENT = 4;
-        void onClick(int index, int ope);
+        void onClick(View view, int index, int ope, float[] downLocation);
     }
 }

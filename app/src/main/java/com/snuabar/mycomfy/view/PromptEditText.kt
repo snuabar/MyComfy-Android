@@ -18,6 +18,7 @@ import com.snuabar.mycomfy.R
 import com.snuabar.mycomfy.databinding.LayoutSuggestionPopupBinding
 import com.snuabar.mycomfy.main.data.prompt.AdvancedTranslator
 import com.snuabar.mycomfy.main.data.prompt.PromptManager
+import com.snuabar.mycomfy.utils.ViewUtils
 
 class PromptEditText @JvmOverloads constructor(
     context: Context,
@@ -125,18 +126,7 @@ class PromptEditText @JvmOverloads constructor(
 
     private fun measurePopupWindowSize() {
         // 手动测量和布局
-        popupViewBinding.root.measure(
-            MeasureSpec.makeMeasureSpec(
-                200,
-                MeasureSpec.EXACTLY
-            ),
-            MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
-        )
-        popupViewBinding.root.layout(
-            0, 0,
-            popupViewBinding.root.measuredWidth,
-            popupViewBinding.root.measuredHeight
-        )
+        ViewUtils.measure(popupViewBinding.root, 200)
     }
 
     private fun showSuggestions(prefix: String) {

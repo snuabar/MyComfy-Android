@@ -1,18 +1,24 @@
 package com.snuabar.mycomfy.main;
 
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.SystemClock;
 import android.text.TextUtils;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.PopupWindow;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.content.res.AppCompatResources;
 import androidx.documentfile.provider.DocumentFile;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.Lifecycle;
@@ -28,6 +34,7 @@ import com.snuabar.mycomfy.client.Parameters;
 import com.snuabar.mycomfy.client.RetrofitClient;
 import com.snuabar.mycomfy.common.Callbacks;
 import com.snuabar.mycomfy.databinding.FragmentHomeBinding;
+import com.snuabar.mycomfy.databinding.LayoutMessageItemOptionalDialogBinding;
 import com.snuabar.mycomfy.main.data.AbstractMessageModel;
 import com.snuabar.mycomfy.main.model.ReceivedMessageModel;
 import com.snuabar.mycomfy.main.model.SentMessageModel;
@@ -36,6 +43,8 @@ import com.snuabar.mycomfy.setting.Settings;
 import com.snuabar.mycomfy.utils.FileOperator;
 import com.snuabar.mycomfy.utils.FilePicker;
 import com.snuabar.mycomfy.main.data.DataIO;
+import com.snuabar.mycomfy.utils.ImageUtils;
+import com.snuabar.mycomfy.utils.ViewUtils;
 import com.snuabar.mycomfy.view.ParametersPopup;
 import com.snuabar.mycomfy.view.PromptEditPopup;
 import com.snuabar.mycomfy.view.dialog.OptionalDialog;
@@ -71,6 +80,7 @@ public class HomeFragment extends Fragment {
     private PromptEditPopup promptEditPopup;
     private Executor promptCheckExecutor = null;
     private boolean isPromptCheckExecutorStop = false;
+    private PopupWindow messageItemOptionalPopup;
 
     public static HomeFragment newInstance() {
         return new HomeFragment();
@@ -120,7 +130,7 @@ public class HomeFragment extends Fragment {
             if (!stringListMap.isEmpty()) {
                 for (String key : stringListMap.keySet()) {
                     for (AbstractMessageModel model : Objects.requireNonNull(stringListMap.get(key))) {
-                        messageAdapter.remove(model, false);
+                        messageAdapter.delete(model, false);
                     }
                 }
             }
@@ -130,7 +140,7 @@ public class HomeFragment extends Fragment {
     @Override
     public void onPause() {
         super.onPause();
-        messageAdapter.setEditMode(false);
+        mViewModel.changeDeletionMode(false);
         // 保存上一次的提示词
         Settings.getInstance().getPreferences().edit().putString("prompt", binding.tvPrompt.getText().toString()).apply();
     }
@@ -151,7 +161,7 @@ public class HomeFragment extends Fragment {
     private final PromptEditPopup.OnPromptChangeListener onPromptChangeListener = prompt ->
             binding.tvPrompt.setText(prompt);
 
-    private void onMessageElementClick(int position, int ope) {
+    private void onMessageElementClick(View view, int position, int ope, float[] downLocation) {
         if (position == RecyclerView.NO_POSITION) {
             return;
         }
@@ -173,7 +183,7 @@ public class HomeFragment extends Fragment {
                 }
             }
         } else if (ope == MessageAdapter.OnElementClickListener.OPE_LONG_CLICK) {
-            mViewModel.changeDeletionMode(true);
+            showMessageItemOptionalPopup(view, downLocation, model);
         } else if (ope == MessageAdapter.OnElementClickListener.OPE_INTERRUPT) {
             messageAdapter.interrupt(model);
         } else if (ope == MessageAdapter.OnElementClickListener.OPE_SAVE) {
@@ -190,6 +200,65 @@ public class HomeFragment extends Fragment {
                 enqueue((SentMessageModel) model);
             }
         }
+    }
+
+    private void showMessageItemOptionalPopup(View anchor, float[] downLocation, AbstractMessageModel model) {
+        LayoutMessageItemOptionalDialogBinding binding;
+        if (messageItemOptionalPopup == null) {
+            binding = LayoutMessageItemOptionalDialogBinding.inflate(LayoutInflater.from(requireContext()));
+            PopupWindow popupWindow = new PopupWindow(requireContext());
+            popupWindow.setContentView(binding.getRoot());
+            popupWindow.setOutsideTouchable(true);
+            popupWindow.setFocusable(true);
+            popupWindow.setElevation(8);
+            popupWindow.setBackgroundDrawable(AppCompatResources.getDrawable(requireContext(), R.drawable.message_item_optional_popup_bg));
+            popupWindow.getContentView().setTag(binding);
+            messageItemOptionalPopup = popupWindow;
+        } else {
+            binding = (LayoutMessageItemOptionalDialogBinding) messageItemOptionalPopup.getContentView().getTag();
+        }
+
+        binding.btnCopyPrompt.setOnClickListener(v -> {
+            ClipboardManager clipboard = (ClipboardManager) requireContext().getSystemService(Context.CLIPBOARD_SERVICE);
+            ClipData clip = ClipData.newPlainText("prompt", model.getParameters().getPrompt());
+            clipboard.setPrimaryClip(clip);
+            Toast.makeText(requireContext(), "已复制到剪贴板", Toast.LENGTH_SHORT).show();
+
+            messageItemOptionalPopup.dismiss();
+        });
+
+        binding.btnCopyImage.setOnClickListener(v -> {
+            ImageUtils.copyImageUsingContentUri(requireContext(), model.getImageFile());
+
+            messageItemOptionalPopup.dismiss();
+        });
+
+        binding.btnDelete.setOnClickListener(v -> {
+            new OptionalDialog()
+                    .setType(OptionalDialog.Type.Alert)
+                    .setTitle("提示")
+                    .setMessage("删除？")
+                    .setPositive(() -> messageAdapter.delete(model))
+                    .setNegative(null)
+                    .show(getChildFragmentManager());
+
+            messageItemOptionalPopup.dismiss();
+        });
+
+        if (model.getImageFile() != null && model.getImageFile().exists()) {
+            binding.btnCopyImage.setVisibility(View.VISIBLE);
+        } else {
+            binding.btnCopyImage.setVisibility(View.GONE);
+        }
+
+        // 手动测量和布局
+        ViewUtils.measure(messageItemOptionalPopup.getContentView(), 300);
+
+        int x = (int) downLocation[0] - messageItemOptionalPopup.getContentView().getWidth() / 2;
+        int y = -(anchor.getHeight() - (int) downLocation[1]) - messageItemOptionalPopup.getContentView().getHeight() - 100;
+
+        // 显示 PopupWindow
+        messageItemOptionalPopup.showAsDropDown(anchor, x, y, Gravity.NO_GRAVITY);
     }
 
     private void onDirectoryPickerWithFileCallback(Uri[] uris, File file) {
@@ -362,7 +431,7 @@ public class HomeFragment extends Fragment {
                         messageAdapter.add(receivedMessageModel);
                         startStatusCheck();
                     } else if (enqueueResponse.getCode() == 409) { // conflict 已存在相同任务
-                        messageAdapter.remove(sentMessageModel);
+                        messageAdapter.delete(sentMessageModel);
                     }
                 } else {
 //                    enqueueResponse = EnqueueResponse.create(response.code(), response.message(),
@@ -523,7 +592,9 @@ public class HomeFragment extends Fragment {
             return;
         }
 
-        new OptionalDialog().setTitle("提示")
+        new OptionalDialog()
+                .setType(OptionalDialog.Type.Alert)
+                .setTitle("提示")
                 .setMessage(String.format(Locale.getDefault(), "删除 %d 项！", indices.size()))
                 .setPositive(() -> {
                     messageAdapter.deleteSelection();

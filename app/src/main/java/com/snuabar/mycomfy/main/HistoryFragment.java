@@ -68,21 +68,21 @@ public class HistoryFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        mViewModel.getDeletionHasPressLiveData().observe(this, aBoolean -> {
+        mViewModel.getDeletionHasPressLiveData().observe(getViewLifecycleOwner(), aBoolean -> {
             if (getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.RESUMED)) {
                 if (aBoolean) {
                     doDelete();
                 }
             }
         });
-        mViewModel.getDeletionModeLiveData().observe(this, aBoolean -> {
+        mViewModel.getDeletionModeLiveData().observe(getViewLifecycleOwner(), aBoolean -> {
             if (getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.RESUMED)) {
                 if (binding.list.getAdapter() instanceof HistoryAdapter) {
                     ((HistoryAdapter) binding.list.getAdapter()).setEditMode(aBoolean);
                 }
             }
         });
-        mViewModel.getDeletedModelsLiveData().observe(this, stringListMap -> {
+        mViewModel.getDeletedModelsLiveData().observe(getViewLifecycleOwner(), stringListMap -> {
             stringListMap.remove(HistoryFragment.class.getName());
             if (!stringListMap.isEmpty()) {
 
@@ -93,9 +93,7 @@ public class HistoryFragment extends Fragment {
     @Override
     public void onPause() {
         super.onPause();
-        if (binding.list.getAdapter() instanceof HistoryAdapter) {
-            ((HistoryAdapter) binding.list.getAdapter()).setEditMode(false);
-        }
+        mViewModel.changeDeletionMode(false);
     }
 
     @Override
@@ -164,7 +162,9 @@ public class HistoryFragment extends Fragment {
                 return;
             }
 
-            new OptionalDialog().setTitle("提示")
+            new OptionalDialog()
+                    .setType(OptionalDialog.Type.Alert)
+                    .setTitle("提示")
                     .setMessage(String.format(Locale.getDefault(), "删除 %d 项！", indices.size()))
                     .setPositive(() -> {
                         List<AbstractMessageModel> deletedModels = ((HistoryAdapter) binding.list.getAdapter()).deleteSelection();
