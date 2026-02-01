@@ -9,16 +9,41 @@
         android:id="@+id/promptEditText"
         style="@style/PromptEditTextStyle"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="@android:drawable/edit_text"
+        android:layout_height="0dp"
         android:gravity="top"
         android:hint="输入AI提示词..."
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/switchTranslateZH"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
-        <requestFocus/>
+        <requestFocus />
     </com.snuabar.mycomfy.view.PromptEditText>
+
+    <com.google.android.material.chip.ChipGroup
+        android:id="@+id/chipGroup"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+    </com.google.android.material.chip.ChipGroup>
+
+    <androidx.appcompat.widget.SwitchCompat
+        android:id="@+id/switchPromptsPopup"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="提示"
+        app:layout_constraintBottom_toTopOf="@+id/chipGroup"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <androidx.appcompat.widget.SwitchCompat
+        android:id="@+id/switchTranslateZH"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="原文/英文"
+        app:layout_constraintBottom_toTopOf="@+id/chipGroup"
+        app:layout_constraintEnd_toEndOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

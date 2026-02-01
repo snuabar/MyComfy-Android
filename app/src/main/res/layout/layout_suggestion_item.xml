@@ -1,11 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
-<TextView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/text1"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:textSize="14sp"
-    android:padding="10dp"
-    android:lines="1"
-    android:clickable="false"
-    android:marqueeRepeatLimit="marquee_forever"
-    android:ellipsize="marquee"/>
+    android:orientation="vertical">
+
+    <TextView
+        android:id="@+id/text0"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:clickable="false"
+        android:ellipsize="marquee"
+        android:lines="1"
+        android:marqueeRepeatLimit="marquee_forever"
+        android:paddingHorizontal="6dp"
+        android:textSize="14sp"
+        android:gravity="center_vertical"
+        android:text="title"/>
+
+    <TextView
+        android:id="@+id/text1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:clickable="false"
+        android:ellipsize="marquee"
+        android:lines="1"
+        android:gravity="center_vertical"
+        android:textColor="@color/gray_5583"
+        android:marqueeRepeatLimit="marquee_forever"
+        android:paddingHorizontal="6dp"
+        android:paddingVertical="1dp"
+        android:textSize="11sp"
+        android:text="title" />
+</LinearLayout>
