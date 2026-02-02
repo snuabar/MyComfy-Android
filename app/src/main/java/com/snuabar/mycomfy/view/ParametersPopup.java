@@ -44,30 +44,6 @@ public class ParametersPopup extends PopupWindow {
 
     private final static String TAG = ParametersPopup.class.getName();
 
-    public static final String KEY_PARAM_WORKFLOW = "workflow";
-    public static final String KEY_PARAM_MODEL = "model";
-    public static final String KEY_PARAM_WIDTH = "width";
-    public static final String KEY_PARAM_HEIGHT = "height";
-    public static final String KEY_PARAM_SEED = "seed";
-    public static final String KEY_PARAM_STEP = "step";
-    public static final String KEY_PARAM_CFG = "cfg";
-    public static final String KEY_PARAM_UPSCALE_FACTOR = "upscale_factor";
-
-    @StringDef({KEY_PARAM_WORKFLOW, KEY_PARAM_MODEL, KEY_PARAM_WIDTH, KEY_PARAM_HEIGHT, KEY_PARAM_SEED, KEY_PARAM_STEP, KEY_PARAM_CFG, KEY_PARAM_UPSCALE_FACTOR})
-    @Retention(RetentionPolicy.SOURCE)
-    public @interface ParamKeys {
-
-    }
-
-    private static final Map<String, String> DefaultParamMap = new HashMap<>() {{
-        put(KEY_PARAM_WIDTH, "512");
-        put(KEY_PARAM_HEIGHT, "512");
-        put(KEY_PARAM_SEED, "0");
-        put(KEY_PARAM_STEP, "20");
-        put(KEY_PARAM_CFG, "8.0");
-        put(KEY_PARAM_UPSCALE_FACTOR, "1.0"); // 1.0 means no upscale.
-    }};
-
     private final LayoutParametersPopupWindowBinding binding;
     private final RetrofitClient retrofitClient;
     private final Map<String, List<String>> workflows = new HashMap<>();
@@ -123,6 +99,15 @@ public class ParametersPopup extends PopupWindow {
         });
     }
 
+    public void randomSeed(boolean save) {
+        random.setSeed(Clock.systemUTC().millis());
+        int seed = Math.abs(random.nextInt());
+        binding.etSeed.setText(String.valueOf(seed));
+        if (save) {
+            saveValues();
+        }
+    }
+
     private void switchWidthAndHeight() {
         String widthStr = binding.etWidth.getText().toString();
         String heightStr = binding.etHeight.getText().toString();
@@ -139,7 +124,7 @@ public class ParametersPopup extends PopupWindow {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 String selectedWorkflow = binding.spinnerWorkflow.getItemAtPosition(position).toString();
-                Settings.getInstance().getPreferences().edit().putString(KEY_PARAM_WORKFLOW, selectedWorkflow).apply();
+                Settings.getInstance().edit().setWorkflow(selectedWorkflow).apply();
                 loadModels();
             }
 
@@ -152,7 +137,7 @@ public class ParametersPopup extends PopupWindow {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 String selectedModel = binding.spinnerModels.getItemAtPosition(position).toString();
-                Settings.getInstance().getPreferences().edit().putString(KEY_PARAM_MODEL, selectedModel).apply();
+                Settings.getInstance().edit().setModelName(selectedModel).apply();
                 loadValues();
             }
 
@@ -176,12 +161,12 @@ public class ParametersPopup extends PopupWindow {
                         List<String> workflowNames = new ArrayList<>(workflows.keySet());
                         workflowAdapter.clear();
                         workflowAdapter.addAll(workflowNames);
-                        String selectedWorkflow = Settings.getInstance().getPreferences().getString(KEY_PARAM_WORKFLOW, null);
+                        String selectedWorkflow = Settings.getInstance().getWorkflow(null);
                         int index = workflowNames.indexOf(selectedWorkflow);
                         if (index < 0 || index >= workflows.size()) {
                             index = 0;
                             String workflowName = workflows.isEmpty() ? "" : workflowNames.get(index);
-                            Settings.getInstance().getPreferences().edit().putString(KEY_PARAM_WORKFLOW, workflowName).apply();
+                            Settings.getInstance().edit().setWorkflow(workflowName).apply();
                         }
                         binding.spinnerWorkflow.setSelection(index);
 
@@ -236,12 +221,12 @@ public class ParametersPopup extends PopupWindow {
                         handler.post(() -> {
                             modelAdapter.clear();
                             modelAdapter.addAll(models);
-                            String selectedModel = Settings.getInstance().getPreferences().getString(KEY_PARAM_MODEL, null);
+                            String selectedModel = Settings.getInstance().getModelName(null);
                             int index = models.indexOf(selectedModel);
                             if (index < 0 || index >= models.size()) {
                                 index = 0;
                                 String modeName = models.isEmpty() ? "" : models.get(index);
-                                Settings.getInstance().getPreferences().edit().putString(KEY_PARAM_MODEL, modeName).apply();
+                                Settings.getInstance().edit().setModelName(modeName).apply();
                             }
                             binding.spinnerModels.setSelection(index);
                             loadValues();
@@ -260,8 +245,8 @@ public class ParametersPopup extends PopupWindow {
     }
 
     private String getParametersSettingKey() {
-        String selectedWorkflow = Settings.getInstance().getPreferences().getString(KEY_PARAM_WORKFLOW, "");
-        String selectedModel = Settings.getInstance().getPreferences().getString(KEY_PARAM_MODEL, "");
+        String selectedWorkflow = Settings.getInstance().getWorkflow("");
+        String selectedModel = Settings.getInstance().getModelName("");
         return selectedWorkflow + "-" + selectedModel;
     }
 
@@ -269,12 +254,12 @@ public class ParametersPopup extends PopupWindow {
         String key = getParametersSettingKey();
         if (paramJsonObject == null || !key.equals(paramKey)) {
             paramKey = key;
-            String jsonString = Settings.getInstance().getPreferences().getString(key, "");
+            String jsonString = Settings.getInstance().getString(key, "");
             try {
                 paramJsonObject = new JSONObject(jsonString);
             } catch (JSONException e) {
                 Log.e(TAG, "getParametersJSON. Failed to load json.", e);
-                paramJsonObject = new JSONObject(DefaultParamMap);
+                paramJsonObject = new JSONObject(Settings.DefaultParamMap);
             }
         }
         return paramJsonObject;
@@ -283,12 +268,12 @@ public class ParametersPopup extends PopupWindow {
     private void loadValues() {
         JSONObject jsonObject = getParametersJSON();
         try {
-            binding.etWidth.setText(jsonObject.getString(KEY_PARAM_WIDTH));
-            binding.etHeight.setText(jsonObject.getString(KEY_PARAM_HEIGHT));
-            binding.etSeed.setText(jsonObject.getString(KEY_PARAM_SEED));
-            binding.etStep.setText(jsonObject.getString(KEY_PARAM_STEP));
-            binding.etCFG.setText(jsonObject.getString(KEY_PARAM_CFG));
-            binding.etUpscaleFactor.setText(jsonObject.getString(KEY_PARAM_UPSCALE_FACTOR));
+            binding.etWidth.setText(jsonObject.getString(Settings.KEY_PARAM_WIDTH));
+            binding.etHeight.setText(jsonObject.getString(Settings.KEY_PARAM_HEIGHT));
+            binding.etSeed.setText(jsonObject.getString(Settings.KEY_PARAM_SEED));
+            binding.etStep.setText(jsonObject.getString(Settings.KEY_PARAM_STEP));
+            binding.etCFG.setText(jsonObject.getString(Settings.KEY_PARAM_CFG));
+            binding.etUpscaleFactor.setText(jsonObject.getString(Settings.KEY_PARAM_UPSCALE_FACTOR));
         } catch (JSONException e) {
             Log.e(TAG, "loadValues. Failed to execute getXXX.", e);
         }
@@ -298,37 +283,37 @@ public class ParametersPopup extends PopupWindow {
     private void saveValues() {
         JSONObject jsonObject = getParametersJSON();
         try {
-            jsonObject.putOpt(KEY_PARAM_WIDTH, binding.etWidth.getText().toString());
-            jsonObject.putOpt(KEY_PARAM_HEIGHT, binding.etHeight.getText().toString());
-            jsonObject.putOpt(KEY_PARAM_SEED, binding.etSeed.getText().toString());
-            jsonObject.putOpt(KEY_PARAM_STEP, binding.etStep.getText().toString());
-            jsonObject.putOpt(KEY_PARAM_CFG, binding.etCFG.getText().toString());
-            jsonObject.putOpt(KEY_PARAM_UPSCALE_FACTOR, binding.etUpscaleFactor.getText().toString());
+            jsonObject.putOpt(Settings.KEY_PARAM_WIDTH, binding.etWidth.getText().toString());
+            jsonObject.putOpt(Settings.KEY_PARAM_HEIGHT, binding.etHeight.getText().toString());
+            jsonObject.putOpt(Settings.KEY_PARAM_SEED, binding.etSeed.getText().toString());
+            jsonObject.putOpt(Settings.KEY_PARAM_STEP, binding.etStep.getText().toString());
+            jsonObject.putOpt(Settings.KEY_PARAM_CFG, binding.etCFG.getText().toString());
+            jsonObject.putOpt(Settings.KEY_PARAM_UPSCALE_FACTOR, binding.etUpscaleFactor.getText().toString());
 
             String key = getParametersSettingKey();
-            Settings.getInstance().getPreferences().edit().putString(key, jsonObject.toString()).apply();
+            Settings.getInstance().edit().putString(key, jsonObject.toString()).apply();
         } catch (JSONException e) {
             Log.e(TAG, "saveValues. Failed to execute putOpt.", e);
         }
     }
 
     public boolean isModelAllowedEmpty() {
-        String selectedWorkflow = Settings.getInstance().getPreferences().getString(KEY_PARAM_WORKFLOW, "");
+        String selectedWorkflow = Settings.getInstance().getWorkflow("");
         List<String> modelTypes = workflows.get(selectedWorkflow);
         return modelTypes == null || modelTypes.isEmpty();
     }
 
-    public String getParameter(@ParamKeys String key) {
-        if (KEY_PARAM_WORKFLOW.equals(key)) {
-            return Settings.getInstance().getPreferences().getString(KEY_PARAM_WORKFLOW, "").trim();
+    public String getParameter(@Settings.ParamKeys String key) {
+        if (Settings.KEY_PARAM_WORKFLOW.equals(key)) {
+            return Settings.getInstance().getWorkflow("").trim();
         }
-        if (KEY_PARAM_MODEL.equals(key)) {
-            String selectedWorkflow = Settings.getInstance().getPreferences().getString(KEY_PARAM_WORKFLOW, "");
+        if (Settings.KEY_PARAM_MODEL.equals(key)) {
+            String selectedWorkflow = Settings.getInstance().getWorkflow("");
             List<String> modelTypes = workflows.get(selectedWorkflow);
             if (modelTypes == null || modelTypes.isEmpty()) {
                 return null;
             }
-            return Settings.getInstance().getPreferences().getString(KEY_PARAM_MODEL, "").trim();
+            return Settings.getInstance().getModelName("").trim();
         }
         JSONObject jsonObject = getParametersJSON();
         try {
@@ -336,6 +321,6 @@ public class ParametersPopup extends PopupWindow {
         } catch (JSONException e) {
             Log.e(TAG, "getParameter. Failed to execute getString.", e);
         }
-        return DefaultParamMap.get(key);
+        return Settings.DefaultParamMap.get(key);
     }
 }

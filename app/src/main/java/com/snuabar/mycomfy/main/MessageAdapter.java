@@ -23,12 +23,12 @@ import com.snuabar.mycomfy.main.data.AbstractMessageModel;
 import com.snuabar.mycomfy.main.data.DataIO;
 import com.snuabar.mycomfy.main.model.ReceivedMessageModel;
 import com.snuabar.mycomfy.main.model.SentMessageModel;
+import com.snuabar.mycomfy.main.model.UpscaleSentMessageModel;
 import com.snuabar.mycomfy.utils.ImageUtils;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -57,7 +57,6 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
         this.idToIndexMap = new HashMap<>();
         this.selections = new HashSet<>();
         this.models = Collections.synchronizedList(DataIO.copyMessageModels(context));
-        this.models.sort(Comparator.comparingLong(AbstractMessageModel::getUTCTimestamp));
         updateIdToIndexMap();
     }
 
@@ -92,16 +91,40 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
 
         Parameters param = model.getParameters();
         if (param != null) {
-            holder.binding.textView.setText(param.getPrompt());
-            holder.binding.textView0.setText(String.format(Locale.getDefault(),
-                    "%s\n%s\n%dx%s %d %d %.01f %.01f",
-                    param.getWorkflow(),
-                    param.getModel(),
-                    param.getImg_width(), param.getImg_height(),
-                    param.getSeed(),
-                    param.getStep(), param.getCfg(),
-                    param.getUpscale_factor()
-                    ));
+            if (model instanceof UpscaleSentMessageModel) {
+                holder.binding.textView.setText(String.format(Locale.getDefault(),
+                        "放大%.01f倍",
+                        param.getUpscale_factor()
+                ));
+                int destWidth = Common.calcScale(model.getParameters().getImg_width(), param.getUpscale_factor());
+                int destHeight = Common.calcScale(model.getParameters().getImg_height(), param.getUpscale_factor());
+                holder.binding.textView0.setText(String.format(Locale.getDefault(),
+                        "%dx%d -> %dx%d",
+                        param.getImg_width(), param.getImg_height(),
+                        destWidth, destHeight
+                ));
+                holder.binding.layoutImageView.setVisibility(View.VISIBLE);
+                if (ImageUtils.getThumbnail(model)) {
+                    holder.binding.imageView.setImageBitmap(BitmapFactory.decodeFile(model.getThumbnailFile().getAbsolutePath()));
+                } else {
+                    holder.binding.imageView.setImageBitmap(null);
+                    float width = holder.itemView.getContext().getResources().getDimension(R.dimen.thumbnail_width);
+                    float height = holder.itemView.getContext().getResources().getDimension(R.dimen.thumbnail_height);
+                    ImageUtils.makeThumbnailAsync(model, width, height, this::onThumbnailMake);
+                }
+            } else {
+                holder.binding.layoutImageView.setVisibility(View.GONE);
+                holder.binding.textView.setText(param.getPrompt());
+                holder.binding.textView0.setText(String.format(Locale.getDefault(),
+                        "%s\n%s\n%dx%d %d %d %.01f %.01f",
+                        param.getWorkflow(),
+                        param.getModel(),
+                        param.getImg_width(), param.getImg_height(),
+                        param.getSeed(),
+                        param.getStep(), param.getCfg(),
+                        param.getUpscale_factor()
+                ));
+            }
         }
         holder.setTip(model.getFailureMessage() != null ? model.getFailureMessage() : "", model.getFailureMessage() != null);
         holder.binding.btnResent.setVisibility(model.getFailureMessage() != null && !isEditMode ? View.VISIBLE : View.GONE);
@@ -109,14 +132,24 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
 
     public void onBindReceivedViewHolder(@NonNull ReceivedViewHolder holder, int position) {
         ReceivedMessageModel model = (ReceivedMessageModel) models.get(position);
+        boolean upscaled = model.getParameters().getUpscale_factor() > 1.0;
         if (ImageUtils.getThumbnail(model)) {
             holder.binding.imageView.setImageBitmap(BitmapFactory.decodeFile(model.getThumbnailFile().getAbsolutePath()));
             holder.binding.textView.setVisibility(View.VISIBLE);
+            if (upscaled) {
+                holder.binding.tvScaleFactor.setVisibility(View.VISIBLE);
+                holder.binding.tvScaleFactor.setText(String.format(Locale.getDefault(),
+                        "%.01fx",
+                        model.getParameters().getUpscale_factor()));
+            } else {
+                holder.binding.tvScaleFactor.setVisibility(View.INVISIBLE);
+            }
             int[] size = ImageUtils.getImageSize(model.getImageFile());
             holder.binding.textView.setText(String.format(Locale.getDefault(), "%d x %d", size[0], size[1]));
         } else {
-            holder.binding.imageView.setImageBitmap(null);
+            holder.binding.tvScaleFactor.setVisibility(View.INVISIBLE);
             holder.binding.textView.setVisibility(View.INVISIBLE);
+            holder.binding.imageView.setImageBitmap(null);
             float width = holder.itemView.getContext().getResources().getDimension(R.dimen.thumbnail_width);
             float height = holder.itemView.getContext().getResources().getDimension(R.dimen.thumbnail_height);
             ImageUtils.makeThumbnailAsync(model, width, height, this::onThumbnailMake);
@@ -126,6 +159,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
         holder.binding.tvDateCompletion.setText(model.isFinished() ? Common.formatTimestamp(model.getUTCTimestampCompletion()) : "");
         holder.binding.btnSave.setVisibility(isEditMode ? View.INVISIBLE : View.VISIBLE);
         holder.binding.btnShare.setVisibility(isEditMode ? View.INVISIBLE : View.VISIBLE);
+        holder.binding.layoutUpscale.setVisibility(model.getCode() == 200 && !model.getInterruptionFlag() && !upscaled && !isEditMode ? View.VISIBLE : View.GONE);
     }
 
     private void onThumbnailMake(AbstractMessageModel model) {
@@ -177,7 +211,10 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
 
         DataIO.writeModelFile(context, model);
 
-        mHandler.post(() -> notifyItemInserted(getItemCount()));
+        mHandler.post(() -> {
+            // 插入项
+            notifyItemInserted(getItemCount());
+        });
 
         if (getRecyclerView() != null) {
             getRecyclerView().scrollToPosition(getItemCount() - 1);
@@ -370,6 +407,21 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
                     listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_SHARE, null);
                 }
             });
+            binding.btnX2.setOnClickListener(v -> {
+                if (listener != null) {
+                    listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_X2, null);
+                }
+            });
+            binding.btnX4.setOnClickListener(v -> {
+                if (listener != null) {
+                    listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_X4, null);
+                }
+            });
+            binding.btnXN.setOnClickListener(v -> {
+                if (listener != null) {
+                    listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_XN, null);
+                }
+            });
         }
     }
 
@@ -380,6 +432,9 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
         int OPE_SAVE = 2;
         int OPE_SHARE = 3;
         int OPE_RESENT = 4;
+        int OPE_X2 = 5;
+        int OPE_X4 = 6;
+        int OPE_XN = 7;
         void onClick(View view, int index, int ope, float[] downLocation);
     }
 }

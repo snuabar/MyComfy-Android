@@ -14,6 +14,8 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.PopupWindow;
+import android.widget.SeekBar;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -33,11 +35,14 @@ import com.snuabar.mycomfy.client.InterruptRequest;
 import com.snuabar.mycomfy.client.Parameters;
 import com.snuabar.mycomfy.client.RetrofitClient;
 import com.snuabar.mycomfy.common.Callbacks;
+import com.snuabar.mycomfy.common.Common;
 import com.snuabar.mycomfy.databinding.FragmentHomeBinding;
 import com.snuabar.mycomfy.databinding.LayoutMessageItemOptionalDialogBinding;
 import com.snuabar.mycomfy.main.data.AbstractMessageModel;
 import com.snuabar.mycomfy.main.model.ReceivedMessageModel;
 import com.snuabar.mycomfy.main.model.SentMessageModel;
+import com.snuabar.mycomfy.main.model.UpscaleReceivedMessageModel;
+import com.snuabar.mycomfy.main.model.UpscaleSentMessageModel;
 import com.snuabar.mycomfy.preview.FullScreenImageActivity;
 import com.snuabar.mycomfy.setting.Settings;
 import com.snuabar.mycomfy.utils.FileOperator;
@@ -53,6 +58,8 @@ import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.time.Clock;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -178,7 +185,7 @@ public class HomeFragment extends Fragment {
             } else {
                 if (imageFile != null && imageFile.exists()) {
                     Intent intent = new Intent(requireActivity(), FullScreenImageActivity.class);
-                    intent.putExtra(FullScreenImageActivity.EXTRA_IMAGE_PATH, imageFile.getAbsolutePath());
+                    intent.putExtra(FullScreenImageActivity.EXTRA_ID_LIST, new ArrayList<>(Collections.singletonList(model.getId())));
                     startActivity(intent);
                 }
             }
@@ -197,9 +204,58 @@ public class HomeFragment extends Fragment {
             }
         } else if (ope == MessageAdapter.OnElementClickListener.OPE_RESENT) {
             if (model instanceof SentMessageModel) {
-                enqueue((SentMessageModel) model);
+                enqueue(model);
             }
+        } else if (ope == MessageAdapter.OnElementClickListener.OPE_X2) {
+            enqueue(model, 2.f);
+        } else if (ope == MessageAdapter.OnElementClickListener.OPE_X4) {
+            enqueue(model, 4.f);
+        } else if (ope == MessageAdapter.OnElementClickListener.OPE_XN) {
+            showUpscaleAdjustmentDialog(model);
         }
+    }
+
+    private void showUpscaleAdjustmentDialog(AbstractMessageModel model) {
+        final double[] factorGetter = new double[]{model.getParameters().getUpscale_factor()};
+        new OptionalDialog()
+                .setType(OptionalDialog.Type.Info)
+                .setMessage("设定放大倍数：")
+                .setPositive("提交", () -> enqueue(model, factorGetter[0]))
+                .setCustomView(R.layout.layout_scale_factor)
+                .setDialogCreatedCallback(dlg -> {
+                    TextView tvSrc = dlg.findCustomViewById(R.id.tvSrc);
+                    TextView tvFactor = dlg.findCustomViewById(R.id.tvFactor);
+                    TextView tvDest = dlg.findCustomViewById(R.id.tvDest);
+                    SeekBar seekBar = dlg.findCustomViewById(R.id.seekBar);
+                    if (tvSrc != null && tvFactor != null && tvDest != null && seekBar != null) {
+                        tvSrc.setText(String.format(Locale.getDefault(),
+                                "%d x %d",
+                                model.getParameters().getImg_width(), model.getParameters().getImg_height())
+                        );
+                        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                            @Override
+                            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                                double factor = progress / 10.0;
+                                factorGetter[0] = factor;
+                                int destWidth = Common.calcScale(model.getParameters().getImg_width(), factor);
+                                int destHeight = Common.calcScale(model.getParameters().getImg_height(), factor);
+                                tvFactor.setText(String.format(Locale.getDefault(), "x%.01f", factor));
+                                tvDest.setText(String.format(Locale.getDefault(), "%d x %d", destWidth, destHeight));
+                            }
+                            @Override
+                            public void onStartTrackingTouch(SeekBar seekBar) {
+
+                            }
+                            @Override
+                            public void onStopTrackingTouch(SeekBar seekBar) {
+
+                            }
+                        });
+                        seekBar.setProgress(20);// default: x2
+                    }
+                })
+                .show(getChildFragmentManager());
+
     }
 
     private void showMessageItemOptionalPopup(View anchor, float[] downLocation, AbstractMessageModel model) {
@@ -303,15 +359,15 @@ public class HomeFragment extends Fragment {
     }
 
     private Parameters newParameters() {
-        String workflow = parametersPopup.getParameter(ParametersPopup.KEY_PARAM_WORKFLOW);
-        String modelName = parametersPopup.getParameter(ParametersPopup.KEY_PARAM_MODEL);
+        String workflow = parametersPopup.getParameter(Settings.KEY_PARAM_WORKFLOW);
+        String modelName = parametersPopup.getParameter(Settings.KEY_PARAM_MODEL);
         String prompt = binding.tvPrompt.getText().toString().trim();
-        String widthStr = parametersPopup.getParameter(ParametersPopup.KEY_PARAM_WIDTH);
-        String heightStr = parametersPopup.getParameter(ParametersPopup.KEY_PARAM_HEIGHT);
-        String seedStr = parametersPopup.getParameter(ParametersPopup.KEY_PARAM_SEED);
-        String upscaleFactorStr = parametersPopup.getParameter(ParametersPopup.KEY_PARAM_UPSCALE_FACTOR);
-        String stepStr = parametersPopup.getParameter(ParametersPopup.KEY_PARAM_STEP);
-        String cfgStr = parametersPopup.getParameter(ParametersPopup.KEY_PARAM_CFG);
+        String widthStr = parametersPopup.getParameter(Settings.KEY_PARAM_WIDTH);
+        String heightStr = parametersPopup.getParameter(Settings.KEY_PARAM_HEIGHT);
+        String seedStr = parametersPopup.getParameter(Settings.KEY_PARAM_SEED);
+        String upscaleFactorStr = parametersPopup.getParameter(Settings.KEY_PARAM_UPSCALE_FACTOR);
+        String stepStr = parametersPopup.getParameter(Settings.KEY_PARAM_STEP);
+        String cfgStr = parametersPopup.getParameter(Settings.KEY_PARAM_CFG);
 
         // 验证输入
         if (workflow.isEmpty()) {
@@ -397,7 +453,7 @@ public class HomeFragment extends Fragment {
         return new Parameters(workflow, modelName, prompt, seed, width, height, step, cfg, upscaleFactor);
     }
 
-    private void enqueue(SentMessageModel model) {
+    private void enqueue(AbstractMessageModel model, double... upscale) {
         final SentMessageModel sentMessageModel;
         final ImageRequest request;
         if (model == null) {
@@ -409,10 +465,21 @@ public class HomeFragment extends Fragment {
             // 创建请求对象
             request = new ImageRequest(parameters);
             sentMessageModel = new SentMessageModel(parameters);
+
+            // 界面显示
             messageAdapter.add(sentMessageModel);
         } else {
-            request = new ImageRequest(model.getParameters().setResent());
-            sentMessageModel = model;
+            if (upscale.length > 0 && model instanceof ReceivedMessageModel) {
+                Parameters parameters = new Parameters(model.getParameters());
+                parameters.setUpscale_factor(upscale[0]);
+                sentMessageModel = new UpscaleSentMessageModel(parameters);
+                sentMessageModel.setImageFile(DataIO.copyImageFile(requireContext(), model.getImageFile()));
+                request = new ImageRequest(sentMessageModel.getParameters());
+                messageAdapter.add(sentMessageModel);
+            } else {
+                request = new ImageRequest(model.getParameters().setResent());
+                sentMessageModel = (SentMessageModel) model;
+            }
         }
 
         // 发送请求
@@ -427,7 +494,12 @@ public class HomeFragment extends Fragment {
                             enqueueResponse.setUtc_timestamp(String.valueOf(Clock.systemUTC().millis()));
                         }
                         // 保存响应对应，更新列表
-                        ReceivedMessageModel receivedMessageModel = new ReceivedMessageModel(enqueueResponse);
+                        ReceivedMessageModel receivedMessageModel;
+                        if (sentMessageModel instanceof UpscaleSentMessageModel) {
+                            receivedMessageModel = new UpscaleReceivedMessageModel(enqueueResponse);
+                        } else {
+                            receivedMessageModel = new ReceivedMessageModel(enqueueResponse);
+                        }
                         messageAdapter.add(receivedMessageModel);
                         startStatusCheck();
                     } else if (enqueueResponse.getCode() == 409) { // conflict 已存在相同任务

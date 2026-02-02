@@ -8,6 +8,8 @@ import androidx.annotation.Nullable;
 import com.snuabar.mycomfy.client.Parameters;
 import com.snuabar.mycomfy.main.model.ReceivedMessageModel;
 import com.snuabar.mycomfy.main.model.SentMessageModel;
+import com.snuabar.mycomfy.main.model.UpscaleReceivedMessageModel;
+import com.snuabar.mycomfy.main.model.UpscaleSentMessageModel;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -103,8 +105,14 @@ public abstract class AbstractMessageModel implements Serializable {
             if (ReceivedMessageModel.class.getName().equals(className)) {
                 return new ReceivedMessageModel(jsonObject);
             }
+            if (UpscaleReceivedMessageModel.class.getName().equals(className)) {
+                return new UpscaleReceivedMessageModel(jsonObject);
+            }
             if (SentMessageModel.class.getName().equals(className)) {
                 return new SentMessageModel(jsonObject);
+            }
+            if (UpscaleSentMessageModel.class.getName().equals(className)) {
+                return new UpscaleSentMessageModel(jsonObject);
             }
         }
         return null;

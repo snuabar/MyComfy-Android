@@ -5,6 +5,7 @@ import android.util.Log;
 
 import androidx.annotation.NonNull;
 
+import com.snuabar.mycomfy.utils.FileOperator;
 import com.snuabar.mycomfy.utils.ImageUtils;
 import com.snuabar.mycomfy.utils.TextCompressor;
 
@@ -17,9 +18,12 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 public class DataIO {
 
@@ -28,6 +32,8 @@ public class DataIO {
     public static final String PREFIX = "MyComfy_";
     public static final String MSG_EXT = ".msg";
     public static final String IMG_EXT = ".png";
+    private static final List<AbstractMessageModel> MessageModels = new ArrayList<>();
+    private static final Map<String, Integer> IdToIndexMap = new HashMap<>();
 
     public static File getOutputDir(Context context) {
         File file = context.getExternalFilesDir(null);
@@ -53,24 +59,38 @@ public class DataIO {
         return file;
     }
 
+    private static void refreshIdToIndexMap() {
+        IdToIndexMap.clear();
+        for (int i = 0; i < MessageModels.size(); i++) {
+            IdToIndexMap.put(MessageModels.get(i).getId(), i);
+        }
+    }
+
+    public static int getIndexWithId(String messageModelId) {
+        Integer index = IdToIndexMap.get(messageModelId);
+        return index == null ? -1 : index;
+    }
+
     @NonNull
     public static List<AbstractMessageModel> copyMessageModels(Context context) {
-        File msgDir = getMsgDir(context);
+        if (MessageModels.isEmpty()) {
+            File msgDir = getMsgDir(context);
 
-        ArrayList<AbstractMessageModel> models = new ArrayList<>();
-        File[] files = msgDir.listFiles((dir, name) -> name.startsWith(PREFIX) && name.endsWith(MSG_EXT));
-        if (files == null) {
-            return models;
-        }
-
-        for (File file : files) {
-            AbstractMessageModel model = readModelFile(file);
-            if (model != null) {
-                models.add(model);
+            ArrayList<AbstractMessageModel> models = new ArrayList<>();
+            File[] files = msgDir.listFiles((dir, name) -> name.startsWith(PREFIX) && name.endsWith(MSG_EXT));
+            if (files != null) {
+                for (File file : files) {
+                    AbstractMessageModel model = readModelFile(file);
+                    if (model != null) {
+                        models.add(model);
+                    }
+                }
             }
+            MessageModels.addAll(models);
+            MessageModels.sort(Comparator.comparingLong(AbstractMessageModel::getUTCTimestamp));
+            refreshIdToIndexMap();
         }
-
-        return models;
+        return new ArrayList<>(MessageModels);
     }
 
     public static File newImageFile(Context context) {
@@ -86,20 +106,23 @@ public class DataIO {
         return new File(outputDir, fileName);
     }
 
+    public static File copyImageFile(Context context, File imageFile) {
+        File newImageFile = newImageFile(context);
+        if (FileOperator.copyFile(imageFile, newImageFile)) {
+            return newImageFile;
+        }
+        if (FileOperator.copyFileTraditional(imageFile, newImageFile)) {
+            return newImageFile;
+        }
+        return null;
+    }
+
     //region 模型读写
 
     public static void writeModelFile(Context context, AbstractMessageModel model) {
         File msgDir = getMsgDir(context);
         String fileName = PREFIX + model.getId() + MSG_EXT;
         File modelFile = new File(msgDir, fileName);
-
-//        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(modelFile))) {
-//            oos.writeObject(model);
-//            oos.flush();
-//        } catch (IOException e) {
-//            modelFile.delete();
-//            throw new RuntimeException(e);
-//        }
 
         JSONObject jsonObject = model.toJson();
         if (jsonObject != null) {
@@ -110,20 +133,22 @@ public class DataIO {
                 fos.flush();
             } catch (IOException e) {
                 Log.e(TAG, "writeModelFile: failed to output model.");
+                return;
+            }
+
+            // 更新缓存列表
+            int index = getIndexWithId(model.getId());
+            if (index == -1) {
+                MessageModels.add(readModelFile(modelFile));
+                refreshIdToIndexMap();
+            } else {
+                MessageModels.set(index, readModelFile(modelFile));
             }
         }
     }
 
-    public static AbstractMessageModel readModelFile(File modelFile) {
+    private static AbstractMessageModel readModelFile(File modelFile) {
         if (modelFile.exists() && modelFile.isFile()) {
-//            AbstractMessageModel model;
-//            try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(modelFile))) {
-//                model = (AbstractMessageModel) ois.readObject();
-//            } catch (IOException | ClassNotFoundException e) {
-//                throw new RuntimeException(e);
-//            }
-//            return model;
-
             try {
                 byte[] bytes = Files.readAllBytes(modelFile.toPath());
                 String jsonStr = TextCompressor.INSTANCE.decompress(bytes);
@@ -143,6 +168,13 @@ public class DataIO {
         File modelFile = new File(msgDir, fileName);
 
         if (modelFile.delete()) {
+            // 更新缓存列表
+            int index = getIndexWithId(model.getId());
+            if (index >= 0) {
+                MessageModels.remove(index);
+                refreshIdToIndexMap();
+            }
+            // 删除图像和缩略图
             if (model.getImageFile() != null && model.getImageFile().exists()) {
                 File thumbFile = ImageUtils.getThumbnailFile(model.getImageFile());
                 model.getImageFile().delete();

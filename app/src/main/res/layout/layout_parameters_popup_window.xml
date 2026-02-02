@@ -183,6 +183,7 @@
         </TableRow>
 
         <TableRow
+            android:visibility="gone"
             android:layout_marginStart="6dp"
             android:layout_marginTop="4dp">
 

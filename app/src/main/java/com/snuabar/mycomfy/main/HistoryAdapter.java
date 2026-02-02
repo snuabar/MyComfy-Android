@@ -3,6 +3,7 @@ package com.snuabar.mycomfy.main;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.BitmapFactory;
 import android.os.Handler;
@@ -67,7 +68,11 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
         if (model.getParameters() != null) {
             holder.binding.tvTitle.setText(Common.formatTimestamp(model.getUTCTimestampCompletion()));
             int[] size = ImageUtils.getImageSize(model.getImageFile());
-            holder.binding.tvInfo.setText(String.format(Locale.getDefault(), "%d x %d", size[0], size[1]));
+            holder.binding.tvInfo.setText(String.format(Locale.getDefault(),
+                    "%d x %d %s",
+                    size[0], size[1],
+                    Common.formatFileSize(model.getImageFile().length()
+                    )));
         }
     }
 
@@ -83,6 +88,7 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
         return mValues.size();
     }
 
+    @SuppressLint("NotifyDataSetChanged")
     public void setEditMode(boolean editMode) {
         this.isEditMode = editMode;
         selections.clear();

@@ -64,14 +64,7 @@ class PromptEditText @JvmOverloads constructor(
         // 设置ListView点击事件
         popupViewBinding.suggestionList.setOnItemClickListener { _, _, position, _ ->
             val selected = suggestionAdapter?.getItem(position) as String
-            when {
-                directlyInsert -> {
-                    this.text?.append("$selected,")
-                }
-                else -> {
-                    insertSuggestion(selected)
-                }
-            }
+            insertSuggestion(selected)
         }
 
         popupWindow = PopupWindow(
@@ -85,7 +78,7 @@ class PromptEditText @JvmOverloads constructor(
                 context,
                 R.drawable.parameters_popup_bg
             ))
-            isOutsideTouchable = false
+            isOutsideTouchable = true
             elevation = 8.0f
         }
     }
@@ -148,7 +141,7 @@ class PromptEditText @JvmOverloads constructor(
         val x = cursorRect.right
         val y = cursorRect.bottom - (height + scrollY + paddingBottom)
 
-        popupWindow?.isOutsideTouchable = false
+//        popupWindow?.isOutsideTouchable = false
         if (popupWindow?.isShowing == true) {
             popupWindow?.update(this, x, y, -1, -1)
         } else {
@@ -174,7 +167,7 @@ class PromptEditText @JvmOverloads constructor(
         val x = 0
         val y = -anchor.height - popupViewBinding.suggestionList.height
 
-        popupWindow?.isOutsideTouchable = true
+//        popupWindow?.isOutsideTouchable = true
         if (popupWindow?.isShowing == true) {
             popupWindow?.update(anchor, x, y, -1, -1)
         } else {
@@ -194,15 +187,28 @@ class PromptEditText @JvmOverloads constructor(
 
         // 找到当前正在输入的单词的起始位置
         val textBeforeCursor = text.take(cursorPosition)
-        val lastSpaceIndex = textBeforeCursor.lastIndexOf(',')
-        val startReplace = if (lastSpaceIndex == -1) 0 else lastSpaceIndex + 1
+        if (directlyInsert) {// 替换当前单词为建议词
+            val beforeSuggestion = if (textBeforeCursor.isNotEmpty() && textBeforeCursor.last() != ',') "," else ""
+            val afterSuggestion = (if (cursorPosition == text.length) "," else (if (text[cursorPosition] != ',') { ","} else {""}))
+            val finalSuggestion = beforeSuggestion + suggestion + afterSuggestion
+            val newText = textBeforeCursor + finalSuggestion + text.substring(cursorPosition)
 
-        // 替换当前单词为建议词
-        val newText = text.take(startReplace) + suggestion + "," + text.substring(cursorPosition)
-        setText(newText)
+            setText(newText)
 
-        // 移动光标到新位置
-        setSelection(startReplace + suggestion.length + 1)
+            // 移动光标到新位置
+            setSelection(textBeforeCursor.length + finalSuggestion.length)
+        } else {
+            val lastSpaceIndex = textBeforeCursor.lastIndexOf(',')
+            val startReplace = if (lastSpaceIndex == -1) 0 else lastSpaceIndex + 1
+
+            // 替换当前单词为建议词
+            val newText =
+                text.take(startReplace) + suggestion + "," + text.substring(cursorPosition)
+            setText(newText)
+
+            // 移动光标到新位置
+            setSelection(startReplace + suggestion.length + 1)
+        }
 
         popupWindow?.dismiss()
     }
@@ -230,7 +236,7 @@ class PromptEditText @JvmOverloads constructor(
         if (list != null) {
             AdvancedTranslator.getInstance()?.translateBatch(list, "zh", "en") {
                 if (it != null) {
-                    setText(it.joinToString(","))
+                    setText(it.joinToString(",").lowercase())
                 }
             }
         }
