@@ -15,11 +15,13 @@ public class MainViewModel extends ViewModel {
     private FilePicker filePicker;
     private final MutableLiveData<Boolean> deletionHasPressed;
     private final MutableLiveData<Boolean> deletionModeLiveData;
+    private final MutableLiveData<Integer> selectedTabLiveData;
     private final MutableLiveData<Map<String, List<AbstractMessageModel>>> deletedModelsLiveData;
 
     public MainViewModel() {
         deletionHasPressed = new MutableLiveData<>();
         deletionModeLiveData = new MutableLiveData<>();
+        selectedTabLiveData = new MutableLiveData<>();
         deletedModelsLiveData = new MutableLiveData<>();
     }
 
@@ -29,6 +31,14 @@ public class MainViewModel extends ViewModel {
 
     public void changeDeletionMode(boolean deletionMode) {
         deletionModeLiveData.postValue(deletionMode);
+    }
+
+    public LiveData<Integer> getSelectedTabLiveData() {
+        return selectedTabLiveData;
+    }
+
+    public void changeSelectedTab(int tab) {
+        selectedTabLiveData.setValue(tab);
     }
 
     public LiveData<Boolean> getDeletionHasPressLiveData() {

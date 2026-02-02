@@ -1,5 +1,6 @@
 package com.snuabar.mycomfy.main;
 
+import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.content.res.Configuration;
 import android.os.Bundle;
@@ -17,6 +18,7 @@ import android.view.ViewGroup;
 
 import com.snuabar.mycomfy.databinding.FragmentHistoryBinding;
 import com.snuabar.mycomfy.main.data.AbstractMessageModel;
+import com.snuabar.mycomfy.main.model.ReceivedMessageModel;
 import com.snuabar.mycomfy.preview.FullScreenImageActivity;
 import com.snuabar.mycomfy.main.data.DataIO;
 import com.snuabar.mycomfy.view.dialog.OptionalDialog;
@@ -28,6 +30,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 /**
  * A fragment representing a list of Items.
@@ -82,12 +85,6 @@ public class HistoryFragment extends Fragment {
                 }
             }
         });
-        mViewModel.getDeletedModelsLiveData().observe(getViewLifecycleOwner(), stringListMap -> {
-            stringListMap.remove(HistoryFragment.class.getName());
-            if (!stringListMap.isEmpty()) {
-
-            }
-        });
     }
 
     @Override
@@ -122,28 +119,35 @@ public class HistoryFragment extends Fragment {
                 }
             } else {
                 AbstractMessageModel model = messageModels.get(position);
-                if (model.getImageFile() != null) {
-                    Intent intent = new Intent(requireActivity(), FullScreenImageActivity.class);
-                    intent.putExtra(FullScreenImageActivity.EXTRA_IMAGE_PATH, model.getImageFile().getAbsolutePath());
-                    startActivity(intent);
-                }
+//                if (model.getImageFile() != null) {
+//                    Intent intent = new Intent(requireActivity(), FullScreenImageActivity.class);
+//                    intent.putExtra(FullScreenImageActivity.EXTRA_IMAGE_PATH, model.getImageFile().getAbsolutePath());
+//                    startActivity(intent);
+//                }
+                ArrayList<String> files = messageModels.stream().map(AbstractMessageModel::getId).collect(Collectors.toCollection(ArrayList::new));
+                Intent intent = new Intent(requireActivity(), FullScreenImageActivity.class);
+                intent.putStringArrayListExtra(FullScreenImageActivity.EXTRA_ID_LIST, files);
+                intent.putExtra(FullScreenImageActivity.EXTRA_CURRENT_ID, model.getId());
+                startActivity(intent);
             }
         }
     }
 
+    @SuppressLint("NotifyDataSetChanged")
     private void loadImageContents() {
         executor.execute(() -> {
             if (getContext() == null) {
                 return;
             }
+
             List<AbstractMessageModel> models = DataIO.copyMessageModels(getContext());
-            messageModels.clear();
-            models.removeIf(m -> m.getImageFile() == null || !m.getImageFile().exists());
+            models.removeIf(m -> !(m instanceof ReceivedMessageModel) || m.getImageFile() == null || !m.getImageFile().exists());
             models.sort((o1, o2) -> Long.compare(o2.getUTCTimestamp(), o1.getUTCTimestamp()));
-            messageModels.addAll(models);
 
             requireActivity().runOnUiThread(() -> {
-                if (binding.list.getAdapter() != null) {
+                if (binding.list.getAdapter() != null && getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.RESUMED)) {
+                    messageModels.clear();
+                    messageModels.addAll(models);
                     binding.list.getAdapter().notifyDataSetChanged();
                 }
             });

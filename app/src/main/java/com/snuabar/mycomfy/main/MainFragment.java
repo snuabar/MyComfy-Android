@@ -54,20 +54,25 @@ public class MainFragment extends Fragment {
         binding.viewPager2.setOffscreenPageLimit(1);
         binding.viewPager2.registerOnPageChangeCallback(onPageChangeCallback);
         binding.tabLayout.addOnTabSelectedListener(onTabSelectedListener);
+
+        mViewModel.getSelectedTabLiveData().observe(getViewLifecycleOwner(), tab -> {
+            Objects.requireNonNull(binding.tabLayout.getTabAt(tab)).select();
+            binding.viewPager2.setCurrentItem(tab, true);
+        });
     }
 
     private final ViewPager2.OnPageChangeCallback onPageChangeCallback = new ViewPager2.OnPageChangeCallback() {
         @Override
         public void onPageSelected(int position) {
             super.onPageSelected(position);
-            Objects.requireNonNull(binding.tabLayout.getTabAt(binding.viewPager2.getCurrentItem())).select();
+            mViewModel.changeSelectedTab(binding.viewPager2.getCurrentItem());
         }
     };
 
     private final TabLayout.OnTabSelectedListener onTabSelectedListener = new TabLayout.OnTabSelectedListener() {
         @Override
         public void onTabSelected(TabLayout.Tab tab) {
-            binding.viewPager2.setCurrentItem(tab.getPosition(), true);
+            mViewModel.changeSelectedTab(tab.getPosition());
         }
 
         @Override

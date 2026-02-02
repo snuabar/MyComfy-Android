@@ -93,6 +93,11 @@ public class MainActivity extends AppCompatActivity {
                 mViewModel.changeDeletionMode(false);
                 return;
             }
+            if (mViewModel.getSelectedTabLiveData().getValue() != null &&
+                    mViewModel.getSelectedTabLiveData().getValue() != 0) {
+                mViewModel.changeSelectedTab(0);
+                return;
+            }
             setEnabled(false);
             getOnBackPressedDispatcher().onBackPressed();
         }

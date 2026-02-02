@@ -10,8 +10,15 @@ import java.util.Objects;
 
 public class Parameters extends ImageRequest {
     private long timestamp;
+
     public Parameters() {
         this(null, null, null, 0, 0, 0, 0, 0.0, 0.0);
+    }
+
+    public Parameters(Parameters other) {
+        this();
+        loadFromRequest(other);
+        timestamp = Clock.systemUTC().millis();
     }
 
     public Parameters(String workflow, String modelName, String prompt, Integer seed, int width, int height, int step, double cfg, double upscaleFactor) {
@@ -49,10 +56,9 @@ public class Parameters extends ImageRequest {
         }
     }
 
-    public Parameters loadFromRequest(ImageRequest request) {
+    public void loadFromRequest(ImageRequest request) {
         JSONObject object = request.toJson();
         loadJson(object);
-        return this;
     }
 
     @Override

@@ -7,9 +7,12 @@ import android.util.Log;
 import androidx.core.content.FileProvider;
 import androidx.documentfile.provider.DocumentFile;
 
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.channels.FileChannel;
 import java.util.Objects;
 import android.content.Intent;
 import android.net.Uri;
@@ -20,6 +23,72 @@ import java.io.File;
 public class FileOperator {
 
     private static final String Tag = FileOperator.class.getName();
+    /**
+     * 使用 FileChannel 拷贝文件（推荐，性能较好）
+     * @param source 源文件
+     * @param dest 目标文件
+     * @return 是否拷贝成功
+     */
+    public static boolean copyFile(File source, File dest) {
+        if (source == null || dest == null || !source.exists()) {
+            return false;
+        }
+
+        // 确保目标文件的父目录存在
+        File parent = dest.getParentFile();
+        if (parent == null || (!parent.exists() && !parent.mkdirs())) {
+            Log.e(Tag, "Failed to verify dirs.");
+            return false;
+        }
+
+        try (FileInputStream fis = new FileInputStream(source);
+             FileOutputStream fos = new FileOutputStream(dest);
+             FileChannel sourceChannel = fis.getChannel();
+             FileChannel destChannel = fos.getChannel()) {
+            // 使用 transferTo 方法，底层使用零拷贝技术，性能更好
+            long transferred = sourceChannel.transferTo(0, sourceChannel.size(), destChannel);
+            return transferred == sourceChannel.size();
+        } catch (IOException e) {
+            Log.e(Tag, "Failed to copy file. ", e);
+        }
+
+        return false;
+    }
+
+    /**
+     * 使用传统流拷贝文件（兼容性好）
+     * @param source 源文件
+     * @param dest 目标文件
+     * @return 是否拷贝成功
+     */
+    public static boolean copyFileTraditional(File source, File dest) {
+        if (source == null || dest == null || !source.exists()) {
+            return false;
+        }
+
+        // 确保目标文件的父目录存在
+        File parent = dest.getParentFile();
+        if (parent == null || (!parent.exists() && !parent.mkdirs())) {
+            Log.e(Tag, "Failed to verify dirs.");
+            return false;
+        }
+
+        try (FileInputStream fis = new FileInputStream(source);
+             FileOutputStream fos = new FileOutputStream(dest)) {
+
+            byte[] buffer = new byte[8192]; // 8KB 缓冲区
+            int bytesRead;
+
+            while ((bytesRead = fis.read(buffer)) != -1) {
+                fos.write(buffer, 0, bytesRead);
+            }
+
+            return true;
+        } catch (IOException e) {
+            Log.e(Tag, "Failed to copy file. ", e);
+        }
+        return false;
+    }
 
     /**
      * 移动DocumentFile文件到目标目录
