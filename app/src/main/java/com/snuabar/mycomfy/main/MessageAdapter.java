@@ -25,6 +25,7 @@ import com.snuabar.mycomfy.main.model.ReceivedMessageModel;
 import com.snuabar.mycomfy.main.model.SentMessageModel;
 import com.snuabar.mycomfy.main.model.UpscaleSentMessageModel;
 import com.snuabar.mycomfy.utils.ImageUtils;
+import com.snuabar.mycomfy.utils.VideoUtils;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
@@ -142,12 +143,18 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
                         "%.01fx",
                         model.getParameters().getUpscale_factor()));
             } else {
-                holder.binding.tvScaleFactor.setVisibility(View.INVISIBLE);
+                holder.binding.tvScaleFactor.setVisibility(View.GONE);
             }
-            int[] size = ImageUtils.getImageSize(model.getImageFile());
+            int[] size;
+            if (model.isVideo()) {
+                VideoUtils.VideoSize videoSize = VideoUtils.INSTANCE.getVideoSize(model.getImageFile());
+                size = new int[]{videoSize.getWidth(), videoSize.getHeight()};
+            } else {
+                size = ImageUtils.getImageSize(model.getImageFile());
+            }
             holder.binding.textView.setText(String.format(Locale.getDefault(), "%d x %d", size[0], size[1]));
         } else {
-            holder.binding.tvScaleFactor.setVisibility(View.INVISIBLE);
+            holder.binding.tvScaleFactor.setVisibility(View.GONE);
             holder.binding.textView.setVisibility(View.INVISIBLE);
             holder.binding.imageView.setImageBitmap(null);
             float width = holder.itemView.getContext().getResources().getDimension(R.dimen.thumbnail_width);
@@ -155,11 +162,12 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
             ImageUtils.makeThumbnailAsync(model, width, height, this::onThumbnailMake);
         }
         holder.setTip(model.getMessage(), model.getCode() != 200);
+        holder.binding.ivPlay.setVisibility(model.isVideo() ? View.VISIBLE : View.GONE);
         holder.binding.btnInterrupt.setVisibility(model.getCode() == 200 || model.getInterruptionFlag() || isEditMode ? View.GONE : View.VISIBLE);
         holder.binding.tvDateCompletion.setText(model.isFinished() ? Common.formatTimestamp(model.getUTCTimestampCompletion()) : "");
         holder.binding.btnSave.setVisibility(isEditMode ? View.INVISIBLE : View.VISIBLE);
         holder.binding.btnShare.setVisibility(isEditMode ? View.INVISIBLE : View.VISIBLE);
-        holder.binding.layoutUpscale.setVisibility(model.getCode() == 200 && !model.getInterruptionFlag() && !upscaled && !isEditMode ? View.VISIBLE : View.GONE);
+        holder.binding.layoutUpscale.setVisibility(!model.isVideo() && model.getCode() == 200 && !model.getInterruptionFlag() && !upscaled && !isEditMode ? View.VISIBLE : View.GONE);
     }
 
     private void onThumbnailMake(AbstractMessageModel model) {

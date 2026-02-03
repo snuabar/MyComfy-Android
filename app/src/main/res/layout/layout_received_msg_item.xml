@@ -71,39 +71,32 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:background="@color/gray_5583"
-            android:gravity="bottom"
+            android:gravity="center_vertical"
             android:orientation="horizontal"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent">
 
-            <LinearLayout
+            <TextView
+                android:id="@+id/tvScaleFactor"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="?attr/colorPrimaryVariant"
+                android:paddingHorizontal="4dp"
+                android:text="1.5x"
+                android:textColor="?attr/colorOnPrimary"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/textView"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:alpha="0.6"
-                android:orientation="vertical">
-
-                <TextView
-                    android:id="@+id/tvScaleFactor"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:background="?attr/colorPrimaryVariant"
-                    android:paddingHorizontal="4dp"
-                    android:text="1.5x"
-                    android:textColor="?attr/colorOnPrimary"
-                    android:textSize="18sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/textView"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:lines="1"
-                    android:paddingHorizontal="4dp"
-                    android:text="1024 x 1024"
-                    android:textColor="@android:color/white" />
-            </LinearLayout>
+                android:lines="1"
+                android:paddingHorizontal="4dp"
+                android:text="1024 x 1024"
+                android:textColor="@android:color/white" />
 
             <ImageButton
                 android:id="@+id/btnShare"
@@ -119,6 +112,25 @@
                 android:layout_height="44dp"
                 android:src="@drawable/ic_save" />
         </LinearLayout>
+
+        <ImageView
+            android:id="@+id/ivPlay"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:clickable="false"
+            android:focusable="false"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_play_gray"
+            app:layout_constrainedHeight="true"
+            app:layout_constrainedWidth="true"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHeight_default="percent"
+            app:layout_constraintHeight_percent="0.3"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintWidth_default="percent"
+            app:layout_constraintWidth_percent="0.3" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

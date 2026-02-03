@@ -114,6 +114,11 @@ public class MessageModel extends AbstractMessageModel {
     }
 
     @Override
+    public boolean isVideo() {
+        return false;
+    }
+
+    @Override
     public JSONObject toJson() {
         JSONObject jsonObject = super.toJson();
         try {

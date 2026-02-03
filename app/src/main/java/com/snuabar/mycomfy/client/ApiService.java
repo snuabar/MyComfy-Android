@@ -22,7 +22,7 @@ public interface ApiService {
      * 添加至生成队列
      */
     @POST("/api/enqueue")
-    Call<EnqueueResponse> enqueue(@Body ImageRequest request);
+    Call<EnqueueResponse> enqueue(@Body QueueRequest request);
 
     /**
      * 获取图像生成状态

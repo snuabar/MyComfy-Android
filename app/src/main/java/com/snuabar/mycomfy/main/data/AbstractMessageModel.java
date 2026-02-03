@@ -7,7 +7,9 @@ import androidx.annotation.Nullable;
 
 import com.snuabar.mycomfy.client.Parameters;
 import com.snuabar.mycomfy.main.model.ReceivedMessageModel;
+import com.snuabar.mycomfy.main.model.ReceivedVideoMessageModel;
 import com.snuabar.mycomfy.main.model.SentMessageModel;
+import com.snuabar.mycomfy.main.model.SentVideoMessageModel;
 import com.snuabar.mycomfy.main.model.UpscaleReceivedMessageModel;
 import com.snuabar.mycomfy.main.model.UpscaleSentMessageModel;
 
@@ -36,6 +38,7 @@ public abstract class AbstractMessageModel implements Serializable {
     public abstract Parameters getParameters();
 
     public abstract boolean isFileExistsOnServer();
+
     /**
      * 响应收到的时间
      *
@@ -80,6 +83,8 @@ public abstract class AbstractMessageModel implements Serializable {
 
     public abstract void setInterruptionFlag(boolean interruption);
 
+    public abstract boolean isVideo();
+
     @CallSuper
     public JSONObject toJson() {
         try {
@@ -108,11 +113,17 @@ public abstract class AbstractMessageModel implements Serializable {
             if (UpscaleReceivedMessageModel.class.getName().equals(className)) {
                 return new UpscaleReceivedMessageModel(jsonObject);
             }
+            if (ReceivedVideoMessageModel.class.getName().equals(className)) {
+                return new ReceivedVideoMessageModel(jsonObject);
+            }
             if (SentMessageModel.class.getName().equals(className)) {
                 return new SentMessageModel(jsonObject);
             }
             if (UpscaleSentMessageModel.class.getName().equals(className)) {
                 return new UpscaleSentMessageModel(jsonObject);
+            }
+            if (SentVideoMessageModel.class.getName().equals(className)) {
+                return new SentVideoMessageModel(jsonObject);
             }
         }
         return null;

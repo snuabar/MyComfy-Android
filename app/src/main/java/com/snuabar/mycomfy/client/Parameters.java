@@ -8,7 +8,7 @@ import org.json.JSONObject;
 import java.time.Clock;
 import java.util.Objects;
 
-public class Parameters extends ImageRequest {
+public class Parameters extends QueueRequest {
     private long timestamp;
 
     public Parameters() {
@@ -56,7 +56,7 @@ public class Parameters extends ImageRequest {
         }
     }
 
-    public void loadFromRequest(ImageRequest request) {
+    public void loadFromRequest(QueueRequest request) {
         JSONObject object = request.toJson();
         loadJson(object);
     }

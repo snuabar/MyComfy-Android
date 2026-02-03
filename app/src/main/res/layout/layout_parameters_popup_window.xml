@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content">
 
@@ -83,8 +84,8 @@
                 style="@style/ParameterEditTextStyle"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
                 android:layout_marginStart="6dp"
+                android:layout_weight="1"
                 android:inputType="number"
                 android:maxLength="4"
                 android:text="512" />
@@ -94,17 +95,17 @@
                 style="@style/ButtonBorderless"
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
+                android:layout_gravity="center"
                 android:layout_weight="0.4"
-                android:src="@drawable/ic_switch_wh"
-                android:layout_gravity="center" />
+                android:src="@drawable/ic_switch_wh" />
 
             <EditText
                 android:id="@+id/etHeight"
                 style="@style/ParameterEditTextStyle"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
                 android:layout_span="1"
+                android:layout_weight="1"
                 android:inputType="number"
                 android:maxLength="4"
                 android:text="512" />
@@ -183,9 +184,10 @@
         </TableRow>
 
         <TableRow
-            android:visibility="gone"
             android:layout_marginStart="6dp"
-            android:layout_marginTop="4dp">
+            android:layout_marginTop="4dp"
+            android:visibility="gone"
+            tools:visibility="visible">
 
             <TextView
                 android:layout_width="wrap_content"
@@ -201,6 +203,29 @@
                 android:layout_weight="1"
                 android:inputType="numberDecimal"
                 android:text="1.0" />
+        </TableRow>
+
+        <TableRow
+            android:id="@+id/rowSeconds"
+            android:layout_marginStart="6dp"
+            android:layout_marginTop="4dp"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="时长:" />
+
+            <EditText
+                android:id="@+id/etSeconds"
+                style="@style/ParameterEditTextStyle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:layout_weight="1"
+                android:inputType="number"
+                android:text="5" />
         </TableRow>
     </TableLayout>
 </ScrollView>

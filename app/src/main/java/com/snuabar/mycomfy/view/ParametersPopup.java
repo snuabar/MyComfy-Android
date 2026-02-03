@@ -7,13 +7,16 @@ import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.BaseAdapter;
 import android.widget.PopupWindow;
+import android.widget.TextView;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.StringDef;
+import androidx.annotation.Nullable;
 import androidx.appcompat.content.res.AppCompatResources;
 
 import com.snuabar.mycomfy.R;
@@ -21,14 +24,14 @@ import com.snuabar.mycomfy.client.ModelResponse;
 import com.snuabar.mycomfy.client.RetrofitClient;
 import com.snuabar.mycomfy.client.WorkflowsResponse;
 import com.snuabar.mycomfy.databinding.LayoutParametersPopupWindowBinding;
+import com.snuabar.mycomfy.databinding.LayoutWorkflowItemBinding;
 import com.snuabar.mycomfy.setting.Settings;
 import com.snuabar.mycomfy.utils.ViewUtils;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
+import java.lang.ref.WeakReference;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -44,11 +47,13 @@ public class ParametersPopup extends PopupWindow {
 
     private final static String TAG = ParametersPopup.class.getName();
 
+    private WeakReference<View> mAnchor;
     private final LayoutParametersPopupWindowBinding binding;
     private final RetrofitClient retrofitClient;
-    private final Map<String, List<String>> workflows = new HashMap<>();
+    private final Map<String, WorkflowsResponse.Workflow> workflows = new HashMap<>();
     private final List<String> models = new ArrayList<>();
-    private ArrayAdapter<String> workflowAdapter, modelAdapter;
+    private WorkflowAdapter workflowAdapter;
+    private ArrayAdapter<String> modelAdapter;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private JSONObject paramJsonObject = null;
     private String paramKey = null;
@@ -64,20 +69,33 @@ public class ParametersPopup extends PopupWindow {
         setBackgroundDrawable(AppCompatResources.getDrawable(context, R.drawable.parameters_popup_bg));
         setElevation(8);
         retrofitClient = RetrofitClient.getInstance();
-        loadValues();
         // 设置按钮点击事件
         setupClickListeners();
         // 设置工作流控件
         setupAdapters();
+        handler.post(this::loadWorkflows);
     }
 
     @Override
     public void showAsDropDown(View anchor, int xoff, int yoff, int gravity) {
         // 手动测量和布局
         ViewUtils.measure(getContentView(), 300);
+        mAnchor = new WeakReference<>(anchor);
         super.showAsDropDown(anchor, 0, -anchor.getHeight() - getContentView().getMeasuredHeight(), Gravity.TOP | Gravity.START);
         binding.btnSwitchWH.setEnabled(false);
         handler.post(this::loadWorkflows);
+    }
+
+    @Override
+    public void update() {
+        if (mAnchor != null && mAnchor.get() != null) {
+            // 手动测量和布局
+            ViewUtils.measure(getContentView(), 0);
+            View anchor = mAnchor.get();
+            super.update(anchor, 0, -anchor.getHeight() - getContentView().getMeasuredHeight(), -1, -1);
+        } else {
+            super.update();
+        }
     }
 
     @Override
@@ -116,7 +134,7 @@ public class ParametersPopup extends PopupWindow {
     }
 
     private void setupAdapters() {
-        workflowAdapter = new ArrayAdapter<>(getContentView().getContext(), R.layout.layout_workflow_item, R.id.text1);
+        workflowAdapter = new WorkflowAdapter(getContentView().getContext());
         modelAdapter = new ArrayAdapter<>(getContentView().getContext(), R.layout.layout_model_item, R.id.text1);
         binding.spinnerWorkflow.setAdapter(workflowAdapter);
         binding.spinnerModels.setAdapter(modelAdapter);
@@ -148,7 +166,7 @@ public class ParametersPopup extends PopupWindow {
         });
     }
 
-    private void loadWorkflows() {
+    public void loadWorkflows() {
         // 发送请求
         retrofitClient.getApiService().loadWorkflow().enqueue(new Callback<>() {
             @Override
@@ -193,7 +211,13 @@ public class ParametersPopup extends PopupWindow {
         }
 
         String selectedWorkflow = binding.spinnerWorkflow.getSelectedItem().toString();
-        List<String> modelTypes = workflows.get(selectedWorkflow);
+        WorkflowsResponse.Workflow workflow = workflows.get(selectedWorkflow);
+        if (workflow == null) {
+            loadValues();
+            return;
+        }
+
+        List<String> modelTypes = workflow.getModelTypes();
         if (modelTypes == null) {
             loadValues();
             return;
@@ -218,6 +242,7 @@ public class ParametersPopup extends PopupWindow {
                         ModelResponse modelResponse = response.body();
                         models.clear();
                         models.addAll(modelResponse.getModels());
+                        models.removeIf(m -> workflow.getExcludeModels().stream().anyMatch(m::contains));
                         handler.post(() -> {
                             modelAdapter.clear();
                             modelAdapter.addAll(models);
@@ -259,7 +284,27 @@ public class ParametersPopup extends PopupWindow {
                 paramJsonObject = new JSONObject(jsonString);
             } catch (JSONException e) {
                 Log.e(TAG, "getParametersJSON. Failed to load json.", e);
-                paramJsonObject = new JSONObject(Settings.DefaultParamMap);
+//                paramJsonObject = new JSONObject(Settings.DefaultParamMap);
+                paramJsonObject = new JSONObject();
+                WorkflowsResponse.DefaultParameters dp;
+                String selectedWorkflow = Settings.getInstance().getWorkflow("");
+                WorkflowsResponse.Workflow workflow = workflows.get(selectedWorkflow);
+                if (workflow != null && workflow.getDefaultParameters() != null) {
+                    dp = workflow.getDefaultParameters();
+                } else {
+                    dp = WorkflowsResponse.DefaultParameters.Default;
+                }
+                try {
+                    paramJsonObject.putOpt(Settings.KEY_PARAM_WIDTH, String.valueOf(dp.getWidth()));
+                    paramJsonObject.putOpt(Settings.KEY_PARAM_HEIGHT, String.valueOf(dp.getHeight()));
+                    paramJsonObject.putOpt(Settings.KEY_PARAM_SEED, String.valueOf(dp.getSeed()));
+                    paramJsonObject.putOpt(Settings.KEY_PARAM_STEP, String.valueOf(dp.getStep()));
+                    paramJsonObject.putOpt(Settings.KEY_PARAM_CFG, String.valueOf(dp.getCfg()));
+                    paramJsonObject.putOpt(Settings.KEY_PARAM_UPSCALE_FACTOR, String.valueOf(dp.getUpscale_factor()));
+                    paramJsonObject.putOpt(Settings.KEY_PARAM_SECONDS, String.valueOf(dp.getSeconds()));
+                } catch (JSONException e1) {
+                    Log.e(TAG, "getParametersJSON. default. Failed to execute putOpt.", e1);
+                }
             }
         }
         return paramJsonObject;
@@ -267,17 +312,20 @@ public class ParametersPopup extends PopupWindow {
 
     private void loadValues() {
         JSONObject jsonObject = getParametersJSON();
-        try {
-            binding.etWidth.setText(jsonObject.getString(Settings.KEY_PARAM_WIDTH));
-            binding.etHeight.setText(jsonObject.getString(Settings.KEY_PARAM_HEIGHT));
-            binding.etSeed.setText(jsonObject.getString(Settings.KEY_PARAM_SEED));
-            binding.etStep.setText(jsonObject.getString(Settings.KEY_PARAM_STEP));
-            binding.etCFG.setText(jsonObject.getString(Settings.KEY_PARAM_CFG));
-            binding.etUpscaleFactor.setText(jsonObject.getString(Settings.KEY_PARAM_UPSCALE_FACTOR));
-        } catch (JSONException e) {
-            Log.e(TAG, "loadValues. Failed to execute getXXX.", e);
-        }
+        binding.etWidth.setText(jsonObject.optString(Settings.KEY_PARAM_WIDTH));
+        binding.etHeight.setText(jsonObject.optString(Settings.KEY_PARAM_HEIGHT));
+        binding.etSeed.setText(jsonObject.optString(Settings.KEY_PARAM_SEED));
+        binding.etStep.setText(jsonObject.optString(Settings.KEY_PARAM_STEP));
+        binding.etCFG.setText(jsonObject.optString(Settings.KEY_PARAM_CFG));
+        binding.etUpscaleFactor.setText(jsonObject.optString(Settings.KEY_PARAM_UPSCALE_FACTOR));
+        binding.etSeconds.setText(jsonObject.optString(Settings.KEY_PARAM_SECONDS));
         binding.btnSwitchWH.setEnabled(true);
+
+        int visibility = binding.rowSeconds.getVisibility();
+        binding.rowSeconds.setVisibility(isVideoWorkflow() ? View.VISIBLE : View.GONE);
+        if (binding.rowSeconds.getVisibility() != visibility) {
+            update();
+        }
     }
 
     private void saveValues() {
@@ -289,6 +337,7 @@ public class ParametersPopup extends PopupWindow {
             jsonObject.putOpt(Settings.KEY_PARAM_STEP, binding.etStep.getText().toString());
             jsonObject.putOpt(Settings.KEY_PARAM_CFG, binding.etCFG.getText().toString());
             jsonObject.putOpt(Settings.KEY_PARAM_UPSCALE_FACTOR, binding.etUpscaleFactor.getText().toString());
+            jsonObject.putOpt(Settings.KEY_PARAM_SECONDS, binding.etSeconds.getText().toString());
 
             String key = getParametersSettingKey();
             Settings.getInstance().edit().putString(key, jsonObject.toString()).apply();
@@ -299,8 +348,21 @@ public class ParametersPopup extends PopupWindow {
 
     public boolean isModelAllowedEmpty() {
         String selectedWorkflow = Settings.getInstance().getWorkflow("");
-        List<String> modelTypes = workflows.get(selectedWorkflow);
+        WorkflowsResponse.Workflow workflow = workflows.get(selectedWorkflow);
+        if (workflow == null) {
+            return true;
+        }
+        List<String> modelTypes = workflow.getModelTypes();
         return modelTypes == null || modelTypes.isEmpty();
+    }
+
+    public boolean isVideoWorkflow() {
+        String selectedWorkflow = Settings.getInstance().getWorkflow("");
+        WorkflowsResponse.Workflow workflow = workflows.get(selectedWorkflow);
+        if (workflow == null) {
+            return false;
+        }
+        return WorkflowsResponse.Workflow.OUTPUT_VIDEO.equals(workflow.getOutputType());
     }
 
     public String getParameter(@Settings.ParamKeys String key) {
@@ -308,13 +370,12 @@ public class ParametersPopup extends PopupWindow {
             return Settings.getInstance().getWorkflow("").trim();
         }
         if (Settings.KEY_PARAM_MODEL.equals(key)) {
-            String selectedWorkflow = Settings.getInstance().getWorkflow("");
-            List<String> modelTypes = workflows.get(selectedWorkflow);
-            if (modelTypes == null || modelTypes.isEmpty()) {
+            if (isModelAllowedEmpty()) {
                 return null;
             }
             return Settings.getInstance().getModelName("").trim();
         }
+
         JSONObject jsonObject = getParametersJSON();
         try {
             return jsonObject.getString(key).trim();
@@ -322,5 +383,63 @@ public class ParametersPopup extends PopupWindow {
             Log.e(TAG, "getParameter. Failed to execute getString.", e);
         }
         return Settings.DefaultParamMap.get(key);
+    }
+
+    private class WorkflowAdapter extends BaseAdapter {
+
+        private final List<String> items;
+        private final Context context;
+
+        public WorkflowAdapter(@NonNull Context context) {
+            this.context = context.getApplicationContext();
+            items = new ArrayList<>();
+        }
+
+        @Override
+        public int getCount() {
+            return items.size();
+        }
+
+        @Nullable
+        @Override
+        public String getItem(int position) {
+            return items.get(position);
+        }
+
+        @Override
+        public long getItemId(int position) {
+            return 0;
+        }
+
+        @NonNull
+        @Override
+        public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
+            LayoutWorkflowItemBinding binding;
+            if (convertView == null) {
+                binding = LayoutWorkflowItemBinding.inflate(LayoutInflater.from(context), parent, false);
+                convertView = binding.getRoot();
+                convertView.setTag(binding);
+            } else {
+                binding = (LayoutWorkflowItemBinding) convertView.getTag();
+            }
+            String workflowKey = getItem(position);
+            if (workflowKey != null) {
+                WorkflowsResponse.Workflow workflow = workflows.get(workflowKey);
+                if (workflow != null) {
+                    binding.text1.setText(workflow.getDisplayName());
+                }
+            }
+            return convertView;
+        }
+
+        public void clear() {
+            items.clear();
+            notifyDataSetChanged();
+        }
+
+        public void addAll(List<String> workflowNames) {
+            items.addAll(workflowNames);
+            notifyDataSetChanged();
+        }
     }
 }
