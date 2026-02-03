@@ -29,7 +29,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.snuabar.mycomfy.R;
 import com.snuabar.mycomfy.client.EnqueueResponse;
-import com.snuabar.mycomfy.client.ImageRequest;
+import com.snuabar.mycomfy.client.QueueRequest;
 import com.snuabar.mycomfy.client.ImageResponse;
 import com.snuabar.mycomfy.client.InterruptRequest;
 import com.snuabar.mycomfy.client.Parameters;
@@ -40,7 +40,9 @@ import com.snuabar.mycomfy.databinding.FragmentHomeBinding;
 import com.snuabar.mycomfy.databinding.LayoutMessageItemOptionalDialogBinding;
 import com.snuabar.mycomfy.main.data.AbstractMessageModel;
 import com.snuabar.mycomfy.main.model.ReceivedMessageModel;
+import com.snuabar.mycomfy.main.model.ReceivedVideoMessageModel;
 import com.snuabar.mycomfy.main.model.SentMessageModel;
+import com.snuabar.mycomfy.main.model.SentVideoMessageModel;
 import com.snuabar.mycomfy.main.model.UpscaleReceivedMessageModel;
 import com.snuabar.mycomfy.main.model.UpscaleSentMessageModel;
 import com.snuabar.mycomfy.preview.FullScreenImageActivity;
@@ -368,6 +370,7 @@ public class HomeFragment extends Fragment {
         String upscaleFactorStr = parametersPopup.getParameter(Settings.KEY_PARAM_UPSCALE_FACTOR);
         String stepStr = parametersPopup.getParameter(Settings.KEY_PARAM_STEP);
         String cfgStr = parametersPopup.getParameter(Settings.KEY_PARAM_CFG);
+        String secondsStr = parametersPopup.getParameter(Settings.KEY_PARAM_SECONDS);
 
         // 验证输入
         if (workflow.isEmpty()) {
@@ -449,13 +452,35 @@ public class HomeFragment extends Fragment {
             }
         }
 
-        // 创建请求对象
-        return new Parameters(workflow, modelName, prompt, seed, width, height, step, cfg, upscaleFactor);
+        int seconds = 0;
+        if (parametersPopup.isVideoWorkflow()) {
+            if (!secondsStr.isEmpty()) {
+                try {
+                    seconds = Integer.parseInt(secondsStr);
+                    if (seconds < 1 || seconds > 8) {
+                        showToast("时长应在 1 ~ 8 之间");
+                        return null;
+                    }
+                } catch (NumberFormatException e) {
+                    showToast("时长必须是数字");
+                    return null;
+                }
+            }
+        }
+
+
+        // 创建参数对象
+        Parameters parameters = new Parameters(workflow, modelName, prompt, seed, width, height, step, cfg, upscaleFactor);
+        if (seconds != 0) {
+            parameters.setSeconds(seconds);
+        }
+
+        return parameters;
     }
 
     private void enqueue(AbstractMessageModel model, double... upscale) {
         final SentMessageModel sentMessageModel;
-        final ImageRequest request;
+        final QueueRequest request;
         if (model == null) {
             Parameters parameters = newParameters();
             if (parameters == null) {
@@ -463,9 +488,13 @@ public class HomeFragment extends Fragment {
             }
 
             // 创建请求对象
-            request = new ImageRequest(parameters);
-            sentMessageModel = new SentMessageModel(parameters);
+            request = new QueueRequest(parameters);
 
+            if (parametersPopup.isVideoWorkflow()) {
+                sentMessageModel = new SentVideoMessageModel(parameters);
+            } else {
+                sentMessageModel = new SentMessageModel(parameters);
+            }
             // 界面显示
             messageAdapter.add(sentMessageModel);
         } else {
@@ -474,10 +503,10 @@ public class HomeFragment extends Fragment {
                 parameters.setUpscale_factor(upscale[0]);
                 sentMessageModel = new UpscaleSentMessageModel(parameters);
                 sentMessageModel.setImageFile(DataIO.copyImageFile(requireContext(), model.getImageFile()));
-                request = new ImageRequest(sentMessageModel.getParameters());
+                request = new QueueRequest(sentMessageModel.getParameters());
                 messageAdapter.add(sentMessageModel);
             } else {
-                request = new ImageRequest(model.getParameters().setResent());
+                request = new QueueRequest(model.getParameters().setResent());
                 sentMessageModel = (SentMessageModel) model;
             }
         }
@@ -495,7 +524,9 @@ public class HomeFragment extends Fragment {
                         }
                         // 保存响应对应，更新列表
                         ReceivedMessageModel receivedMessageModel;
-                        if (sentMessageModel instanceof UpscaleSentMessageModel) {
+                        if (sentMessageModel.isVideo()) {
+                            receivedMessageModel = new ReceivedVideoMessageModel(enqueueResponse);
+                        }else if (sentMessageModel instanceof UpscaleSentMessageModel) {
                             receivedMessageModel = new UpscaleReceivedMessageModel(enqueueResponse);
                         } else {
                             receivedMessageModel = new ReceivedMessageModel(enqueueResponse);
@@ -521,13 +552,18 @@ public class HomeFragment extends Fragment {
         });
     }
 
-    private File saveImageToFile(ResponseBody body, Callbacks.Callback2T<Long, Long> callback) {
+    private File saveFile(ResponseBody body, boolean isVideo, Callbacks.Callback2T<Long, Long> callback) {
         try {
-            File imageFile = DataIO.newImageFile(requireContext());
+            File file;
+            if (isVideo) {
+                file = DataIO.newVideoFile(requireContext());
+            } else {
+                file = DataIO.newImageFile(requireContext());
+            }
 
             // 保存文件
-            if (RetrofitClient.downloadFile(body, imageFile, callback)) {
-                return imageFile;
+            if (RetrofitClient.downloadFile(body, file, callback)) {
+                return file;
             }
         } catch (Exception e) {
             log("保存文件失败: " + e.getMessage(), true);
@@ -554,6 +590,8 @@ public class HomeFragment extends Fragment {
         String port = Settings.getInstance().getPreferences().getString("server_port", "8000");
         // 更新Base URL
         retrofitClient.setBaseUrl(ip, port);
+
+        parametersPopup.loadWorkflows();
     }
 
     private void startStatusCheck() {
@@ -593,14 +631,14 @@ public class HomeFragment extends Fragment {
 
                     try {
                         if (model.isFileExistsOnServer()) {
-                            downloadImageSync(model);
+                            downloadContentSync(model);
                         } else {
                             retrofit2.Response<ImageResponse> response = retrofitClient.getApiService().getImageStatus(model.getPromptId()).execute();
                             if (response.isSuccessful()) {
                                 ImageResponse body = response.body();
                                 if (body != null) {
                                     if (body.getCode() == 200) {
-                                        downloadImageSync(model);
+                                        downloadContentSync(model);
                                     } else if (body.getCode() == 204) {
                                         Log.e(TAG, model.getPromptId() + " is being processing.");
                                     } else {
@@ -641,16 +679,16 @@ public class HomeFragment extends Fragment {
         });
     }
 
-    private void downloadImageSync(AbstractMessageModel model) throws IOException {
+    private void downloadContentSync(AbstractMessageModel model) throws IOException {
         Response<ResponseBody> response = retrofitClient.getApiService().download(model.getPromptId()).execute();
         if (response.isSuccessful()) {
             try (ResponseBody body = response.body()) {
-                File imageFile = saveImageToFile(body, (total, progress) -> {
-                    log("下载图像: " + progress + "/" + total, false);
+                File file = saveFile(body, model.isVideo(), (total, progress) -> {
+                    log("下载文件: " + progress + "/" + total, false);
                 });
-                if (imageFile != null) {
+                if (file != null) {
 //                            messageAdapter.setFinished(promptId, imageFile, response.code(), response.message());
-                    model.setFinished(imageFile, response.code(), response.message());
+                    model.setFinished(file, response.code(), response.message());
                     DataIO.writeModelFile(requireContext(), model);
                     messageAdapter.notifyModelChanged(model);
                 }

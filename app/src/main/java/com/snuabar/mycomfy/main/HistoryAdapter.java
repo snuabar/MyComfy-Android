@@ -74,6 +74,7 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
                     Common.formatFileSize(model.getImageFile().length()
                     )));
         }
+        holder.binding.ivPlay.setVisibility(model.isVideo() ? View.VISIBLE : View.GONE);
     }
 
     private void onThumbnailMake(AbstractMessageModel content) {

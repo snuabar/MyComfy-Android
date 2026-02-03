@@ -29,18 +29,21 @@ import com.snuabar.mycomfy.R;
 import com.snuabar.mycomfy.common.Common;
 import com.snuabar.mycomfy.databinding.ActivityFullScreenImageBinding;
 import com.snuabar.mycomfy.databinding.LayoutFullScreenImageItemBinding;
+import com.snuabar.mycomfy.databinding.LayoutFullScreenVideoItemBinding;
 import com.snuabar.mycomfy.main.data.AbstractMessageModel;
 import com.snuabar.mycomfy.main.data.DataIO;
 import com.snuabar.mycomfy.main.model.ReceivedMessageModel;
 import com.snuabar.mycomfy.utils.FileOperator;
 import com.snuabar.mycomfy.utils.FilePicker;
 import com.snuabar.mycomfy.utils.ImageUtils;
+import com.snuabar.mycomfy.utils.VideoUtils;
 
 import java.io.File;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -77,6 +80,7 @@ public class FullScreenImageActivity extends AppCompatActivity {
         if (getSupportActionBar() != null) {
             getSupportActionBar().setBackgroundDrawable(null);
             getSupportActionBar().setTitle(null);
+            getSupportActionBar().hide();
         }
 
         filePicker = new FilePicker(this);
@@ -121,6 +125,7 @@ public class FullScreenImageActivity extends AppCompatActivity {
         binding.viewPager2.registerOnPageChangeCallback(onPageChangeCallback);
         binding.btnSave.setOnClickListener(v -> saveImage());
         binding.btnShare.setOnClickListener(v -> shareImage());
+        binding.btnClose.setOnClickListener(v -> finish());
     }
 
     private final ViewPager2.OnPageChangeCallback onPageChangeCallback = new ViewPager2.OnPageChangeCallback() {
@@ -149,7 +154,9 @@ public class FullScreenImageActivity extends AppCompatActivity {
 
     private void displayInfo() {
         if (canDisplayInfo()) {
-            if (binding.layoutInfo.getVisibility() == View.VISIBLE) {
+            if (binding.layoutInfoContainer.getVisibility() == View.VISIBLE) {
+                adjustInfoLayout();
+
                 int index = binding.viewPager2.getCurrentItem();
                 AbstractMessageModel model = messageList.get(index);
 
@@ -175,11 +182,17 @@ public class FullScreenImageActivity extends AppCompatActivity {
                 } else {
                     binding.tvScaleFactor.setVisibility(View.GONE);
                 }
-                int[] size = ImageUtils.getImageSize(model.getImageFile());
+                int[] size;
+                if (model.isVideo()) {
+                    VideoUtils.VideoSize videoSize = VideoUtils.INSTANCE.getVideoSize(model.getImageFile());
+                    size = new int[]{videoSize.getWidth(), videoSize.getHeight()};
+                } else {
+                    size = ImageUtils.getImageSize(model.getImageFile());
+                }
                 binding.tvResolution.setText(String.format(Locale.getDefault(), "%d x %d", size[0], size[1]));
             }
         } else {
-            binding.layoutInfo.setVisibility(View.INVISIBLE);
+            binding.layoutInfoContainer.setVisibility(View.INVISIBLE);
         }
     }
 
@@ -234,32 +247,35 @@ public class FullScreenImageActivity extends AppCompatActivity {
         isFullscreen = fullScreenMode;
         if (isFullscreen) {
             if (canDisplayInfo()) {
-                binding.layoutInfo.animate().alpha(0).withEndAction(() -> {
-                    binding.layoutInfo.setVisibility(View.INVISIBLE);
+                binding.layoutInfoContainer.animate().alpha(0).withEndAction(() -> {
+                    binding.layoutInfoContainer.setVisibility(View.INVISIBLE);
                 });
             } else {
-                binding.layoutInfo.setVisibility(View.INVISIBLE);
+                binding.layoutInfoContainer.setVisibility(View.INVISIBLE);
             }
             hideSystemStatusBar();
         } else {
             if (canDisplayInfo()) {
-                binding.layoutInfo.animate().alpha(1).withStartAction(() -> {
-                    binding.layoutInfo.setVisibility(View.VISIBLE);
+                binding.layoutInfoContainer.animate().alpha(1).withStartAction(() -> {
+                    binding.layoutInfoContainer.setVisibility(View.VISIBLE);
+                    displayInfo();
                 });
             } else {
-                binding.layoutInfo.setVisibility(View.INVISIBLE);
+                binding.layoutInfoContainer.setVisibility(View.INVISIBLE);
             }
             showSystemStatusBar();
-
-            ViewGroup.MarginLayoutParams lp = (ViewGroup.MarginLayoutParams) binding.layoutInfo.getLayoutParams();
-            Rect insect = displayInsets.getWindowInsets();
-            lp.rightMargin = insect.right;
-            lp.leftMargin = insect.left;
-            lp.topMargin = insect.top;
-            lp.bottomMargin = insect.bottom;
-            binding.layoutInfo.setLayoutParams(lp);
-            binding.layoutInfo.requestLayout();
         }
+    }
+
+    private void adjustInfoLayout() {
+        ViewGroup.MarginLayoutParams lp = (ViewGroup.MarginLayoutParams) binding.layoutInfo.getLayoutParams();
+        Rect insect = displayInsets.getWindowInsets();
+        lp.rightMargin = insect.right;
+        lp.leftMargin = insect.left;
+        lp.topMargin = displayInsets.getHeightOfStatusBar(this);
+//        lp.bottomMargin = insect.bottom + adapter.getVideoControlLayoutHeight();
+        binding.layoutInfo.setLayoutParams(lp);
+        binding.layoutInfo.requestLayout();
     }
 
     private void saveImage() {
@@ -395,10 +411,11 @@ public class FullScreenImageActivity extends AppCompatActivity {
         }
     }
 
-    private class Adapter extends RecyclerView.Adapter<Adapter.Holder> {
+    private class Adapter extends RecyclerView.Adapter<Adapter.BaseHolder> {
 
         private final List<AbstractMessageModel> messageModels;
         private final Map<Integer, WeakReference<Bitmap>> bitmapRefs;
+        private final HashSet<VideoHolder> videoHolders = new HashSet<>();
 
         private Adapter(List<AbstractMessageModel> messageModels) {
             this.messageModels = messageModels;
@@ -407,27 +424,52 @@ public class FullScreenImageActivity extends AppCompatActivity {
 
         @NonNull
         @Override
-        public Holder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-            return new Holder(LayoutFullScreenImageItemBinding.inflate(LayoutInflater.from(parent.getContext()), parent, false));
+        public BaseHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            if (viewType == 1) {
+                return new VideoHolder(LayoutFullScreenVideoItemBinding.inflate(LayoutInflater.from(parent.getContext()), parent, false));
+            }
+            return new ImageHolder(LayoutFullScreenImageItemBinding.inflate(LayoutInflater.from(parent.getContext()), parent, false));
         }
 
         @Override
-        public void onBindViewHolder(@NonNull Holder holder, int position) {
+        public void onBindViewHolder(@NonNull BaseHolder holder, int position) {
             AbstractMessageModel model = messageModels.get(position);
-            WeakReference<Bitmap> bitmapRef = bitmapRefs.get(position);
-            Bitmap bitmap;
-            if (bitmapRef != null && bitmapRef.get() != null) {
-                bitmap = bitmapRef.get();
+            if (model.isVideo()) {
+                VideoHolder videoHolder = (VideoHolder) holder;
+                videoHolder.binding.videoView.setVideoSource(model.getImageFile().getAbsolutePath());
+                videoHolders.add(videoHolder);
             } else {
-                bitmap = BitmapFactory.decodeFile(model.getImageFile().getAbsolutePath());
-                bitmapRefs.put(position, new WeakReference<>(bitmap));
+                ImageHolder imageHolder = (ImageHolder) holder;
+                WeakReference<Bitmap> bitmapRef = bitmapRefs.get(position);
+                Bitmap bitmap;
+                if (bitmapRef != null && bitmapRef.get() != null) {
+                    bitmap = bitmapRef.get();
+                } else {
+                    bitmap = BitmapFactory.decodeFile(model.getImageFile().getAbsolutePath());
+                    bitmapRefs.put(position, new WeakReference<>(bitmap));
+                }
+                imageHolder.binding.photoView.setImageBitmap(bitmap);
             }
-            holder.binding.photoView.setImageBitmap(bitmap);
         }
 
         @Override
         public int getItemCount() {
             return messageModels.size();
+        }
+
+        @Override
+        public int getItemViewType(int position) {
+            if (messageModels.get(position).isVideo()) {
+                return 1;
+            }
+            return super.getItemViewType(position);
+        }
+
+        public int getVideoControlLayoutHeight() {
+            for (VideoHolder videoHolder : videoHolders) {
+                return videoHolder.binding.videoView.getControlLayoutHeight();
+            }
+            return 0;
         }
 
         public void recycle() {
@@ -437,12 +479,24 @@ public class FullScreenImageActivity extends AppCompatActivity {
                 }
             }
             bitmapRefs.clear();
+
+            for (VideoHolder videoHolder : videoHolders) {
+                videoHolder.binding.videoView.release();
+            }
+            videoHolders.clear();
         }
 
-        private class Holder extends RecyclerView.ViewHolder {
+        private class BaseHolder extends RecyclerView.ViewHolder {
+
+            public BaseHolder(@NonNull View itemView) {
+                super(itemView);
+            }
+        }
+
+        private class ImageHolder extends BaseHolder {
             private final LayoutFullScreenImageItemBinding binding;
 
-            public Holder(@NonNull LayoutFullScreenImageItemBinding binding) {
+            public ImageHolder(@NonNull LayoutFullScreenImageItemBinding binding) {
                 super(binding.getRoot());
                 this.binding = binding;
                 // 设置双击缩放和手势缩放
@@ -451,6 +505,21 @@ public class FullScreenImageActivity extends AppCompatActivity {
                 binding.photoView.setMediumScale(3.0f);
                 // 点击切换全屏
                 binding.photoView.setOnClickListener(v -> toggleFullScreen());
+            }
+        }
+
+        private class VideoHolder extends BaseHolder {
+            private final LayoutFullScreenVideoItemBinding binding;
+
+            public VideoHolder(@NonNull LayoutFullScreenVideoItemBinding binding) {
+                super(binding.getRoot());
+                this.binding = binding;
+                // 点击切换全屏
+                itemView.setOnClickListener(v -> {
+                    toggleFullScreen();
+                    binding.videoView.toggleControls();
+                });
+
             }
         }
     }

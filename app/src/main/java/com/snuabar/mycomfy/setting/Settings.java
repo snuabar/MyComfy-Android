@@ -5,6 +5,8 @@ import android.content.SharedPreferences;
 
 import androidx.annotation.StringDef;
 
+import com.snuabar.mycomfy.client.WorkflowsResponse;
+
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.Map;
@@ -18,8 +20,9 @@ public class Settings {
     public static final String KEY_PARAM_STEP = "step";
     public static final String KEY_PARAM_CFG = "cfg";
     public static final String KEY_PARAM_UPSCALE_FACTOR = "upscale_factor";
+    public static final String KEY_PARAM_SECONDS = "seconds";
 
-    @StringDef({KEY_PARAM_WORKFLOW, KEY_PARAM_MODEL, KEY_PARAM_WIDTH, KEY_PARAM_HEIGHT, KEY_PARAM_SEED, KEY_PARAM_STEP, KEY_PARAM_CFG, KEY_PARAM_UPSCALE_FACTOR})
+    @StringDef({KEY_PARAM_WORKFLOW, KEY_PARAM_MODEL, KEY_PARAM_WIDTH, KEY_PARAM_HEIGHT, KEY_PARAM_SEED, KEY_PARAM_STEP, KEY_PARAM_CFG, KEY_PARAM_UPSCALE_FACTOR, KEY_PARAM_SECONDS})
     @Retention(RetentionPolicy.SOURCE)
     public @interface ParamKeys {
 
@@ -27,12 +30,13 @@ public class Settings {
 
     // 1.0 means no upscale.
     public static final Map<String, String> DefaultParamMap = Map.of(
-            KEY_PARAM_WIDTH, "512",
-            KEY_PARAM_HEIGHT, "512",
-            KEY_PARAM_SEED, "0",
-            KEY_PARAM_STEP, "20",
-            KEY_PARAM_CFG, "8.0",
-            KEY_PARAM_UPSCALE_FACTOR, "1.0"
+            KEY_PARAM_WIDTH, String.valueOf(WorkflowsResponse.DefaultParameters.Default.getWidth()),
+            KEY_PARAM_HEIGHT, String.valueOf(WorkflowsResponse.DefaultParameters.Default.getHeight()),
+            KEY_PARAM_SEED, String.valueOf(WorkflowsResponse.DefaultParameters.Default.getSeed()),
+            KEY_PARAM_STEP, String.valueOf(WorkflowsResponse.DefaultParameters.Default.getStep()),
+            KEY_PARAM_CFG, String.valueOf(WorkflowsResponse.DefaultParameters.Default.getCfg()),
+            KEY_PARAM_UPSCALE_FACTOR, String.valueOf(WorkflowsResponse.DefaultParameters.Default.getUpscale_factor()),
+            KEY_PARAM_SECONDS, String.valueOf(WorkflowsResponse.DefaultParameters.Default.getSeconds())
     );
 
     private final SharedPreferences preferences;

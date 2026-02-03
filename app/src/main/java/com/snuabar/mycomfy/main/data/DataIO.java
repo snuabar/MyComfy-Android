@@ -32,6 +32,7 @@ public class DataIO {
     public static final String PREFIX = "MyComfy_";
     public static final String MSG_EXT = ".msg";
     public static final String IMG_EXT = ".png";
+    public static final String VIDEO_EXT = ".mp4";
     private static final List<AbstractMessageModel> MessageModels = new ArrayList<>();
     private static final Map<String, Integer> IdToIndexMap = new HashMap<>();
 
@@ -98,11 +99,24 @@ public class DataIO {
         assert outputDir != null;
         // 创建保存目录
         if (!outputDir.exists() && !outputDir.mkdirs()) {
-            Log.e(TAG, "saveImageToFile: failed to execute mkdirs()");
+            Log.e(TAG, "newImageFile: failed to execute mkdirs()");
         }
         // 生成文件名
         String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date());
         String fileName = PREFIX + timeStamp + IMG_EXT;
+        return new File(outputDir, fileName);
+    }
+
+    public static File newVideoFile(Context context) {
+        File outputDir = getOutputDir(context);
+        assert outputDir != null;
+        // 创建保存目录
+        if (!outputDir.exists() && !outputDir.mkdirs()) {
+            Log.e(TAG, "newVideoFile: failed to execute mkdirs()");
+        }
+        // 生成文件名
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date());
+        String fileName = PREFIX + timeStamp + VIDEO_EXT;
         return new File(outputDir, fileName);
     }
 

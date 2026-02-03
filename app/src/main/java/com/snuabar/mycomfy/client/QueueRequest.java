@@ -8,7 +8,7 @@ import org.json.JSONObject;
 import java.util.Objects;
 
 // 请求模型
-public class ImageRequest {
+public class QueueRequest {
     private String workflow;
     private String model;
     private String prompt;
@@ -21,9 +21,10 @@ public class ImageRequest {
     private double upscale_factor;
     private int step;
     private double cfg;
+    private int seconds;
 
     // 构造函数
-    public ImageRequest(String workflow, String model, String prompt, Integer seed, int img_width, int img_height, int step, double cfg, double upscale_factor) {
+    public QueueRequest(String workflow, String model, String prompt, Integer seed, int img_width, int img_height, int step, double cfg, double upscale_factor) {
         this.workflow = workflow;
         this.model = model;
         this.prompt = prompt;
@@ -35,7 +36,7 @@ public class ImageRequest {
         this.cfg = cfg;
     }
 
-    public ImageRequest(Parameters parameters) {
+    public QueueRequest(Parameters parameters) {
         JSONObject object = parameters.toJson();
         loadJson(object);
     }
@@ -137,6 +138,14 @@ public class ImageRequest {
         this.cfg = cfg;
     }
 
+    public void setSeconds(int seconds) {
+        this.seconds = seconds;
+    }
+
+    public int getSeconds() {
+        return seconds;
+    }
+
     public JSONObject toJson() {
         try {
             JSONObject jsonObject = new JSONObject();
@@ -152,6 +161,7 @@ public class ImageRequest {
             jsonObject.putOpt("upscale_factor", getUpscale_factor());
             jsonObject.putOpt("step", getStep());
             jsonObject.putOpt("cfg", getCfg());
+            jsonObject.putOpt("seconds", getSeconds());
             return jsonObject;
         } catch (JSONException e) {
             Log.e("ImageRequest", "toJson. exception thrown.", e);
@@ -172,17 +182,18 @@ public class ImageRequest {
         setUpscale_factor(jsonObject.optDouble("upscale_factor"));
         setStep(jsonObject.optInt("step"));
         setCfg(jsonObject.optDouble("cfg"));
+        setSeconds(jsonObject.optInt("seconds"));
     }
 
     @Override
     public boolean equals(Object o) {
         if (o == null || getClass() != o.getClass()) return false;
-        ImageRequest that = (ImageRequest) o;
-        return img_width == that.img_width && img_height == that.img_height && num_images == that.num_images && Double.compare(upscale_factor, that.upscale_factor) == 0 && step == that.step && Double.compare(cfg, that.cfg) == 0 && Objects.equals(workflow, that.workflow) && Objects.equals(model, that.model) && Objects.equals(prompt, that.prompt) && Objects.equals(seed, that.seed) && Objects.equals(style, that.style) && Objects.equals(negative_prompt, that.negative_prompt);
+        QueueRequest that = (QueueRequest) o;
+        return img_width == that.img_width && img_height == that.img_height && num_images == that.num_images && Double.compare(upscale_factor, that.upscale_factor) == 0 && step == that.step && Double.compare(cfg, that.cfg) == 0 && seconds == that.seconds && Objects.equals(workflow, that.workflow) && Objects.equals(model, that.model) && Objects.equals(prompt, that.prompt) && Objects.equals(seed, that.seed) && Objects.equals(style, that.style) && Objects.equals(negative_prompt, that.negative_prompt);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(workflow, model, prompt, seed, img_width, img_height, num_images, style, negative_prompt, upscale_factor, step, cfg);
+        return Objects.hash(workflow, model, prompt, seed, img_width, img_height, num_images, style, negative_prompt, upscale_factor, step, cfg, seconds);
     }
 }

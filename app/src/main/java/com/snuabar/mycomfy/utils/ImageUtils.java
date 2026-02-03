@@ -47,25 +47,37 @@ public class ImageUtils {
             ThumbnailExecutor = Executors.newScheduledThreadPool(10);
         }
         ThumbnailExecutor.execute(() -> {
-            model.setThumbnailFile(ImageUtils.createAndSaveThumbnail(model.getImageFile(), maxWidth, maxHeight));
+            if (model.isVideo()) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    model.setThumbnailFile(VideoUtils.INSTANCE.createAndSaveThumbnail(model.getImageFile(), (int) maxWidth, (int) maxHeight));
+                } else {
+                    return;
+                }
+            } else {
+                model.setThumbnailFile(ImageUtils.createAndSaveThumbnail(model.getImageFile(), maxWidth, maxHeight));
+            }
             completion.apply(model);
         });
     }
 
-    public static File getThumbnailFile(File imageFile) {
-        return new File(imageFile.getParent(), imageFile.getName() + THUMB_EXT);
+    public static File getThumbnailFile(File file) {
+        return new File(file.getParent(), file.getName() + THUMB_EXT);
     }
 
     public static int[] getImageSize(File imageFile) {
-        // 1. 解码图片并获取原始尺寸
-        BitmapFactory.Options options = new BitmapFactory.Options();
-        options.inJustDecodeBounds = true;
-        BitmapFactory.decodeFile(imageFile.getAbsolutePath(), options);
+        if (imageFile != null && imageFile.exists()) {
+            // 1. 解码图片并获取原始尺寸
+            BitmapFactory.Options options = new BitmapFactory.Options();
+            options.inJustDecodeBounds = true;
+            BitmapFactory.decodeFile(imageFile.getAbsolutePath(), options);
 
-        int originalWidth = options.outWidth;
-        int originalHeight = options.outHeight;
+            int originalWidth = options.outWidth;
+            int originalHeight = options.outHeight;
 
-        return new int[]{originalWidth, originalHeight};
+            return new int[]{originalWidth, originalHeight};
+        }
+
+        return new int[]{0, 0};
     }
 
     /**
@@ -208,7 +220,7 @@ public class ImageUtils {
     /**
      * 保存Bitmap到文件
      */
-    private static boolean saveBitmapToFile(Bitmap bitmap, File file, int quality) {
+    public static boolean saveBitmapToFile(Bitmap bitmap, File file, int quality) {
         if (bitmap == null) {
             return false;
         }
