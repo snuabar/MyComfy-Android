@@ -18,6 +18,7 @@ import android.view.ViewGroup;
 
 import com.google.android.material.tabs.TabLayout;
 import com.snuabar.mycomfy.databinding.FragmentMainBinding;
+import com.snuabar.mycomfy.main.data.MainViewModel;
 
 import java.util.Objects;
 

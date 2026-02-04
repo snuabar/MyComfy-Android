@@ -6,9 +6,11 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Insets;
 import android.graphics.Rect;
+import android.graphics.RectF;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.util.DisplayMetrics;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -25,6 +27,7 @@ import androidx.documentfile.provider.DocumentFile;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewpager2.widget.ViewPager2;
 
+import com.github.chrisbanes.photoview.PhotoView;
 import com.snuabar.mycomfy.R;
 import com.snuabar.mycomfy.common.Common;
 import com.snuabar.mycomfy.databinding.ActivityFullScreenImageBinding;
@@ -89,7 +92,7 @@ public class FullScreenImageActivity extends AppCompatActivity {
         String currentId = getIntent().getStringExtra(EXTRA_CURRENT_ID);
         currentIndex = messageIds.indexOf(currentId);
 
-        List<AbstractMessageModel> models = DataIO.copyMessageModels(this);
+        List<AbstractMessageModel> models = DataIO.getInstance().copyMessageModels();
         models.removeIf(m -> !messageIds.contains(m.getId()));
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
             messageList = new ArrayList<>(models.reversed());
@@ -411,6 +414,21 @@ public class FullScreenImageActivity extends AppCompatActivity {
         }
     }
 
+    private void onPhotoViewMatrixChange(int position, PhotoView photoView) {
+        if (binding.viewPager2.getCurrentItem() == position) {
+            RectF rect = photoView.getDisplayRect();
+            DisplayMetrics metrics = getResources().getDisplayMetrics();
+//            Log.e("!@#", metrics.widthPixels + "-" + rect.width() + ", " + metrics.heightPixels + "-" + rect.height());
+//            Log.e("!@#", String.valueOf(rect));
+            boolean zoomed = photoView.getScale() > 1.0f;
+            boolean atStart = rect.left == 0;
+            boolean atEnd = rect.right == metrics.widthPixels;
+            binding.viewPager2.setUserInputEnabled(!zoomed || atStart || atEnd);
+        } else {
+            binding.viewPager2.setUserInputEnabled(true);
+        }
+    }
+
     private class Adapter extends RecyclerView.Adapter<Adapter.BaseHolder> {
 
         private final List<AbstractMessageModel> messageModels;
@@ -449,6 +467,10 @@ public class FullScreenImageActivity extends AppCompatActivity {
                     bitmapRefs.put(position, new WeakReference<>(bitmap));
                 }
                 imageHolder.binding.photoView.setImageBitmap(bitmap);
+                float[] scales = Common.getPhotoViewScales(holder.itemView.getContext(), bitmap.getWidth(), bitmap.getHeight());
+                imageHolder.binding.photoView.setMaximumScale(scales[0]);
+                imageHolder.binding.photoView.setMediumScale(scales[1]);
+                imageHolder.binding.photoView.setZoomTransitionDuration(holder.itemView.getResources().getInteger(android.R.integer.config_longAnimTime));
             }
         }
 
@@ -501,8 +523,7 @@ public class FullScreenImageActivity extends AppCompatActivity {
                 this.binding = binding;
                 // 设置双击缩放和手势缩放
                 binding.photoView.setScaleType(ImageView.ScaleType.FIT_CENTER);
-                binding.photoView.setMaximumScale(6.0f);
-                binding.photoView.setMediumScale(3.0f);
+                binding.photoView.setOnMatrixChangeListener(rect -> onPhotoViewMatrixChange(getAbsoluteAdapterPosition(), binding.photoView));
                 // 点击切换全屏
                 binding.photoView.setOnClickListener(v -> toggleFullScreen());
             }

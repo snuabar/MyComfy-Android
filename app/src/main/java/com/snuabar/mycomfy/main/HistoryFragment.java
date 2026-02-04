@@ -18,6 +18,7 @@ import android.view.ViewGroup;
 
 import com.snuabar.mycomfy.databinding.FragmentHistoryBinding;
 import com.snuabar.mycomfy.main.data.AbstractMessageModel;
+import com.snuabar.mycomfy.main.data.MainViewModel;
 import com.snuabar.mycomfy.main.model.ReceivedMessageModel;
 import com.snuabar.mycomfy.preview.FullScreenImageActivity;
 import com.snuabar.mycomfy.main.data.DataIO;
@@ -28,8 +29,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 /**
@@ -40,7 +39,6 @@ public class HistoryFragment extends Fragment {
     private MainViewModel mViewModel;
     private FragmentHistoryBinding binding;
     private final List<AbstractMessageModel> messageModels = new ArrayList<>();
-    private final Executor executor = Executors.newSingleThreadExecutor();
 
     /**
      * Mandatory empty constructor for the fragment manager to instantiate the
@@ -135,23 +133,19 @@ public class HistoryFragment extends Fragment {
 
     @SuppressLint("NotifyDataSetChanged")
     private void loadImageContents() {
-        executor.execute(() -> {
-            if (getContext() == null) {
-                return;
-            }
+        if (getContext() == null) {
+            return;
+        }
 
-            List<AbstractMessageModel> models = DataIO.copyMessageModels(getContext());
-            models.removeIf(m -> !(m instanceof ReceivedMessageModel) || m.getImageFile() == null || !m.getImageFile().exists());
-            models.sort((o1, o2) -> Long.compare(o2.getUTCTimestamp(), o1.getUTCTimestamp()));
+        List<AbstractMessageModel> models = DataIO.getInstance().copyMessageModels();
+        models.removeIf(m -> !(m instanceof ReceivedMessageModel) || m.getImageFile() == null || !m.getImageFile().exists());
+        models.sort((o1, o2) -> Long.compare(o2.getUTCTimestamp(), o1.getUTCTimestamp()));
 
-            requireActivity().runOnUiThread(() -> {
-                if (binding.list.getAdapter() != null && getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.RESUMED)) {
-                    messageModels.clear();
-                    messageModels.addAll(models);
-                    binding.list.getAdapter().notifyDataSetChanged();
-                }
-            });
-        });
+        if (binding.list.getAdapter() != null) {
+            messageModels.clear();
+            messageModels.addAll(models);
+            binding.list.getAdapter().notifyDataSetChanged();
+        }
     }
 
     @Override
@@ -166,15 +160,21 @@ public class HistoryFragment extends Fragment {
                 return;
             }
 
+            // 从大到小排序
+            indices.sort((o1, o2) -> o2 - o1);
+
             new OptionalDialog()
                     .setType(OptionalDialog.Type.Alert)
                     .setTitle("提示")
                     .setMessage(String.format(Locale.getDefault(), "删除 %d 项！", indices.size()))
                     .setPositive(() -> {
-                        List<AbstractMessageModel> deletedModels = ((HistoryAdapter) binding.list.getAdapter()).deleteSelection();
+                        List<AbstractMessageModel> deletionModels = ((HistoryAdapter) binding.list.getAdapter()).deleteSelection();
+                        for (AbstractMessageModel model : deletionModels) {
+                            mViewModel.deleteModelFile(requireContext(), model);
+                        }
                         mViewModel.changeDeletionMode(false);
                         Map<String, List<AbstractMessageModel>> deletedModelsMap = new HashMap<>();
-                        deletedModelsMap.put(HistoryFragment.class.getName(), deletedModels);
+                        deletedModelsMap.put(HistoryFragment.class.getName(), deletionModels);
                         mViewModel.changeDeletedModels(deletedModelsMap);
                     })
                     .setNegative(null)

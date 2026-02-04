@@ -12,6 +12,7 @@ import android.view.MenuItem;
 
 import com.snuabar.mycomfy.R;
 import com.snuabar.mycomfy.client.RetrofitClient;
+import com.snuabar.mycomfy.main.data.MainViewModel;
 import com.snuabar.mycomfy.main.data.prompt.AdvancedTranslator;
 import com.snuabar.mycomfy.main.data.prompt.PromptManager;
 import com.snuabar.mycomfy.setting.Settings;

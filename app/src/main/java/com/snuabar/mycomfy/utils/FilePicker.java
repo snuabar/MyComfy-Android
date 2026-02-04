@@ -16,7 +16,7 @@ import java.io.File;
 
 public final class FilePicker {
 
-    private static final String Tag = FilePicker.class.getName();
+    private static final String TAG = FilePicker.class.getName();
 
     private final Context context;
     private final ActivityResultLauncher<Intent> mFilePickerLauncher;
@@ -26,9 +26,8 @@ public final class FilePicker {
     private Callbacks.Callback2T<Uri[], File> directoryPickerWithFileCallback;
     private Callbacks.CallbackT<Uri[]> mSelectFileCallback;
 
-
     public FilePicker(Context context) {
-        this.context = context.getApplicationContext();
+        this.context = context;
 
         mFilePickerLauncher = ((AppCompatActivity) context).registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
             if ((directoryPickerCallback != null || directoryPickerWithFileCallback != null) && result != null && result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {

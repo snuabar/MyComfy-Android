@@ -6,6 +6,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.SystemClock;
 import android.text.TextUtils;
 import android.util.Log;
@@ -39,6 +41,7 @@ import com.snuabar.mycomfy.common.Common;
 import com.snuabar.mycomfy.databinding.FragmentHomeBinding;
 import com.snuabar.mycomfy.databinding.LayoutMessageItemOptionalDialogBinding;
 import com.snuabar.mycomfy.main.data.AbstractMessageModel;
+import com.snuabar.mycomfy.main.data.MainViewModel;
 import com.snuabar.mycomfy.main.model.ReceivedMessageModel;
 import com.snuabar.mycomfy.main.model.ReceivedVideoMessageModel;
 import com.snuabar.mycomfy.main.model.SentMessageModel;
@@ -90,9 +93,14 @@ public class HomeFragment extends Fragment {
     private Executor promptCheckExecutor = null;
     private boolean isPromptCheckExecutorStop = false;
     private PopupWindow messageItemOptionalPopup;
+    private final OptionalDialog.ProgressDialog pgsDlg;
 
     public static HomeFragment newInstance() {
         return new HomeFragment();
+    }
+
+    public HomeFragment() {
+        pgsDlg = new OptionalDialog.ProgressDialog();
     }
 
     @Override
@@ -104,6 +112,9 @@ public class HomeFragment extends Fragment {
         retrofitClient = RetrofitClient.getInstance();
         parametersPopup = new ParametersPopup(requireContext());
         promptEditPopup = new PromptEditPopup(requireContext(), onPromptChangeListener);
+
+        pgsDlg.show(getChildFragmentManager());
+        mViewModel.reloadMessageModels(requireContext());
     }
 
     @Nullable
@@ -119,7 +130,7 @@ public class HomeFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        messageAdapter = new MessageAdapter(requireContext(), this::onMessageElementClick);
+        messageAdapter = new MessageAdapter(this::onMessageElementClick);
         binding.recyclerView.setAdapter(messageAdapter);
 
         mViewModel.getDeletionHasPressLiveData().observe(getViewLifecycleOwner(), aBoolean -> {
@@ -139,10 +150,15 @@ public class HomeFragment extends Fragment {
             if (!stringListMap.isEmpty()) {
                 for (String key : stringListMap.keySet()) {
                     for (AbstractMessageModel model : Objects.requireNonNull(stringListMap.get(key))) {
-                        messageAdapter.delete(model, false);
+                        int index = mViewModel.getIndexWithId(model.getId());
+                        messageAdapter.notifyItemDeleted(index);
                     }
                 }
             }
+        });
+        mViewModel.observeMessageModelsLiveData(getViewLifecycleOwner(), abstractMessageModels -> {
+            messageAdapter.setData(abstractMessageModels);
+            pgsDlg.dismiss();
         });
     }
 
@@ -151,7 +167,7 @@ public class HomeFragment extends Fragment {
         super.onPause();
         mViewModel.changeDeletionMode(false);
         // 保存上一次的提示词
-        Settings.getInstance().getPreferences().edit().putString("prompt", binding.tvPrompt.getText().toString()).apply();
+        Settings.getInstance().edit().putString("prompt", binding.tvPrompt.getText().toString()).apply();
     }
 
     @Override
@@ -165,6 +181,10 @@ public class HomeFragment extends Fragment {
         super.onResume();
         updateBaseUrl();
         startStatusCheck();
+        if (Settings.getInstance().hasDataImportedState()) {
+            Settings.getInstance().clearDataImportedState();
+            mViewModel.reloadMessageModels(requireContext());
+        }
     }
 
     private final PromptEditPopup.OnPromptChangeListener onPromptChangeListener = prompt ->
@@ -175,7 +195,7 @@ public class HomeFragment extends Fragment {
             return;
         }
 
-        AbstractMessageModel model = messageAdapter.get(position);
+        AbstractMessageModel model = mViewModel.getMessageModels().get(position);
         if (model == null) {
             return;
         }
@@ -194,7 +214,9 @@ public class HomeFragment extends Fragment {
         } else if (ope == MessageAdapter.OnElementClickListener.OPE_LONG_CLICK) {
             showMessageItemOptionalPopup(view, downLocation, model);
         } else if (ope == MessageAdapter.OnElementClickListener.OPE_INTERRUPT) {
-            messageAdapter.interrupt(model);
+            model.setInterruptionFlag(true);
+            int index = mViewModel.saveMessageModel(requireContext(), model);
+            messageAdapter.notifyItemChanged(index);
         } else if (ope == MessageAdapter.OnElementClickListener.OPE_SAVE) {
             if (imageFile != null && imageFile.exists()) {
                 // 使用文档创建API
@@ -296,7 +318,10 @@ public class HomeFragment extends Fragment {
                     .setType(OptionalDialog.Type.Alert)
                     .setTitle("提示")
                     .setMessage("删除？")
-                    .setPositive(() -> messageAdapter.delete(model))
+                    .setPositive(() -> {
+                        int index = mViewModel.deleteModelFile(requireContext(), model);
+                        messageAdapter.notifyItemDeleted(index);
+                    })
                     .setNegative(null)
                     .show(getChildFragmentManager());
 
@@ -343,7 +368,7 @@ public class HomeFragment extends Fragment {
     }
 
     private void initViews() {
-        binding.tvPrompt.setText(Settings.getInstance().getPreferences().getString("prompt", getString(R.string.default_prompt)));
+        binding.tvPrompt.setText(Settings.getInstance().getString("prompt", getString(R.string.default_prompt)));
     }
 
     private void setupClickListeners() {
@@ -495,16 +520,19 @@ public class HomeFragment extends Fragment {
             } else {
                 sentMessageModel = new SentMessageModel(parameters);
             }
+            // 保存数据
+            int index = mViewModel.saveMessageModel(requireContext(), sentMessageModel);
             // 界面显示
-            messageAdapter.add(sentMessageModel);
+            messageAdapter.notifyItemAdded(index);
         } else {
             if (upscale.length > 0 && model instanceof ReceivedMessageModel) {
                 Parameters parameters = new Parameters(model.getParameters());
                 parameters.setUpscale_factor(upscale[0]);
                 sentMessageModel = new UpscaleSentMessageModel(parameters);
-                sentMessageModel.setImageFile(DataIO.copyImageFile(requireContext(), model.getImageFile()));
+                sentMessageModel.setImageFile(DataIO.getInstance().copyImageFile(requireContext(), model.getImageFile()));
                 request = new QueueRequest(sentMessageModel.getParameters());
-                messageAdapter.add(sentMessageModel);
+                int index = mViewModel.saveMessageModel(requireContext(), sentMessageModel);
+                messageAdapter.notifyItemAdded(index);
             } else {
                 request = new QueueRequest(model.getParameters().setResent());
                 sentMessageModel = (SentMessageModel) model;
@@ -531,23 +559,27 @@ public class HomeFragment extends Fragment {
                         } else {
                             receivedMessageModel = new ReceivedMessageModel(enqueueResponse);
                         }
-                        messageAdapter.add(receivedMessageModel);
+                        int index = mViewModel.saveMessageModel(requireContext(), receivedMessageModel);
+                        messageAdapter.notifyItemAdded(index);
                         startStatusCheck();
                     } else if (enqueueResponse.getCode() == 409) { // conflict 已存在相同任务
-                        messageAdapter.delete(sentMessageModel);
+                        int index = mViewModel.deleteModelFile(requireContext(), sentMessageModel);
+                        messageAdapter.notifyItemDeleted(index);
                     }
                 } else {
 //                    enqueueResponse = EnqueueResponse.create(response.code(), response.message(),
 //                            new Parameters().loadFromRequest(request));
 //                    ReceivedMessageModel receivedMessageModel = new ReceivedMessageModel(enqueueResponse);
 //                    messageAdapter.add(receivedMessageModel);
-                    messageAdapter.setSentFailureMessage(sentMessageModel, response.message());
+                    int index = mViewModel.saveMessageModel(requireContext(), sentMessageModel);
+                    messageAdapter.notifyItemChanged(index);
                 }
             }
 
             @Override
             public void onFailure(@NonNull Call<EnqueueResponse> call, @NonNull Throwable t) {
-                messageAdapter.setSentFailureMessage(sentMessageModel, t.getMessage());
+                int index = mViewModel.saveMessageModel(requireContext(), sentMessageModel);
+                messageAdapter.notifyItemChanged(index);
             }
         });
     }
@@ -556,9 +588,9 @@ public class HomeFragment extends Fragment {
         try {
             File file;
             if (isVideo) {
-                file = DataIO.newVideoFile(requireContext());
+                file = DataIO.getInstance().newVideoFile(requireContext());
             } else {
-                file = DataIO.newImageFile(requireContext());
+                file = DataIO.getInstance().newImageFile(requireContext());
             }
 
             // 保存文件
@@ -586,8 +618,8 @@ public class HomeFragment extends Fragment {
     }
 
     private void updateBaseUrl() {
-        String ip = Settings.getInstance().getPreferences().getString("server_ip", "192.168.1.17");
-        String port = Settings.getInstance().getPreferences().getString("server_port", "8000");
+        String ip = Settings.getInstance().getString("server_ip", "192.168.1.17");
+        String port = Settings.getInstance().getString("server_port", "8000");
         // 更新Base URL
         retrofitClient.setBaseUrl(ip, port);
 
@@ -602,11 +634,16 @@ public class HomeFragment extends Fragment {
         promptCheckExecutor = Executors.newSingleThreadExecutor();
         promptCheckExecutor.execute(() -> {
             while (!isPromptCheckExecutorStop) {
-                for (int i = messageAdapter.getItemCount() - 1; i >= 0; i--) {
+                if (!getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.RESUMED)) {
+                    SystemClock.sleep(1000);
+                    continue;
+                }
+                List<AbstractMessageModel> messageModels = mViewModel.getMessageModels();
+                for (int i = messageModels.size() - 1; i >= 0; i--) {
                     if (!getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.RESUMED)) {
                         break;
                     }
-                    AbstractMessageModel model = messageAdapter.get(i);
+                    AbstractMessageModel model = messageModels.get(i);
                     if (!(model instanceof ReceivedMessageModel) ||
                             TextUtils.isEmpty(model.getPromptId()) ||
                             model.isFinished()) {
@@ -617,10 +654,9 @@ public class HomeFragment extends Fragment {
                         try {
                             Response<ResponseBody> response = retrofitClient.getApiService().interrupt(new InterruptRequest(model.getPromptId())).execute();
                             if (response.isSuccessful()) {
-//                                messageAdapter.setFinished(promptIdInner, null, 200, "已取消");
                                 model.setFinished(null, 998, "已取消");
-                                DataIO.writeModelFile(requireContext(), model);
-                                messageAdapter.notifyModelChanged(model);
+                                int index = mViewModel.saveMessageModel(requireContext(), model);
+                                requireActivity().runOnUiThread(() -> messageAdapter.notifyItemChanged(index));
                             }
                         } catch (IOException e) {
                             log("请求失败: " + e.getMessage(), true);
@@ -640,41 +676,39 @@ public class HomeFragment extends Fragment {
                                     if (body.getCode() == 200) {
                                         downloadContentSync(model);
                                     } else if (body.getCode() == 204) {
-                                        Log.e(TAG, model.getPromptId() + " is being processing.");
+                                        Log.i(TAG, model.getPromptId() + " is being processing.");
                                     } else {
                                         Log.e(TAG, "Failed." + response.code() + ", " + response.message());
-                                        //                                    messageAdapter.setFinished(promptIdInner, null, body.getCode(), body.getMessage());
                                         model.setFinished(null, body.getCode(), body.getMessage());
-                                        DataIO.writeModelFile(requireContext(), model);
-                                        messageAdapter.notifyModelChanged(model);
+                                        int index = mViewModel.saveMessageModel(requireContext(), model);
+                                        requireActivity().runOnUiThread(() -> messageAdapter.notifyItemChanged(index));
                                     }
                                 } else {
                                     Log.e(TAG, "Failed." + response.code() + ", " + response.message());
                                     //                                messageAdapter.setFinished(promptIdInner, null, 999, "unknown.");
                                     model.setFinished(null, 999, "unknown.");
-                                    DataIO.writeModelFile(requireContext(), model);
-                                    messageAdapter.notifyModelChanged(model);
+                                    int index = mViewModel.saveMessageModel(requireContext(), model);
+                                    requireActivity().runOnUiThread(() -> messageAdapter.notifyItemChanged(index));
                                 }
                             } else {
                                 Log.e(TAG, "Failed." + response.code() + ", " + response.message());
                                 //                            messageAdapter.setFinished(promptIdInner, null, response.code(), response.message());
                                 model.setFinished(null, response.code(), response.message());
-                                DataIO.writeModelFile(requireContext(), model);
-                                messageAdapter.notifyModelChanged(model);
+                                int index = mViewModel.saveMessageModel(requireContext(), model);
+                                requireActivity().runOnUiThread(() -> messageAdapter.notifyItemChanged(index));
                             }
                         }
                     } catch (Throwable t) {
                         Log.e(TAG, "failed to execute downloadImage(" + model.getPromptId() + ")", t);
                         //                        messageAdapter.setFinished(promptIdInner, null, 1000, t.getMessage());
                         model.setFinished(null, 1000, t.getMessage());
-                        DataIO.writeModelFile(requireContext(), model);
-                        messageAdapter.notifyModelChanged(model);
+                        int index = mViewModel.saveMessageModel(requireContext(), model);
+                        requireActivity().runOnUiThread(() -> messageAdapter.notifyItemChanged(index));
                     }
 
                     SystemClock.sleep(100);
                 }
-
-                SystemClock.sleep(2000);
+                SystemClock.sleep(5000);
             }
         });
     }
@@ -687,10 +721,9 @@ public class HomeFragment extends Fragment {
                     log("下载文件: " + progress + "/" + total, false);
                 });
                 if (file != null) {
-//                            messageAdapter.setFinished(promptId, imageFile, response.code(), response.message());
                     model.setFinished(file, response.code(), response.message());
-                    DataIO.writeModelFile(requireContext(), model);
-                    messageAdapter.notifyModelChanged(model);
+                    int index = mViewModel.saveMessageModel(requireContext(), model);
+                    requireActivity().runOnUiThread(() -> messageAdapter.notifyItemChanged(index));
                 }
             }
         }
@@ -702,12 +735,20 @@ public class HomeFragment extends Fragment {
             return;
         }
 
+        // 从大到小排序
+        indices.sort((o1, o2) -> o2 - o1);
+
         new OptionalDialog()
                 .setType(OptionalDialog.Type.Alert)
                 .setTitle("提示")
                 .setMessage(String.format(Locale.getDefault(), "删除 %d 项！", indices.size()))
                 .setPositive(() -> {
-                    messageAdapter.deleteSelection();
+                    for (int i : indices) {
+                        AbstractMessageModel model = mViewModel.getMessageModels().get(i);
+                        int index = mViewModel.deleteModelFile(requireContext(), model);
+                        assert i == index;
+                        messageAdapter.notifyItemDeleted(index);
+                    }
                     mViewModel.changeDeletionMode(false);
                 })
                 .setNegative(null)

@@ -2,6 +2,7 @@ package com.snuabar.mycomfy.common;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.util.DisplayMetrics;
 import android.view.ViewConfiguration;
@@ -37,6 +38,7 @@ public final class Common {
 
     /**
      * 根据UTC时间戳格式化显示时间
+     *
      * @param timestamp UTC时间戳（毫秒）
      * @return 格式化后的时间字符串
      */
@@ -81,6 +83,7 @@ public final class Common {
 
     /**
      * 格式化文件大小，自动选择合适的单位
+     *
      * @param size 文件大小（字节）
      * @return 格式化后的字符串
      */
@@ -178,5 +181,45 @@ public final class Common {
             return context.getResources().getDimensionPixelSize(resourceId);
         }
         return 0;
+    }
+
+    /**
+     * 获取图像浏览的放大倍率
+     *
+     * @param context 上下文
+     * @param bmpWidth 要显示的位图宽度
+     * @param bmpHeight 要显示的位图高度
+     * @return 长度为2的数组，0：最大倍率，1：中间倍率
+     */
+    public static float[] getPhotoViewScales(Context context, float bmpWidth, float bmpHeight) {
+        DisplayMetrics metrics = context.getResources().getDisplayMetrics();
+        boolean isLandscape = context.getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
+        float defWScale = (float) metrics.widthPixels / bmpWidth;
+        float defHScale = (float) metrics.heightPixels / bmpHeight;
+        float usedScale = Math.min(defHScale, defWScale);
+        float midScale;
+        if (defHScale > defWScale) {
+            if (isLandscape) {
+                midScale = Math.min(metrics.widthPixels, metrics.heightPixels) / (bmpHeight * usedScale);
+            } else {
+                midScale = Math.max(metrics.widthPixels, metrics.heightPixels) / (bmpHeight * usedScale);
+            }
+        } else {
+            if (isLandscape) {
+                midScale = Math.max(metrics.widthPixels, metrics.heightPixels) / (bmpHeight * usedScale);
+            } else {
+                midScale = Math.min(metrics.widthPixels, metrics.heightPixels) / (bmpHeight * usedScale);
+            }
+        }
+        float maxScale = midScale * 3;
+        if (midScale < 1.0f) {
+            midScale = Math.max(maxScale / 2, midScale);
+            if (midScale < 1.0) {
+                midScale = 1.75f;
+                maxScale = 3.f;
+            }
+        }
+
+        return new float[]{maxScale, midScale};
     }
 }

@@ -39,6 +39,8 @@ public class Settings {
             KEY_PARAM_SECONDS, String.valueOf(WorkflowsResponse.DefaultParameters.Default.getSeconds())
     );
 
+    public static final String KEY_DATA_IMPORTED = "data_imported";
+
     private final SharedPreferences preferences;
 
     private static Settings Instance;
@@ -58,10 +60,6 @@ public class Settings {
         preferences = context.getSharedPreferences(context.getPackageName() + ".main.settings", Context.MODE_PRIVATE);
     }
 
-    public SharedPreferences getPreferences() {
-        return preferences;
-    }
-
     public Settings edit() {
         editor = preferences.edit();
         return this;
@@ -78,6 +76,27 @@ public class Settings {
     public Settings putString(String key, String defValue) {
         editor.putString(key, defValue);
         return this;
+    }
+
+    public Settings putBoolean(String key, boolean value) {
+        editor.putBoolean(key, value);
+        return this;
+    }
+
+    public boolean getBoolean(String key, boolean defValue) {
+        return preferences.getBoolean(key, defValue);
+    }
+
+    public void setDataImportedState() {
+        edit().putBoolean(KEY_DATA_IMPORTED, true).apply();
+    }
+
+    public void clearDataImportedState() {
+        edit().putBoolean(KEY_DATA_IMPORTED, false).apply();
+    }
+
+    public boolean hasDataImportedState() {
+        return getBoolean(KEY_DATA_IMPORTED, false);
     }
 
     public Settings setWorkflow(String workflow) {
