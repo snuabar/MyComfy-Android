@@ -74,9 +74,12 @@ public class WorkflowsResponse {
     }
 
     public static class Workflow {
+        public static final String INPUT_TEXT = "text";
+        public static final String INPUT_IMAGE = "image";
         public static final String OUTPUT_IMAGE = "image";
         public static final String OUTPUT_VIDEO = "video";
         private String displayName;
+        private String inputType;
         private String outputType;
         private List<String> modelTypes;
         private List<String> excludeModels;
@@ -88,6 +91,14 @@ public class WorkflowsResponse {
 
         public void setDisplayName(String displayName) {
             this.displayName = displayName;
+        }
+
+        public String getInputType() {
+            return inputType;
+        }
+
+        public void setInputType(String inputType) {
+            this.inputType = inputType;
         }
 
         public String getOutputType() {

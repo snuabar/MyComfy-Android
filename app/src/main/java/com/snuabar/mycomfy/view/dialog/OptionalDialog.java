@@ -689,4 +689,60 @@ public class OptionalDialog extends BaseDialogFragment {
         );
         window.setLayout(width, view.getHeight());
     }
+
+
+    public static class ProgressDialog {
+        private final OptionalDialog dialog;
+        private String text;
+
+        public ProgressDialog() {
+            dialog = new OptionalDialog()
+                    .setCustomView(R.layout.layout_progress)
+                    .setPositiveVisible(false)
+                    .setNegativeVisible(false)
+                    .setNegativeVisible(false)
+                    .setDialogCreatedCallback(dlg -> {
+                        TextView textView = dlg.findCustomViewById(R.id.text);
+                        if (textView != null) {
+                            textView.setVisibility(TextUtils.isEmpty(text) ? View.GONE : View.VISIBLE);
+                            textView.setText(text);
+                        }
+                    });
+        }
+
+        public ProgressDialog setTitle(@StringRes int title) {
+            dialog.setTitle(title);
+            return this;
+        }
+
+        public ProgressDialog setMessage(@StringRes int message) {
+            dialog.setMessage(message);
+            return this;
+        }
+
+        public ProgressDialog setText(String text) {
+            this.text = text;
+            TextView textView = dialog.findCustomViewById(R.id.text);
+            if (textView != null) {
+                textView.setText(text);
+            }
+            return this;
+        }
+
+        public void show(@NonNull FragmentManager manager) {
+            dialog.show(manager, TAG);
+        }
+
+        public void showAllowingStateLoss(@NonNull FragmentManager manager) {
+            dialog.showAllowingStateLoss(manager);
+        }
+
+        public void dismiss() {
+            dialog.dismiss();
+        }
+
+        public void dismissAllowingStateLoss() {
+            dialog.dismissAllowingStateLoss();
+        }
+    }
 }

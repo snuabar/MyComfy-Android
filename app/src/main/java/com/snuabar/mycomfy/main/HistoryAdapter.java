@@ -115,12 +115,8 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
 
         List<AbstractMessageModel> deletedModels = new ArrayList<>();
         for (int i : indices) {
-            AbstractMessageModel model = mValues.get(i);
-            if (DataIO.deleteModelFile(context, model)) {
-                deletedModels.add(model);
-                mValues.remove(i);
-                notifyItemRemoved(i);
-            }
+            deletedModels.add(mValues.remove(i));
+            notifyItemRemoved(i);
         }
         return deletedModels;
     }

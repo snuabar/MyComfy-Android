@@ -20,7 +20,6 @@ import com.snuabar.mycomfy.common.Common;
 import com.snuabar.mycomfy.databinding.LayoutReceivedMsgItemBinding;
 import com.snuabar.mycomfy.databinding.LayoutSentMsgItemBinding;
 import com.snuabar.mycomfy.main.data.AbstractMessageModel;
-import com.snuabar.mycomfy.main.data.DataIO;
 import com.snuabar.mycomfy.main.model.ReceivedMessageModel;
 import com.snuabar.mycomfy.main.model.SentMessageModel;
 import com.snuabar.mycomfy.main.model.UpscaleSentMessageModel;
@@ -29,7 +28,6 @@ import com.snuabar.mycomfy.utils.VideoUtils;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -43,21 +41,19 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
     private final static int VIEW_TYPE_RECEIVED = 1;
 
     private final Handler mHandler;
-    private final List<AbstractMessageModel> models;
+    private List<AbstractMessageModel> models;
     private final Map<String, Integer> idToIndexMap;
     private final OnElementClickListener listener;
     private WeakReference<RecyclerView> mRecyclerViewRef = null;
-    private final Context context;
     private final Set<Integer> selections;
     private boolean isEditMode = false;
 
-    public MessageAdapter(Context context, OnElementClickListener listener) {
-        this.context = context.getApplicationContext();
+    public MessageAdapter(OnElementClickListener listener) {
         this.mHandler = new Handler(Looper.getMainLooper());
         this.listener = listener;
         this.idToIndexMap = new HashMap<>();
         this.selections = new HashSet<>();
-        this.models = Collections.synchronizedList(DataIO.copyMessageModels(context));
+        this.models = new ArrayList<>();
         updateIdToIndexMap();
     }
 
@@ -117,13 +113,14 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
                 holder.binding.layoutImageView.setVisibility(View.GONE);
                 holder.binding.textView.setText(param.getPrompt());
                 holder.binding.textView0.setText(String.format(Locale.getDefault(),
-                        "%s\n%s\n%dx%d %d %d %.01f %.01f",
+                        "%s\n%s\n%dx%d %d %d %.01f %.01f %s",
                         param.getWorkflow(),
                         param.getModel(),
                         param.getImg_width(), param.getImg_height(),
                         param.getSeed(),
                         param.getStep(), param.getCfg(),
-                        param.getUpscale_factor()
+                        param.getUpscale_factor(),
+                        (model.isVideo() ? model.getParameters().getSeconds() + "s" : "")
                 ));
             }
         }
@@ -186,7 +183,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
         }
     }
 
-    RecyclerView getRecyclerView() {
+    private RecyclerView getRecyclerView() {
         return mRecyclerViewRef != null ? mRecyclerViewRef.get() : null;
     }
 
@@ -206,6 +203,26 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
         return super.getItemViewType(position);
     }
 
+    @SuppressLint("NotifyDataSetChanged")
+    public void setData(List<AbstractMessageModel> list) {
+        if (list == null) {
+            models = new ArrayList<>();
+        } else {
+            models = list;
+        }
+
+        updateIdToIndexMap();
+
+        notifyDataSetChanged();
+
+        mHandler.post(() -> {
+            // 滚动到最底总
+            if (getRecyclerView() != null) {
+                getRecyclerView().scrollToPosition(getItemCount() - 1);
+            }
+        });
+    }
+
     private void updateIdToIndexMap() {
         idToIndexMap.clear();
         for (int i = 0; i < models.size(); i++) {
@@ -213,77 +230,24 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
         }
     }
 
-    public void add(AbstractMessageModel model) {
-        models.add(model);
-        idToIndexMap.put(model.getId(), models.size() - 1);
 
-        DataIO.writeModelFile(context, model);
+    public void notifyItemAdded(int index) {
+        updateIdToIndexMap();
 
         mHandler.post(() -> {
             // 插入项
-            notifyItemInserted(getItemCount());
+            notifyItemInserted(index);
+
+            if (getRecyclerView() != null) {
+                getRecyclerView().scrollToPosition(getItemCount() - 1);
+            }
         });
 
-        if (getRecyclerView() != null) {
-            getRecyclerView().scrollToPosition(getItemCount() - 1);
-        }
     }
 
-//    public void setFinished(String promptId, File imageFile, int code, String message) {
-//        Set<Integer> indices = indexToPromptIdMap.keySet();
-//        for (int index : indices) {
-//            if (promptId != null && promptId.equals(indexToPromptIdMap.get(index))) {
-//                if (index >= 0 && index < getItemCount()) {
-//                    AbstractMessageModel model = models.get(index);
-//                    model.setImageFile(imageFile);
-//                    model.setImageResponseCode(code);
-//                    model.setImageResponseMessage(message);
-//                    model.setFinished(, , );
-//                    DataIO.writeModelFile(context, model);
-//                    mHandler.post(() -> notifyItemChanged(index));
-//                }
-//            }
-//        }
-//    }
-
-    public AbstractMessageModel get(int position) {
-        if (position < 0 || position >= models.size()) {
-            return null;
-        }
-        return models.get(position);
-    }
-
-    public void delete(AbstractMessageModel model) {
-        delete(model, true);
-    }
-
-    public void delete(AbstractMessageModel model, boolean includeFile) {
-        Integer index = idToIndexMap.get(model.getId());
-        if (index != null && index >= 0 && index < models.size()) {
-            models.remove(index.intValue());
-            if (includeFile) {
-                DataIO.deleteModelFile(context, model);
-            }
-            notifyItemRemoved(index);
-            updateIdToIndexMap();
-        }
-    }
-
-    public void setSentFailureMessage(SentMessageModel sentMessageModel, String message) {
-        Integer index = idToIndexMap.get(sentMessageModel.getId());
-        if (index != null && index >= 0 && index < models.size()) {
-            sentMessageModel = (SentMessageModel) models.get(index);
-            sentMessageModel.setFailureMessage(message);
-            DataIO.writeModelFile(context, sentMessageModel);
-            notifyItemChanged(index);
-        }
-    }
-
-    public void notifyModelChanged(AbstractMessageModel model) {
-        Integer index = idToIndexMap.get(model.getId());
-        if (index != null && index >= 0 && index < models.size()) {
-            mHandler.post(() -> notifyItemChanged(index));
-        }
+    public void notifyItemDeleted(int index) {
+        notifyItemRemoved(index);
+        updateIdToIndexMap();
     }
 
     @SuppressLint("NotifyDataSetChanged")
@@ -304,33 +268,6 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
 
     public List<Integer> getSelectedIndices() {
         return new ArrayList<>(selections);
-    }
-
-    public List<AbstractMessageModel> deleteSelection() {
-        List<Integer> indices = getSelectedIndices();
-        indices.sort((o1, o2) -> o2 - o1);
-
-        List<AbstractMessageModel> deletedModels = new ArrayList<>();
-        for (int i : indices) {
-            AbstractMessageModel model = models.get(i);
-            if (DataIO.deleteModelFile(context, model)) {
-                deletedModels.add(model);
-                models.remove(i);
-                notifyItemRemoved(i);
-            }
-        }
-        updateIdToIndexMap();
-        return deletedModels;
-    }
-
-    public void interrupt(AbstractMessageModel model) {
-        Integer index = idToIndexMap.get(model.getId());
-        if (index != null && index >= 0 && index < models.size()) {
-            model = models.get(index);
-            model.setInterruptionFlag(true);
-            DataIO.writeModelFile(context, model);
-            notifyItemChanged(index);
-        }
     }
 
     public class ViewHolder extends RecyclerView.ViewHolder {
