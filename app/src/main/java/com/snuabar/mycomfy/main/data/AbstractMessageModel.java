@@ -67,17 +67,15 @@ public abstract class AbstractMessageModel implements Serializable {
 
     public abstract File getThumbnailFile();
 
-    public abstract void setImageResponseCode(int imageResponseCode);
+    public abstract boolean setStatus(String status, int code, String message);
 
-    public abstract void setImageResponseMessage(String imageResponseMessage);
+    public abstract String getStatus();
 
     public abstract void setFinished(File imageFile, int code, String message);
 
+    public abstract void setFinished(File imageFile, int code, String message, String endTime);
+
     public abstract boolean isFinished();
-
-    public abstract void setFailureMessage(String failureMessage);
-
-    public abstract String getFailureMessage();
 
     public abstract boolean getInterruptionFlag();
 

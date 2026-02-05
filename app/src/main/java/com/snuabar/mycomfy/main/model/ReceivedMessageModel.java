@@ -19,8 +19,6 @@ public class ReceivedMessageModel extends MessageModel {
     private EnqueueResponse response;
     private File imageFile;
     private File thumbnailFile;
-    private int imageResponseCode;
-    private String imageResponseMessage;
     private long utcTimestamp = 0;
     private boolean interruptionFlag = false;
 
@@ -52,6 +50,9 @@ public class ReceivedMessageModel extends MessageModel {
 
     @Override
     public long getUTCTimestampCompletion() {
+        if (isFileExistsOnServer()) {
+            return getUTCTimestamp();
+        }
         return utcTimestamp;
     }
 
@@ -60,7 +61,7 @@ public class ReceivedMessageModel extends MessageModel {
         if (response != null && response.getCode() != 200) {
             return response.getMessage();
         }
-        return imageResponseMessage;
+        return super.getMessage();
     }
 
     @Override
@@ -68,7 +69,7 @@ public class ReceivedMessageModel extends MessageModel {
         if (response != null && response.getCode() != 200) {
             return response.getCode();
         }
-        return imageResponseCode;
+        return super.getCode();
     }
 
     @Override
@@ -92,21 +93,25 @@ public class ReceivedMessageModel extends MessageModel {
     }
 
     @Override
-    public void setImageResponseCode(int imageResponseCode) {
-        this.imageResponseCode = imageResponseCode;
-    }
-
-    @Override
-    public void setImageResponseMessage(String imageResponseMessage) {
-        this.imageResponseMessage = imageResponseMessage;
-    }
-
-    @Override
     public void setFinished(File imageFile, int code, String message) {
         utcTimestamp = Clock.systemUTC().millis();
         this.imageFile = imageFile;
-        imageResponseCode = code;
-        imageResponseMessage = message;
+        setCode(code);
+        setMessage(message);
+    }
+
+    @Override
+    public void setFinished(File imageFile, int code, String message, String endTime) {
+        long timestamp;
+        try {
+            timestamp = Long.parseLong(endTime);
+        } catch (NumberFormatException e) {
+            timestamp = Clock.systemUTC().millis();
+        }
+        utcTimestamp = timestamp;
+        this.imageFile = imageFile;
+        setCode(code);
+        setMessage(message);
     }
 
     @Override
@@ -137,8 +142,6 @@ public class ReceivedMessageModel extends MessageModel {
             if (thumbnailFile != null) {
                 jsonObject.putOpt("thumbnailFile", thumbnailFile.getAbsolutePath());
             }
-            jsonObject.putOpt("imageResponseCode", imageResponseCode);
-            jsonObject.putOpt("imageResponseMessage", imageResponseMessage);
             jsonObject.putOpt("utcTimestamp", utcTimestamp);
             jsonObject.putOpt("interruptionFlag", interruptionFlag);
         } catch (JSONException e) {
@@ -163,8 +166,6 @@ public class ReceivedMessageModel extends MessageModel {
         if (!TextUtils.isEmpty(thumbnailFilePath)) {
             thumbnailFile = new File(thumbnailFilePath);
         }
-        imageResponseCode = jsonObject.optInt("imageResponseCode");
-        imageResponseMessage = jsonObject.optString("imageResponseMessage");
         utcTimestamp = jsonObject.optLong("utcTimestamp");
         interruptionFlag = jsonObject.optBoolean("interruptionFlag");
     }
@@ -174,11 +175,11 @@ public class ReceivedMessageModel extends MessageModel {
         if (o == null || getClass() != o.getClass()) return false;
         if (!super.equals(o)) return false;
         ReceivedMessageModel that = (ReceivedMessageModel) o;
-        return imageResponseCode == that.imageResponseCode && utcTimestamp == that.utcTimestamp && interruptionFlag == that.interruptionFlag && Objects.equals(response, that.response) && Objects.equals(imageFile, that.imageFile) && Objects.equals(thumbnailFile, that.thumbnailFile) && Objects.equals(imageResponseMessage, that.imageResponseMessage);
+        return utcTimestamp == that.utcTimestamp && interruptionFlag == that.interruptionFlag && Objects.equals(response, that.response) && Objects.equals(imageFile, that.imageFile) && Objects.equals(thumbnailFile, that.thumbnailFile);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(super.hashCode(), response, imageFile, thumbnailFile, imageResponseCode, imageResponseMessage, utcTimestamp, interruptionFlag);
+        return Objects.hash(super.hashCode(), response, imageFile, thumbnailFile, utcTimestamp, interruptionFlag);
     }
 }

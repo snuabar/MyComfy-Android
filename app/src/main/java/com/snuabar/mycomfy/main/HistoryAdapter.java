@@ -19,6 +19,7 @@ import com.snuabar.mycomfy.databinding.LayoutHistoryItemBinding;
 import com.snuabar.mycomfy.main.data.AbstractMessageModel;
 import com.snuabar.mycomfy.main.data.DataIO;
 import com.snuabar.mycomfy.utils.ImageUtils;
+import com.snuabar.mycomfy.utils.VideoUtils;
 
 import java.text.SimpleDateFormat;
 import java.time.Instant;
@@ -66,13 +67,30 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
             ImageUtils.makeThumbnailAsync(model, width, height, this::onThumbnailMake);
         }
         if (model.getParameters() != null) {
+            boolean upscaled = model.getParameters().getUpscale_factor() > 1.0;
+            if (upscaled) {
+                holder.binding.tvScaleFactor.setVisibility(View.VISIBLE);
+                holder.binding.tvScaleFactor.setText(String.format(Locale.getDefault(),
+                        "%.01fx",
+                        model.getParameters().getUpscale_factor()));
+            } else {
+                holder.binding.tvScaleFactor.setVisibility(View.GONE);
+            }
             holder.binding.tvTitle.setText(Common.formatTimestamp(model.getUTCTimestampCompletion()));
-            int[] size = ImageUtils.getImageSize(model.getImageFile());
+            int[] size;
+            if (model.isVideo()) {
+                VideoUtils.VideoSize videoSize = VideoUtils.INSTANCE.getVideoSize(model.getImageFile());
+                size = new int[]{videoSize.getWidth(), videoSize.getHeight()};
+            } else {
+                size = ImageUtils.getImageSize(model.getImageFile());
+            }
             holder.binding.tvInfo.setText(String.format(Locale.getDefault(),
                     "%d x %d %s",
                     size[0], size[1],
                     Common.formatFileSize(model.getImageFile().length()
                     )));
+        } else {
+            holder.binding.tvScaleFactor.setVisibility(View.GONE);
         }
         holder.binding.ivPlay.setVisibility(model.isVideo() ? View.VISIBLE : View.GONE);
     }

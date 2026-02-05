@@ -6,8 +6,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import android.os.SystemClock;
 import android.text.TextUtils;
 import android.util.Log;
@@ -42,6 +40,7 @@ import com.snuabar.mycomfy.databinding.FragmentHomeBinding;
 import com.snuabar.mycomfy.databinding.LayoutMessageItemOptionalDialogBinding;
 import com.snuabar.mycomfy.main.data.AbstractMessageModel;
 import com.snuabar.mycomfy.main.data.MainViewModel;
+import com.snuabar.mycomfy.main.model.MessageModel;
 import com.snuabar.mycomfy.main.model.ReceivedMessageModel;
 import com.snuabar.mycomfy.main.model.ReceivedVideoMessageModel;
 import com.snuabar.mycomfy.main.model.SentMessageModel;
@@ -567,10 +566,7 @@ public class HomeFragment extends Fragment {
                         messageAdapter.notifyItemDeleted(index);
                     }
                 } else {
-//                    enqueueResponse = EnqueueResponse.create(response.code(), response.message(),
-//                            new Parameters().loadFromRequest(request));
-//                    ReceivedMessageModel receivedMessageModel = new ReceivedMessageModel(enqueueResponse);
-//                    messageAdapter.add(receivedMessageModel);
+                    sentMessageModel.setStatus(MessageModel.STATUS_FAILED, response.code(), response.message());
                     int index = mViewModel.saveMessageModel(requireContext(), sentMessageModel);
                     messageAdapter.notifyItemChanged(index);
                 }
@@ -578,6 +574,7 @@ public class HomeFragment extends Fragment {
 
             @Override
             public void onFailure(@NonNull Call<EnqueueResponse> call, @NonNull Throwable t) {
+                sentMessageModel.setStatus(MessageModel.STATUS_FAILED, 999, t.getMessage());
                 int index = mViewModel.saveMessageModel(requireContext(), sentMessageModel);
                 messageAdapter.notifyItemChanged(index);
             }
@@ -634,13 +631,13 @@ public class HomeFragment extends Fragment {
         promptCheckExecutor = Executors.newSingleThreadExecutor();
         promptCheckExecutor.execute(() -> {
             while (!isPromptCheckExecutorStop) {
-                if (!getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.RESUMED)) {
+                if (!getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.STARTED)) {
                     SystemClock.sleep(1000);
                     continue;
                 }
                 List<AbstractMessageModel> messageModels = mViewModel.getMessageModels();
                 for (int i = messageModels.size() - 1; i >= 0; i--) {
-                    if (!getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.RESUMED)) {
+                    if (!getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.STARTED)) {
                         break;
                     }
                     AbstractMessageModel model = messageModels.get(i);
@@ -667,16 +664,22 @@ public class HomeFragment extends Fragment {
 
                     try {
                         if (model.isFileExistsOnServer()) {
-                            downloadContentSync(model);
+                            downloadContentSync(model, null);
                         } else {
                             retrofit2.Response<ImageResponse> response = retrofitClient.getApiService().getImageStatus(model.getPromptId()).execute();
                             if (response.isSuccessful()) {
                                 ImageResponse body = response.body();
                                 if (body != null) {
                                     if (body.getCode() == 200) {
-                                        downloadContentSync(model);
-                                    } else if (body.getCode() == 204) {
+                                        downloadContentSync(model, body.getUtc_timestamp());
+                                    } else if (body.getCode() == 204
+                                            || body.getCode() == 202
+                                    ) {
                                         Log.i(TAG, model.getPromptId() + " is being processing.");
+                                        if (model.setStatus(body.getStatus(), body.getCode(), body.getMessage())) {
+                                            int index = mViewModel.saveMessageModel(requireContext(), model);
+                                            requireActivity().runOnUiThread(() -> messageAdapter.notifyItemChanged(index));
+                                        }
                                     } else {
                                         Log.e(TAG, "Failed." + response.code() + ", " + response.message());
                                         model.setFinished(null, body.getCode(), body.getMessage());
@@ -713,7 +716,7 @@ public class HomeFragment extends Fragment {
         });
     }
 
-    private void downloadContentSync(AbstractMessageModel model) throws IOException {
+    private void downloadContentSync(AbstractMessageModel model, String endTime) throws IOException {
         Response<ResponseBody> response = retrofitClient.getApiService().download(model.getPromptId()).execute();
         if (response.isSuccessful()) {
             try (ResponseBody body = response.body()) {
@@ -721,7 +724,7 @@ public class HomeFragment extends Fragment {
                     log("下载文件: " + progress + "/" + total, false);
                 });
                 if (file != null) {
-                    model.setFinished(file, response.code(), response.message());
+                    model.setFinished(file, response.code(), response.message(), endTime);
                     int index = mViewModel.saveMessageModel(requireContext(), model);
                     requireActivity().runOnUiThread(() -> messageAdapter.notifyItemChanged(index));
                 }

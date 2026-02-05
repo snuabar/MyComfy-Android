@@ -20,6 +20,7 @@ import com.snuabar.mycomfy.common.Common;
 import com.snuabar.mycomfy.databinding.LayoutReceivedMsgItemBinding;
 import com.snuabar.mycomfy.databinding.LayoutSentMsgItemBinding;
 import com.snuabar.mycomfy.main.data.AbstractMessageModel;
+import com.snuabar.mycomfy.main.model.MessageModel;
 import com.snuabar.mycomfy.main.model.ReceivedMessageModel;
 import com.snuabar.mycomfy.main.model.SentMessageModel;
 import com.snuabar.mycomfy.main.model.UpscaleSentMessageModel;
@@ -76,6 +77,9 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
             holder.itemView.setBackgroundResource(R.drawable.ripple_effect);
         }
 
+        AbstractMessageModel model = models.get(position);
+        holder.setTip(model.getStatus(), model.getCode(), model.getMessage());
+
         if (holder instanceof SentViewHolder) {
             onBindSentViewHolder((SentViewHolder) holder, position);
         } else if (holder instanceof ReceivedViewHolder) {
@@ -124,8 +128,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
                 ));
             }
         }
-        holder.setTip(model.getFailureMessage() != null ? model.getFailureMessage() : "", model.getFailureMessage() != null);
-        holder.binding.btnResent.setVisibility(model.getFailureMessage() != null && !isEditMode ? View.VISIBLE : View.GONE);
+        holder.binding.btnResent.setVisibility(model.getMessage() != null && !isEditMode ? View.VISIBLE : View.GONE);
     }
 
     public void onBindReceivedViewHolder(@NonNull ReceivedViewHolder holder, int position) {
@@ -158,7 +161,6 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
             float height = holder.itemView.getContext().getResources().getDimension(R.dimen.thumbnail_height);
             ImageUtils.makeThumbnailAsync(model, width, height, this::onThumbnailMake);
         }
-        holder.setTip(model.getMessage(), model.getCode() != 200);
         holder.binding.ivPlay.setVisibility(model.isVideo() ? View.VISIBLE : View.GONE);
         holder.binding.btnInterrupt.setVisibility(model.getCode() == 200 || model.getInterruptionFlag() || isEditMode ? View.GONE : View.VISIBLE);
         holder.binding.tvDateCompletion.setText(model.isFinished() ? Common.formatTimestamp(model.getUTCTimestampCompletion()) : "");
@@ -302,9 +304,10 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
             });
         }
 
-        void setTip(String text, boolean isErr) {
+        void setTip(String status, int code, String message) {
             if (tvTip != null) {
-                tvTip.setText(text);
+                boolean isErr = MessageModel.STATUS_FAILED.equals(status) && code != 200;
+                tvTip.setText(message);
                 tvTip.setTextColor(isErr ?
                         itemView.getResources().getColor(android.R.color.holo_red_light, null) :
                         itemView.getResources().getColor(R.color.gray_83, null));

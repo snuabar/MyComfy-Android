@@ -18,7 +18,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:layout_margin="2dp"
-            android:scaleType="fitCenter"
+            android:scaleType="centerCrop"
             tools:ignore="ContentDescription" />
 
         <ImageView
@@ -58,34 +58,53 @@
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
+        android:background="@color/gray_7783"
         android:layout_alignStart="@id/llImage"
         android:layout_alignEnd="@id/llImage"
         android:layout_alignBottom="@id/llImage"
         android:orientation="vertical">
 
 
-        <TextView
-            android:id="@+id/tvInfo"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:alpha="0.7"
-            android:lines="1"
-            android:paddingHorizontal="2dp"
-            android:text="512 x 512"
-            android:textColor="@android:color/white"
-            android:textSize="11sp" />
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/tvScaleFactor"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="?attr/colorPrimaryVariant"
+                android:paddingHorizontal="2dp"
+                android:text="1.5x"
+                android:textColor="?attr/colorOnPrimary"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvInfo"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:alpha="0.9"
+                android:lines="1"
+                android:paddingHorizontal="2dp"
+                android:text="512 x 512"
+                android:textColor="@android:color/white"
+                android:textSize="11sp" />
+
+        </LinearLayout>
 
         <TextView
             android:id="@+id/tvTitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:alpha="0.7"
+            android:alpha="0.9"
             android:ellipsize="end"
             android:lines="1"
             android:paddingHorizontal="2dp"
             android:text="2026-19-23 12:22:22"
-            android:textColor="@android:color/white"
-            android:textStyle="bold" />
+            android:textColor="@android:color/white" />
     </LinearLayout>
 
 </RelativeLayout>
