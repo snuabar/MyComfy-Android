@@ -35,6 +35,7 @@ import com.snuabar.mycomfy.databinding.LayoutMessageItemOptionalDialogBinding;
 import com.snuabar.mycomfy.main.data.AbstractMessageModel;
 import com.snuabar.mycomfy.main.data.MainViewModel;
 import com.snuabar.mycomfy.main.data.MessageModelState;
+import com.snuabar.mycomfy.main.model.MessageModel;
 import com.snuabar.mycomfy.main.model.ReceivedMessageModel;
 import com.snuabar.mycomfy.main.model.SentMessageModel;
 import com.snuabar.mycomfy.main.model.SentVideoMessageModel;
@@ -520,6 +521,9 @@ public class HomeFragment extends Fragment {
                 int index = mViewModel.saveMessageModel(sentMessageModel);
                 messageAdapter.notifyItemAdded(index);
             } else {
+                model.setStatus(MessageModel.STATUS_PENDING, 0, null);
+                int index = mViewModel.saveMessageModel(model);
+                messageAdapter.notifyItemChanged(index);
                 request = new QueueRequest(model.getParameters().setResent());
                 sentMessageModel = (SentMessageModel) model;
             }

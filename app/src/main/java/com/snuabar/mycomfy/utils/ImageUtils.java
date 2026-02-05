@@ -79,6 +79,56 @@ public class ImageUtils {
 
         return new int[]{0, 0};
     }
+    /**
+     * 等比缩放Bitmap生成缩略图
+     *
+     * @param originalBitmap 原始Bitmap对象
+     * @param maxWidth 最大宽度
+     * @param maxHeight 最大高度
+     * @return 缩放后的缩略图Bitmap
+     */
+    public static Bitmap createThumbnail(Bitmap originalBitmap, int maxWidth, int maxHeight) {
+        // 参数检查
+        if (originalBitmap == null || originalBitmap.isRecycled()) {
+            return null;
+        }
+
+        if (maxWidth <= 0 || maxHeight <= 0) {
+            throw new IllegalArgumentException("尺寸必须大于0");
+        }
+
+        // 获取原始尺寸
+        int originalWidth = originalBitmap.getWidth();
+        int originalHeight = originalBitmap.getHeight();
+
+        // 如果图片已经小于指定尺寸，直接返回
+        if (originalWidth <= maxWidth && originalHeight <= maxHeight) {
+            return Bitmap.createBitmap(originalBitmap);
+        }
+
+        // 计算缩放比例
+        float widthRatio = (float) maxWidth / originalWidth;
+        float heightRatio = (float) maxHeight / originalHeight;
+        float scale = Math.min(widthRatio, heightRatio);
+
+        // 计算目标尺寸
+        int targetWidth = (int) (originalWidth * scale);
+        int targetHeight = (int) (originalHeight * scale);
+
+        // 确保最小尺寸为1
+        targetWidth = Math.max(1, targetWidth);
+        targetHeight = Math.max(1, targetHeight);
+
+        // 创建缩放后的Bitmap
+        return Bitmap.createScaledBitmap(originalBitmap, targetWidth, targetHeight, true);
+    }
+
+    /**
+     * 简化的静态方法（只有一个最大尺寸参数）
+     */
+    public static Bitmap createThumbnail(Bitmap originalBitmap, int maxSize) {
+        return createThumbnail(originalBitmap, maxSize, maxSize);
+    }
 
     /**
      * 将图像文件等比缩放成指定尺寸的Bitmap，并保存缩略图

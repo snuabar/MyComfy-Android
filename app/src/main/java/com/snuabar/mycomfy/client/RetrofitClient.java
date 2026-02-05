@@ -122,7 +122,7 @@ public class RetrofitClient {
             FileOutputStream outputStream = null;
 
             try {
-                byte[] fileReader = new byte[4096];
+                byte[] fileReader = new byte[1024 * 128];
                 long fileLength = body.contentLength();
                 inputStream = body.byteStream();
                 outputStream = new FileOutputStream(file);

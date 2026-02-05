@@ -1,5 +1,6 @@
 package com.snuabar.mycomfy.utils
 
+import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
 import android.media.ThumbnailUtils
 import android.os.Build
@@ -7,6 +8,7 @@ import android.os.CancellationSignal
 import android.util.Log
 import android.util.Size
 import androidx.annotation.RequiresApi
+import androidx.core.graphics.createBitmap
 import java.io.File
 import java.io.IOException
 
@@ -52,25 +54,30 @@ object VideoUtils {
 
     @RequiresApi(Build.VERSION_CODES.Q)
     fun createAndSaveThumbnail(videoFile: File, maxWidth: Int, maxHeight: Int): File? {
+        var bitmap: Bitmap
         try {
             val cancellationSignal = CancellationSignal()
-            val bitmap = ThumbnailUtils.createVideoThumbnail(
+            bitmap = ThumbnailUtils.createVideoThumbnail(
                 videoFile,
                 Size(maxWidth, maxHeight),
                 cancellationSignal
             )
-            // 6. 保存缩略图
-            val thumbFile = ImageUtils.getThumbnailFile(videoFile)
-            ImageUtils.saveBitmapToFile(bitmap, thumbFile, 85)
+            val scaleBitmap = ImageUtils.createThumbnail(bitmap, maxWidth, maxHeight);
+            bitmap.recycle()
+            bitmap = scaleBitmap
 
-            return thumbFile
         } catch (e: IOException) {
             Log.e("",
                 "makeThumbnailAsync -> createVideoThumbnail -> exception thrown.",
                 e
             )
+            bitmap = createBitmap(maxWidth, maxHeight, Bitmap.Config.RGB_565)
         }
 
-        return null
+        // 6. 保存缩略图
+        val thumbFile = ImageUtils.getThumbnailFile(videoFile)
+        ImageUtils.saveBitmapToFile(bitmap, thumbFile, 85)
+
+        return thumbFile
     }
 }
