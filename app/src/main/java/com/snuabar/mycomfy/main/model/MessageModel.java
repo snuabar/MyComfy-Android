@@ -14,7 +14,15 @@ import java.util.Objects;
 public class MessageModel extends AbstractMessageModel {
     private final static String TAG = MessageModel.class.getName();
 
+    public final static String STATUS_PENDING = "pending";
+    public final static String STATUS_IN_PROGRESS = "in_progress";
+    public final static String STATUS_COMPLETED = "completed";
+    public final static String STATUS_FAILED = "failed";
+
     protected Parameters parameters;
+    protected String status;
+    private int code;
+    private String message;
 
     @Override
     public Parameters getParameters() {
@@ -46,12 +54,20 @@ public class MessageModel extends AbstractMessageModel {
 
     @Override
     public String getMessage() {
-        return "";
+        return message;
     }
 
     @Override
     public int getCode() {
-        return 0;
+        return code;
+    }
+
+    protected void setCode(int code) {
+        this.code = code;
+    }
+
+    protected void setMessage(String message) {
+        this.message = message;
     }
 
     @Override
@@ -75,13 +91,19 @@ public class MessageModel extends AbstractMessageModel {
     }
 
     @Override
-    public void setImageResponseCode(int imageResponseCode) {
-
+    public boolean setStatus(String status, int code, String message) {
+        if (!Objects.equals(this.status, status) || this.code != code || !Objects.equals(this.message, message)) {
+            this.status = status;
+            this.code = code;
+            this.message = message;
+            return true;
+        }
+        return false;
     }
 
     @Override
-    public void setImageResponseMessage(String imageResponseMessage) {
-
+    public String getStatus() {
+        return status;
     }
 
     @Override
@@ -90,18 +112,13 @@ public class MessageModel extends AbstractMessageModel {
     }
 
     @Override
+    public void setFinished(File imageFile, int code, String message, String endTime) {
+
+    }
+
+    @Override
     public boolean isFinished() {
         return false;
-    }
-
-    @Override
-    public void setFailureMessage(String failureMessage) {
-
-    }
-
-    @Override
-    public String getFailureMessage() {
-        return "";
     }
 
     @Override
@@ -125,6 +142,9 @@ public class MessageModel extends AbstractMessageModel {
             if (parameters != null) {
                 jsonObject.putOpt("parameters", parameters.toJson());
             }
+            jsonObject.putOpt("status", status);
+            jsonObject.putOpt("code", code);
+            jsonObject.putOpt("message", message);
             return jsonObject;
         } catch (JSONException e) {
             Log.e(TAG, "toJson. exception thrown.", e);
@@ -137,17 +157,21 @@ public class MessageModel extends AbstractMessageModel {
         super.fromJson(jsonObject);
         parameters = new Parameters();
         parameters.loadJson(jsonObject.optJSONObject("parameters"));
+        status = jsonObject.optString("status");
+        code = jsonObject.optInt("code");
+        message = jsonObject.optString("message", null);
     }
 
     @Override
     public boolean equals(Object o) {
         if (o == null || getClass() != o.getClass()) return false;
-        MessageModel model = (MessageModel) o;
-        return Objects.equals(parameters, model.parameters);
+        if (!super.equals(o)) return false;
+        MessageModel that = (MessageModel) o;
+        return code == that.code && Objects.equals(parameters, that.parameters) && Objects.equals(status, that.status) && Objects.equals(message, that.message);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(parameters);
+        return Objects.hash(super.hashCode(), parameters, status, code, message);
     }
 }

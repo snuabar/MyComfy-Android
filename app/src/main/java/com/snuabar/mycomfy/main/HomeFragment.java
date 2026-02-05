@@ -6,11 +6,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
-import android.os.SystemClock;
 import android.text.TextUtils;
-import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -30,23 +26,18 @@ import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.snuabar.mycomfy.R;
-import com.snuabar.mycomfy.client.EnqueueResponse;
 import com.snuabar.mycomfy.client.QueueRequest;
-import com.snuabar.mycomfy.client.ImageResponse;
-import com.snuabar.mycomfy.client.InterruptRequest;
 import com.snuabar.mycomfy.client.Parameters;
 import com.snuabar.mycomfy.client.RetrofitClient;
-import com.snuabar.mycomfy.common.Callbacks;
 import com.snuabar.mycomfy.common.Common;
 import com.snuabar.mycomfy.databinding.FragmentHomeBinding;
 import com.snuabar.mycomfy.databinding.LayoutMessageItemOptionalDialogBinding;
 import com.snuabar.mycomfy.main.data.AbstractMessageModel;
 import com.snuabar.mycomfy.main.data.MainViewModel;
+import com.snuabar.mycomfy.main.data.MessageModelState;
 import com.snuabar.mycomfy.main.model.ReceivedMessageModel;
-import com.snuabar.mycomfy.main.model.ReceivedVideoMessageModel;
 import com.snuabar.mycomfy.main.model.SentMessageModel;
 import com.snuabar.mycomfy.main.model.SentVideoMessageModel;
-import com.snuabar.mycomfy.main.model.UpscaleReceivedMessageModel;
 import com.snuabar.mycomfy.main.model.UpscaleSentMessageModel;
 import com.snuabar.mycomfy.preview.FullScreenImageActivity;
 import com.snuabar.mycomfy.setting.Settings;
@@ -60,22 +51,11 @@ import com.snuabar.mycomfy.view.PromptEditPopup;
 import com.snuabar.mycomfy.view.dialog.OptionalDialog;
 
 import java.io.File;
-import java.io.IOException;
-import java.text.SimpleDateFormat;
-import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
-
-import okhttp3.ResponseBody;
-import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
 
 public class HomeFragment extends Fragment {
 
@@ -83,15 +63,11 @@ public class HomeFragment extends Fragment {
 
     private FragmentHomeBinding binding;
 
-    private RetrofitClient retrofitClient;
-
     private MainViewModel mViewModel;
     private FilePicker filePicker;
     private MessageAdapter messageAdapter = null;
     private ParametersPopup parametersPopup;
     private PromptEditPopup promptEditPopup;
-    private Executor promptCheckExecutor = null;
-    private boolean isPromptCheckExecutorStop = false;
     private PopupWindow messageItemOptionalPopup;
     private final OptionalDialog.ProgressDialog pgsDlg;
 
@@ -108,13 +84,11 @@ public class HomeFragment extends Fragment {
         super.onCreate(savedInstanceState);
         mViewModel = new ViewModelProvider(requireActivity()).get(MainViewModel.class);
         filePicker = mViewModel.getFilePicker();
-        // 初始化Retrofit客户端
-        retrofitClient = RetrofitClient.getInstance();
         parametersPopup = new ParametersPopup(requireContext());
         promptEditPopup = new PromptEditPopup(requireContext(), onPromptChangeListener);
 
         pgsDlg.show(getChildFragmentManager());
-        mViewModel.reloadMessageModels(requireContext());
+        mViewModel.reloadMessageModels();
     }
 
     @Nullable
@@ -160,6 +134,19 @@ public class HomeFragment extends Fragment {
             messageAdapter.setData(abstractMessageModels);
             pgsDlg.dismiss();
         });
+        mViewModel.getMessageModelStateLiveData().observe(getViewLifecycleOwner(), state -> {
+            if (state == null || state.state == MessageModelState.STATE_NONE) {
+                return;
+            }
+
+            if (state.state == MessageModelState.STATE_ADDED) {
+                messageAdapter.notifyItemAdded(state.index);
+            } else if (state.state == MessageModelState.STATE_DELETED) {
+                messageAdapter.notifyItemDeleted(state.index);
+            } else if (state.state == MessageModelState.STATE_CHANGED) {
+                messageAdapter.notifyItemChanged(state.index);
+            }
+        });
     }
 
     @Override
@@ -173,17 +160,16 @@ public class HomeFragment extends Fragment {
     @Override
     public void onDestroy() {
         super.onDestroy();
-        isPromptCheckExecutorStop = true;
     }
 
     @Override
     public void onResume() {
         super.onResume();
         updateBaseUrl();
-        startStatusCheck();
+        mViewModel.startStatusCheck();
         if (Settings.getInstance().hasDataImportedState()) {
             Settings.getInstance().clearDataImportedState();
-            mViewModel.reloadMessageModels(requireContext());
+            mViewModel.reloadMessageModels();
         }
     }
 
@@ -215,7 +201,7 @@ public class HomeFragment extends Fragment {
             showMessageItemOptionalPopup(view, downLocation, model);
         } else if (ope == MessageAdapter.OnElementClickListener.OPE_INTERRUPT) {
             model.setInterruptionFlag(true);
-            int index = mViewModel.saveMessageModel(requireContext(), model);
+            int index = mViewModel.saveMessageModel(model);
             messageAdapter.notifyItemChanged(index);
         } else if (ope == MessageAdapter.OnElementClickListener.OPE_SAVE) {
             if (imageFile != null && imageFile.exists()) {
@@ -319,7 +305,7 @@ public class HomeFragment extends Fragment {
                     .setTitle("提示")
                     .setMessage("删除？")
                     .setPositive(() -> {
-                        int index = mViewModel.deleteModelFile(requireContext(), model);
+                        int index = mViewModel.deleteModelFile(model);
                         messageAdapter.notifyItemDeleted(index);
                     })
                     .setNegative(null)
@@ -521,7 +507,7 @@ public class HomeFragment extends Fragment {
                 sentMessageModel = new SentMessageModel(parameters);
             }
             // 保存数据
-            int index = mViewModel.saveMessageModel(requireContext(), sentMessageModel);
+            int index = mViewModel.saveMessageModel(sentMessageModel);
             // 界面显示
             messageAdapter.notifyItemAdded(index);
         } else {
@@ -529,9 +515,9 @@ public class HomeFragment extends Fragment {
                 Parameters parameters = new Parameters(model.getParameters());
                 parameters.setUpscale_factor(upscale[0]);
                 sentMessageModel = new UpscaleSentMessageModel(parameters);
-                sentMessageModel.setImageFile(DataIO.getInstance().copyImageFile(requireContext(), model.getImageFile()));
+                sentMessageModel.setImageFile(DataIO.getInstance().copyImageFile(model.getImageFile()));
                 request = new QueueRequest(sentMessageModel.getParameters());
-                int index = mViewModel.saveMessageModel(requireContext(), sentMessageModel);
+                int index = mViewModel.saveMessageModel(sentMessageModel);
                 messageAdapter.notifyItemAdded(index);
             } else {
                 request = new QueueRequest(model.getParameters().setResent());
@@ -540,77 +526,7 @@ public class HomeFragment extends Fragment {
         }
 
         // 发送请求
-        retrofitClient.getApiService().enqueue(request).enqueue(new Callback<>() {
-            @Override
-            public void onResponse(@NonNull Call<EnqueueResponse> call, @NonNull Response<EnqueueResponse> response) {
-                if (response.isSuccessful() && response.body() != null) {
-                    EnqueueResponse enqueueResponse = response.body();
-                    if (enqueueResponse.getCode() == 200) { // OK
-                        // 时间纠正（服务器时间不正确的情况下）
-                        if (enqueueResponse.getUTCTimestamp() <= sentMessageModel.getUTCTimestamp()) {
-                            enqueueResponse.setUtc_timestamp(String.valueOf(Clock.systemUTC().millis()));
-                        }
-                        // 保存响应对应，更新列表
-                        ReceivedMessageModel receivedMessageModel;
-                        if (sentMessageModel.isVideo()) {
-                            receivedMessageModel = new ReceivedVideoMessageModel(enqueueResponse);
-                        }else if (sentMessageModel instanceof UpscaleSentMessageModel) {
-                            receivedMessageModel = new UpscaleReceivedMessageModel(enqueueResponse);
-                        } else {
-                            receivedMessageModel = new ReceivedMessageModel(enqueueResponse);
-                        }
-                        int index = mViewModel.saveMessageModel(requireContext(), receivedMessageModel);
-                        messageAdapter.notifyItemAdded(index);
-                        startStatusCheck();
-                    } else if (enqueueResponse.getCode() == 409) { // conflict 已存在相同任务
-                        int index = mViewModel.deleteModelFile(requireContext(), sentMessageModel);
-                        messageAdapter.notifyItemDeleted(index);
-                    }
-                } else {
-//                    enqueueResponse = EnqueueResponse.create(response.code(), response.message(),
-//                            new Parameters().loadFromRequest(request));
-//                    ReceivedMessageModel receivedMessageModel = new ReceivedMessageModel(enqueueResponse);
-//                    messageAdapter.add(receivedMessageModel);
-                    int index = mViewModel.saveMessageModel(requireContext(), sentMessageModel);
-                    messageAdapter.notifyItemChanged(index);
-                }
-            }
-
-            @Override
-            public void onFailure(@NonNull Call<EnqueueResponse> call, @NonNull Throwable t) {
-                int index = mViewModel.saveMessageModel(requireContext(), sentMessageModel);
-                messageAdapter.notifyItemChanged(index);
-            }
-        });
-    }
-
-    private File saveFile(ResponseBody body, boolean isVideo, Callbacks.Callback2T<Long, Long> callback) {
-        try {
-            File file;
-            if (isVideo) {
-                file = DataIO.getInstance().newVideoFile(requireContext());
-            } else {
-                file = DataIO.getInstance().newImageFile(requireContext());
-            }
-
-            // 保存文件
-            if (RetrofitClient.downloadFile(body, file, callback)) {
-                return file;
-            }
-        } catch (Exception e) {
-            log("保存文件失败: " + e.getMessage(), true);
-        }
-        return null;
-    }
-
-    private void log(String message, boolean isError) {
-        String timestamp = new SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(new Date());
-        String newLog = "[" + timestamp + "] " + message;
-        if (isError) {
-            Log.e(TAG, newLog);
-        } else {
-            Log.i(TAG, newLog);
-        }
+        mViewModel.enqueue(request, sentMessageModel);
     }
 
     private void showToast(String message) {
@@ -621,112 +537,9 @@ public class HomeFragment extends Fragment {
         String ip = Settings.getInstance().getString("server_ip", "192.168.1.17");
         String port = Settings.getInstance().getString("server_port", "8000");
         // 更新Base URL
-        retrofitClient.setBaseUrl(ip, port);
+        RetrofitClient.getInstance().setBaseUrl(ip, port);
 
         parametersPopup.loadWorkflows();
-    }
-
-    private void startStatusCheck() {
-        if (promptCheckExecutor != null) {
-            return;
-        }
-
-        promptCheckExecutor = Executors.newSingleThreadExecutor();
-        promptCheckExecutor.execute(() -> {
-            while (!isPromptCheckExecutorStop) {
-                if (!getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.RESUMED)) {
-                    SystemClock.sleep(1000);
-                    continue;
-                }
-                List<AbstractMessageModel> messageModels = mViewModel.getMessageModels();
-                for (int i = messageModels.size() - 1; i >= 0; i--) {
-                    if (!getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.RESUMED)) {
-                        break;
-                    }
-                    AbstractMessageModel model = messageModels.get(i);
-                    if (!(model instanceof ReceivedMessageModel) ||
-                            TextUtils.isEmpty(model.getPromptId()) ||
-                            model.isFinished()) {
-                        continue;
-                    }
-
-                    if (model.getInterruptionFlag()) {
-                        try {
-                            Response<ResponseBody> response = retrofitClient.getApiService().interrupt(new InterruptRequest(model.getPromptId())).execute();
-                            if (response.isSuccessful()) {
-                                model.setFinished(null, 998, "已取消");
-                                int index = mViewModel.saveMessageModel(requireContext(), model);
-                                requireActivity().runOnUiThread(() -> messageAdapter.notifyItemChanged(index));
-                            }
-                        } catch (IOException e) {
-                            log("请求失败: " + e.getMessage(), true);
-                        }
-                        SystemClock.sleep(300);
-                        continue;
-                    }
-
-                    try {
-                        if (model.isFileExistsOnServer()) {
-                            downloadContentSync(model);
-                        } else {
-                            retrofit2.Response<ImageResponse> response = retrofitClient.getApiService().getImageStatus(model.getPromptId()).execute();
-                            if (response.isSuccessful()) {
-                                ImageResponse body = response.body();
-                                if (body != null) {
-                                    if (body.getCode() == 200) {
-                                        downloadContentSync(model);
-                                    } else if (body.getCode() == 204) {
-                                        Log.i(TAG, model.getPromptId() + " is being processing.");
-                                    } else {
-                                        Log.e(TAG, "Failed." + response.code() + ", " + response.message());
-                                        model.setFinished(null, body.getCode(), body.getMessage());
-                                        int index = mViewModel.saveMessageModel(requireContext(), model);
-                                        requireActivity().runOnUiThread(() -> messageAdapter.notifyItemChanged(index));
-                                    }
-                                } else {
-                                    Log.e(TAG, "Failed." + response.code() + ", " + response.message());
-                                    //                                messageAdapter.setFinished(promptIdInner, null, 999, "unknown.");
-                                    model.setFinished(null, 999, "unknown.");
-                                    int index = mViewModel.saveMessageModel(requireContext(), model);
-                                    requireActivity().runOnUiThread(() -> messageAdapter.notifyItemChanged(index));
-                                }
-                            } else {
-                                Log.e(TAG, "Failed." + response.code() + ", " + response.message());
-                                //                            messageAdapter.setFinished(promptIdInner, null, response.code(), response.message());
-                                model.setFinished(null, response.code(), response.message());
-                                int index = mViewModel.saveMessageModel(requireContext(), model);
-                                requireActivity().runOnUiThread(() -> messageAdapter.notifyItemChanged(index));
-                            }
-                        }
-                    } catch (Throwable t) {
-                        Log.e(TAG, "failed to execute downloadImage(" + model.getPromptId() + ")", t);
-                        //                        messageAdapter.setFinished(promptIdInner, null, 1000, t.getMessage());
-                        model.setFinished(null, 1000, t.getMessage());
-                        int index = mViewModel.saveMessageModel(requireContext(), model);
-                        requireActivity().runOnUiThread(() -> messageAdapter.notifyItemChanged(index));
-                    }
-
-                    SystemClock.sleep(100);
-                }
-                SystemClock.sleep(5000);
-            }
-        });
-    }
-
-    private void downloadContentSync(AbstractMessageModel model) throws IOException {
-        Response<ResponseBody> response = retrofitClient.getApiService().download(model.getPromptId()).execute();
-        if (response.isSuccessful()) {
-            try (ResponseBody body = response.body()) {
-                File file = saveFile(body, model.isVideo(), (total, progress) -> {
-                    log("下载文件: " + progress + "/" + total, false);
-                });
-                if (file != null) {
-                    model.setFinished(file, response.code(), response.message());
-                    int index = mViewModel.saveMessageModel(requireContext(), model);
-                    requireActivity().runOnUiThread(() -> messageAdapter.notifyItemChanged(index));
-                }
-            }
-        }
     }
 
     private void doDelete() {
@@ -745,7 +558,7 @@ public class HomeFragment extends Fragment {
                 .setPositive(() -> {
                     for (int i : indices) {
                         AbstractMessageModel model = mViewModel.getMessageModels().get(i);
-                        int index = mViewModel.deleteModelFile(requireContext(), model);
+                        int index = mViewModel.deleteModelFile(model);
                         assert i == index;
                         messageAdapter.notifyItemDeleted(index);
                     }

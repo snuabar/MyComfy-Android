@@ -5,6 +5,7 @@ public class ImageResponse {
     private String prompt_id;
     private int code;
     private String message;
+    private String status;
     private String media_type;
     private String filename;
     private String utc_timestamp;
@@ -31,6 +32,14 @@ public class ImageResponse {
 
     public void setMessage(String message) {
         this.message = message;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
     }
 
     public String getMedia_type() {

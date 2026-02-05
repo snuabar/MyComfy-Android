@@ -32,25 +32,33 @@ public class DataIO {
     private static final String IMG_EXT = ".png";
     private static final String VIDEO_EXT = ".mp4";
     private List<AbstractMessageModel> sharedMessageModels;
+    private final Context context;
 
     private static DataIO Instance = null;
 
-    public static DataIO getInstance() {
+    public static DataIO init(Context context) {
         if (Instance == null) {
-            Instance = new DataIO();
+            Instance = new DataIO(context);
         }
         return Instance;
     }
 
-    private DataIO() {
+    public static DataIO getInstance() {
+        if (Instance == null) {
+            throw new NullPointerException("Has not initialized. Initialize DataIO by calling DataIO.init(<context>)");
+        }
+        return Instance;
+    }
 
+    private DataIO(Context context) {
+        this.context = context.getApplicationContext();
     }
 
     void setSharedMessageModels(List<AbstractMessageModel> sharedMessageModels) {
         this.sharedMessageModels = sharedMessageModels;
     }
 
-    private static File getOutputDir(Context context) {
+    private File getOutputDir() {
         File file = context.getExternalFilesDir(null);
         if (file != null && !file.exists() && !file.mkdirs()) {
             Log.e(TAG, "getOutputDir: failed to execute mkdirs()");
@@ -62,7 +70,7 @@ public class DataIO {
         return file;
     }
 
-    private static File getMsgDir(Context context) {
+    private File getMsgDir() {
         File file = context.getExternalFilesDir(null);
         if (file != null && !file.exists() && !file.mkdirs()) {
             Log.e(TAG, "getMessageDir: failed to execute mkdirs()");
@@ -75,8 +83,8 @@ public class DataIO {
     }
 
     @NonNull
-    List<AbstractMessageModel> loadMessageModels(Context context) {
-        File msgDir = getMsgDir(context);
+    List<AbstractMessageModel> loadMessageModels() {
+        File msgDir = getMsgDir();
 
         ArrayList<AbstractMessageModel> models = new ArrayList<>();
         File[] files = msgDir.listFiles((dir, name) -> name.startsWith(PREFIX) && name.endsWith(MSG_EXT));
@@ -97,8 +105,8 @@ public class DataIO {
         return new ArrayList<>(sharedMessageModels);
     }
 
-    public File newImageFile(Context context) {
-        File outputDir = getOutputDir(context);
+    public File newImageFile() {
+        File outputDir = getOutputDir();
         assert outputDir != null;
         // 创建保存目录
         if (!outputDir.exists() && !outputDir.mkdirs()) {
@@ -110,8 +118,8 @@ public class DataIO {
         return new File(outputDir, fileName);
     }
 
-    public File newVideoFile(Context context) {
-        File outputDir = getOutputDir(context);
+    public File newVideoFile() {
+        File outputDir = getOutputDir();
         assert outputDir != null;
         // 创建保存目录
         if (!outputDir.exists() && !outputDir.mkdirs()) {
@@ -123,8 +131,8 @@ public class DataIO {
         return new File(outputDir, fileName);
     }
 
-    public File copyImageFile(Context context, File imageFile) {
-        File newImageFile = newImageFile(context);
+    public File copyImageFile(File imageFile) {
+        File newImageFile = newImageFile();
         if (FileOperator.copyFile(imageFile, newImageFile)) {
             return newImageFile;
         }
@@ -136,8 +144,8 @@ public class DataIO {
 
     //region 模型读写
 
-    AbstractMessageModel writeModelFile(Context context, AbstractMessageModel model) {
-        File msgDir = getMsgDir(context);
+    AbstractMessageModel writeModelFile(AbstractMessageModel model) {
+        File msgDir = getMsgDir();
         String fileName = PREFIX + model.getId() + MSG_EXT;
         File modelFile = new File(msgDir, fileName);
 
@@ -180,9 +188,9 @@ public class DataIO {
         return null;
     }
 
-    boolean deleteModelFile(Context context, AbstractMessageModel model) {
+    boolean deleteModelFile(AbstractMessageModel model) {
 
-        File msgDir = getMsgDir(context);
+        File msgDir = getMsgDir();
         String fileName = PREFIX + model.getId() + MSG_EXT;
         File modelFile = new File(msgDir, fileName);
 
