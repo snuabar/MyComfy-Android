@@ -12,6 +12,7 @@ import android.view.MenuItem;
 
 import com.snuabar.mycomfy.R;
 import com.snuabar.mycomfy.client.RetrofitClient;
+import com.snuabar.mycomfy.main.data.DataIO;
 import com.snuabar.mycomfy.main.data.MainViewModel;
 import com.snuabar.mycomfy.main.data.prompt.AdvancedTranslator;
 import com.snuabar.mycomfy.main.data.prompt.PromptManager;
@@ -28,6 +29,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         Settings.init(this);
+        DataIO.init(this);
         AdvancedTranslator translator = AdvancedTranslator.Companion.init(this);
         assert translator != null;
         translator.initTranslator("en", "zh", true, null);

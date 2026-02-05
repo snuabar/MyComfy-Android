@@ -170,7 +170,7 @@ public class HistoryFragment extends Fragment {
                     .setPositive(() -> {
                         List<AbstractMessageModel> deletionModels = ((HistoryAdapter) binding.list.getAdapter()).deleteSelection();
                         for (AbstractMessageModel model : deletionModels) {
-                            mViewModel.deleteModelFile(requireContext(), model);
+                            mViewModel.deleteModelFile(model);
                         }
                         mViewModel.changeDeletionMode(false);
                         Map<String, List<AbstractMessageModel>> deletedModelsMap = new HashMap<>();
