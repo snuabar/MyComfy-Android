@@ -79,7 +79,6 @@ public class HttpBaseViewModel extends ViewModel {
 
     private void setMessageModelState(MessageModelState state) {
         messageModelStateLiveData.postValue(state);
-        messageModelStateLiveData.postValue(null);
     }
 
     public void reloadMessageModels() {
@@ -171,18 +170,18 @@ public class HttpBaseViewModel extends ViewModel {
                         }
                         int index = saveMessageModel(receivedMessageModel);
 //                        messageAdapter.notifyItemAdded(index);
-                        messageModelStateLiveData.postValue(MessageModelState.added(index));
+                        setMessageModelState(MessageModelState.added(index));
                         startStatusCheck();
                     } else if (enqueueResponse.getCode() == 409) { // conflict 已存在相同任务
                         int index = deleteModelFile(sentMessageModel);
 //                        messageAdapter.notifyItemDeleted(index);
-                        messageModelStateLiveData.postValue(MessageModelState.deleted(index));
+                        setMessageModelState(MessageModelState.deleted(index));
                     }
                 } else {
                     sentMessageModel.setStatus(MessageModel.STATUS_FAILED, response.code(), response.message());
                     int index = saveMessageModel(sentMessageModel);
 //                    messageAdapter.notifyItemChanged(index);
-                    messageModelStateLiveData.postValue(MessageModelState.changed(index));
+                    setMessageModelState(MessageModelState.changed(index));
                 }
             }
 
@@ -191,7 +190,7 @@ public class HttpBaseViewModel extends ViewModel {
                 sentMessageModel.setStatus(MessageModel.STATUS_FAILED, 999, t.getMessage());
                 int index = saveMessageModel(sentMessageModel);
 //                messageAdapter.notifyItemChanged(index);
-                messageModelStateLiveData.postValue(MessageModelState.changed(index));
+                setMessageModelState(MessageModelState.changed(index));
             }
         });
     }
@@ -220,7 +219,7 @@ public class HttpBaseViewModel extends ViewModel {
                                 model.setFinished(null, 998, "已取消");
                                 int index = saveMessageModel(model);
 //                                requireActivity().runOnUiThread(() -> messageAdapter.notifyItemChanged(index));
-                                messageModelStateLiveData.postValue(MessageModelState.changed(index));
+                                setMessageModelState(MessageModelState.changed(index));
                             }
                         } catch (IOException e) {
                             log("请求失败: " + e.getMessage(), true);
@@ -246,14 +245,14 @@ public class HttpBaseViewModel extends ViewModel {
                                         if (model.setStatus(body.getStatus(), body.getCode(), body.getMessage())) {
                                             int index = saveMessageModel(model);
 //                                            requireActivity().runOnUiThread(() -> messageAdapter.notifyItemChanged(index));
-                                            messageModelStateLiveData.postValue(MessageModelState.changed(index));
+                                            setMessageModelState(MessageModelState.changed(index));
                                         }
                                     } else {
                                         Log.e(TAG, "Failed." + response.code() + ", " + response.message());
                                         model.setFinished(null, body.getCode(), body.getMessage());
                                         int index = saveMessageModel(model);
 //                                        requireActivity().runOnUiThread(() -> messageAdapter.notifyItemChanged(index));
-                                        messageModelStateLiveData.postValue(MessageModelState.changed(index));
+                                        setMessageModelState(MessageModelState.changed(index));
                                     }
                                 } else {
                                     Log.e(TAG, "Failed." + response.code() + ", " + response.message());
@@ -261,7 +260,7 @@ public class HttpBaseViewModel extends ViewModel {
                                     model.setFinished(null, 999, "unknown.");
                                     int index = saveMessageModel(model);
 //                                    requireActivity().runOnUiThread(() -> messageAdapter.notifyItemChanged(index));
-                                    messageModelStateLiveData.postValue(MessageModelState.changed(index));
+                                    setMessageModelState(MessageModelState.changed(index));
                                 }
                             } else {
                                 Log.e(TAG, "Failed." + response.code() + ", " + response.message());
@@ -269,7 +268,7 @@ public class HttpBaseViewModel extends ViewModel {
                                 model.setFinished(null, response.code(), response.message());
                                 int index = saveMessageModel(model);
 //                                requireActivity().runOnUiThread(() -> messageAdapter.notifyItemChanged(index));
-                                messageModelStateLiveData.postValue(MessageModelState.changed(index));
+                                setMessageModelState(MessageModelState.changed(index));
                             }
                         }
                     } catch (Throwable t) {
@@ -278,7 +277,7 @@ public class HttpBaseViewModel extends ViewModel {
                         model.setFinished(null, 1000, t.getMessage());
                         int index = saveMessageModel(model);
 //                        requireActivity().runOnUiThread(() -> messageAdapter.notifyItemChanged(index));
-                        messageModelStateLiveData.postValue(MessageModelState.changed(index));
+                        setMessageModelState(MessageModelState.changed(index));
                     }
 
                     SystemClock.sleep(100);
@@ -299,7 +298,7 @@ public class HttpBaseViewModel extends ViewModel {
                     model.setFinished(file, response.code(), response.message(), endTime);
                     int index = saveMessageModel(model);
 //                    requireActivity().runOnUiThread(() -> messageAdapter.notifyItemChanged(index));
-                    messageModelStateLiveData.postValue(MessageModelState.changed(index));
+                    setMessageModelState(MessageModelState.changed(index));
                 }
             }
         }

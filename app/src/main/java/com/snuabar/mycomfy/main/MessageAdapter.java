@@ -128,7 +128,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
                 ));
             }
         }
-        holder.binding.btnResent.setVisibility(model.getMessage() != null && !isEditMode ? View.VISIBLE : View.GONE);
+        holder.binding.btnResent.setVisibility(MessageModel.STATUS_FAILED.equals(model.getStatus()) && !isEditMode ? View.VISIBLE : View.GONE);
     }
 
     public void onBindReceivedViewHolder(@NonNull ReceivedViewHolder holder, int position) {
