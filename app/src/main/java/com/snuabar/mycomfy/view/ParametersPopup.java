@@ -12,8 +12,6 @@ import android.view.WindowManager;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.BaseAdapter;
-import android.widget.PopupWindow;
-import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -43,7 +41,7 @@ import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 
-public class ParametersPopup extends PopupWindow {
+public class ParametersPopup extends GeneralPopup {
 
     private final static String TAG = ParametersPopup.class.getName();
 
@@ -66,7 +64,7 @@ public class ParametersPopup extends PopupWindow {
         setWidth(WindowManager.LayoutParams.WRAP_CONTENT);
         setHeight(WindowManager.LayoutParams.WRAP_CONTENT);
         setFocusable(true);
-        setBackgroundDrawable(AppCompatResources.getDrawable(context, R.drawable.parameters_popup_bg));
+        setBackgroundDrawable(AppCompatResources.getDrawable(context, R.drawable.popup_bg));
         setElevation(8);
         retrofitClient = RetrofitClient.getInstance();
         // 设置按钮点击事件

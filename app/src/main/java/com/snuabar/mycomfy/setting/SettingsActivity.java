@@ -15,10 +15,16 @@ import androidx.documentfile.provider.DocumentFile;
 import com.snuabar.mycomfy.client.RetrofitClient;
 import com.snuabar.mycomfy.client.ServerStats;
 import com.snuabar.mycomfy.databinding.ActivitySettingsBinding;
+import com.snuabar.mycomfy.main.data.AbstractMessageModel;
 import com.snuabar.mycomfy.main.data.DataHelper;
+import com.snuabar.mycomfy.main.data.DataIO;
 import com.snuabar.mycomfy.utils.FilePicker;
+import com.snuabar.mycomfy.utils.ImageUtils;
+import com.snuabar.mycomfy.utils.ThumbnailCacheManager;
+import com.snuabar.mycomfy.view.TwoButtonPopup;
 import com.snuabar.mycomfy.view.dialog.OptionalDialog;
 
+import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
@@ -34,6 +40,7 @@ public class SettingsActivity extends AppCompatActivity {
     private final DataHelper dataHelper;
     private final Handler handler;
     private final OptionalDialog.ProgressDialog pgsDlg;
+    private TwoButtonPopup twoButtonPopup;
 
     public SettingsActivity() {
         filePicker = new FilePicker(this);
@@ -58,6 +65,24 @@ public class SettingsActivity extends AppCompatActivity {
         setupListeners();
     }
 
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (item.getItemId() == android.R.id.home) {
+            getOnBackPressedDispatcher().onBackPressed();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    protected void onPause() {
+        Settings.getInstance().edit()
+                .putString("server_ip", binding.etIpAddress.getText().toString().trim())
+                .putString("server_port", binding.etPort.getText().toString().trim())
+                .apply();
+        super.onPause();
+    }
+
     private void initViews() {
         binding.etIpAddress.setText(Settings.getInstance().getString("server_ip", "192.168.1.17"));
         binding.etPort.setText(Settings.getInstance().getString("server_port", "8000"));
@@ -68,6 +93,7 @@ public class SettingsActivity extends AppCompatActivity {
         binding.btnTestConnection.setOnClickListener(v -> testConnection());
         binding.btnImport.setOnClickListener(v -> importData(null));
         binding.btnExport.setOnClickListener(v -> exportData(null));
+        binding.btnRebuildThumbnails.setOnClickListener(v -> rebuiltThumbnails());
     }
 
     private void importData(Uri fileUri) {
@@ -130,6 +156,7 @@ public class SettingsActivity extends AppCompatActivity {
             Toast.makeText(this, "导出失败！", Toast.LENGTH_SHORT).show();
         }
     }
+
     private void testConnection() {
         // TODO: 实现测试连接功能
         String ip = binding.etIpAddress.getText().toString().trim();
@@ -172,21 +199,25 @@ public class SettingsActivity extends AppCompatActivity {
         });
     }
 
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        if (item.getItemId() == android.R.id.home) {
-            getOnBackPressedDispatcher().onBackPressed();
-            return true;
+    private void rebuiltThumbnails() {
+        if (twoButtonPopup == null) {
+            twoButtonPopup = new TwoButtonPopup(this).setListener((view, button) -> {
+                if (button == 1) {
+                    pgsDlg.setText(null).show(getSupportFragmentManager());
+                    executor.execute(() -> {
+                        List<AbstractMessageModel> models = DataIO.getInstance().copyMessageModels();
+                        for (AbstractMessageModel model : models) {
+                            if (model.getImageFile() != null) {
+                                ImageUtils.deleteThumbnail(model.getImageFile());
+                                ThumbnailCacheManager.Companion.getInstance().clearCacheForPath(model.getImageFile().getAbsolutePath());
+                            }
+                        }
+                        runOnUiThread(pgsDlg::dismiss);
+                    });
+                }
+                return true;
+            });
         }
-        return super.onOptionsItemSelected(item);
-    }
-
-    @Override
-    protected void onPause() {
-        Settings.getInstance().edit()
-                .putString("server_ip", binding.etIpAddress.getText().toString().trim())
-                .putString("server_port", binding.etPort.getText().toString().trim())
-                .apply();
-        super.onPause();
+        twoButtonPopup.showAsDropDown(binding.btnRebuildThumbnails);
     }
 }

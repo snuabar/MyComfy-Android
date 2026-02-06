@@ -23,6 +23,7 @@ import com.snuabar.mycomfy.main.model.ReceivedVideoMessageModel;
 import com.snuabar.mycomfy.main.model.SentMessageModel;
 import com.snuabar.mycomfy.main.model.UpscaleReceivedMessageModel;
 import com.snuabar.mycomfy.main.model.UpscaleSentMessageModel;
+import com.snuabar.mycomfy.utils.ThumbnailCacheManager;
 
 import java.io.File;
 import java.io.IOException;
@@ -70,6 +71,7 @@ public class HttpBaseViewModel extends ViewModel {
     @Override
     protected void onCleared() {
         super.onCleared();
+        ThumbnailCacheManager.Companion.getInstance().release();
         isPromptCheckExecutorStop = true;
     }
 

@@ -20,7 +20,7 @@ import com.snuabar.mycomfy.main.data.prompt.PromptManager;
 import java.util.List;
 import java.util.Stack;
 
-public class PromptEditPopup extends PopupWindow {
+public class PromptEditPopup extends GeneralPopup {
 
     private final LayoutPromptEditPopupWindowBinding binding;
     private final OnPromptChangeListener onPromptChangeListener;

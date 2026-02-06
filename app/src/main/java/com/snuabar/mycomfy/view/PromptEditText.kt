@@ -76,7 +76,7 @@ class PromptEditText @JvmOverloads constructor(
             // 设置背景，让PopupWindow可以响应外部点击
             setBackgroundDrawable (AppCompatResources.getDrawable(
                 context,
-                R.drawable.parameters_popup_bg
+                R.drawable.popup_bg
             ))
             isOutsideTouchable = true
             elevation = 8.0f

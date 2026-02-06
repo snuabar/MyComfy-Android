@@ -5,7 +5,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
-import android.graphics.BitmapFactory;
+import android.graphics.Bitmap;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.LayoutInflater;
@@ -17,32 +17,33 @@ import com.snuabar.mycomfy.common.Callbacks;
 import com.snuabar.mycomfy.common.Common;
 import com.snuabar.mycomfy.databinding.LayoutHistoryItemBinding;
 import com.snuabar.mycomfy.main.data.AbstractMessageModel;
-import com.snuabar.mycomfy.main.data.DataIO;
 import com.snuabar.mycomfy.utils.ImageUtils;
-import com.snuabar.mycomfy.utils.VideoUtils;
+import com.snuabar.mycomfy.utils.ThumbnailCacheManager;
 
-import java.text.SimpleDateFormat;
-import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHolder> {
 
-    private final List<AbstractMessageModel> mValues;
+    private List<AbstractMessageModel> mValues;
     private final Handler mHandler = new Handler(Looper.getMainLooper());
     private final Callbacks.Callback2T<Integer, Boolean> onItemClickCallback;
     private final Set<Integer> selections;
+    private final Map<String, Integer> idToIndexMap;
     private boolean isEditMode = false;
     private final Context context;
 
-    public HistoryAdapter(Context context, List<AbstractMessageModel> items, Callbacks.Callback2T<Integer, Boolean> onItemClickCallback) {
+    public HistoryAdapter(Context context, Callbacks.Callback2T<Integer, Boolean> onItemClickCallback) {
         this.context = context.getApplicationContext();
-        mValues = items;
+        mValues = new ArrayList<>();
+        this.idToIndexMap = new HashMap<>();
+        updateIdToIndexMap();
         this.onItemClickCallback = onItemClickCallback;
         this.selections = new HashSet<>();
     }
@@ -60,7 +61,13 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
 
         AbstractMessageModel model = mValues.get(position);
         if (ImageUtils.getThumbnail(model)) {
-            holder.binding.imageView.setImageBitmap(BitmapFactory.decodeFile(model.getThumbnailFile().getAbsolutePath()));
+            Bitmap thumb = ThumbnailCacheManager.Companion.getInstance().getThumbnail(model.getThumbnailFile().getAbsolutePath());
+            holder.binding.imageView.setImageBitmap(thumb);
+            if (thumb == null) {
+                ThumbnailCacheManager.Companion.getInstance().getThumbnailAsync(
+                        model.getThumbnailFile().getAbsolutePath(),
+                        model.getId(), this::onThumbnailLoad);
+            }
         } else {
             float width = holder.itemView.getContext().getResources().getDimension(R.dimen.thumbnail_width);
             float height = holder.itemView.getContext().getResources().getDimension(R.dimen.thumbnail_height);
@@ -77,13 +84,7 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
                 holder.binding.tvScaleFactor.setVisibility(View.GONE);
             }
             holder.binding.tvTitle.setText(Common.formatTimestamp(model.getUTCTimestampCompletion()));
-            int[] size;
-            if (model.isVideo()) {
-                VideoUtils.VideoSize videoSize = VideoUtils.INSTANCE.getVideoSize(model.getImageFile());
-                size = new int[]{videoSize.getWidth(), videoSize.getHeight()};
-            } else {
-                size = ImageUtils.getImageSize(model.getImageFile());
-            }
+            int[] size = model.getImageSize();
             holder.binding.tvInfo.setText(String.format(Locale.getDefault(),
                     "%d x %d %s",
                     size[0], size[1],
@@ -96,9 +97,18 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
     }
 
     private void onThumbnailMake(AbstractMessageModel content) {
-        int index = mValues.indexOf(content);
-        if (index != -1) {
+        Integer index = idToIndexMap.get(content.getId());
+        if (index != null && index >= 0 && index < mValues.size()) {
             mHandler.post(() -> notifyItemChanged(index));
+        }
+    }
+
+    private void onThumbnailLoad(Bitmap bmp, Object passBack) {
+        if (passBack instanceof String) {
+            Integer index = idToIndexMap.get(passBack);
+            if (index != null && index >= 0 && index < mValues.size()) {
+                notifyItemChanged(index);
+            }
         }
     }
 
@@ -112,6 +122,20 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
         this.isEditMode = editMode;
         selections.clear();
         notifyDataSetChanged();
+    }
+
+    @SuppressLint("NotifyDataSetChanged")
+    public void setValues(List<AbstractMessageModel> values) {
+        mValues = Objects.requireNonNullElseGet(values, ArrayList::new);
+        updateIdToIndexMap();
+        notifyDataSetChanged();
+    }
+
+    private void updateIdToIndexMap() {
+        idToIndexMap.clear();
+        for (int i = 0; i < mValues.size(); i++) {
+            idToIndexMap.put(mValues.get(i).getId(), i);
+        }
     }
 
     public void toggleSelection(int position) {
@@ -136,6 +160,7 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
             deletedModels.add(mValues.remove(i));
             notifyItemRemoved(i);
         }
+        updateIdToIndexMap();
         return deletedModels;
     }
 

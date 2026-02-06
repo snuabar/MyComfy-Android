@@ -19,6 +19,7 @@ import com.snuabar.mycomfy.main.data.prompt.PromptManager;
 import com.snuabar.mycomfy.setting.Settings;
 import com.snuabar.mycomfy.setting.SettingsActivity;
 import com.snuabar.mycomfy.utils.FilePicker;
+import com.snuabar.mycomfy.utils.ThumbnailCacheManager;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -29,6 +30,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         Settings.init(this);
+        ThumbnailCacheManager.Companion.init(this);
         DataIO.init(this);
         AdvancedTranslator translator = AdvancedTranslator.Companion.init(this);
         assert translator != null;

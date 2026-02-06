@@ -1,7 +1,7 @@
 package com.snuabar.mycomfy.main;
 
 import android.annotation.SuppressLint;
-import android.content.Context;
+import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Handler;
 import android.os.Looper;
@@ -25,7 +25,7 @@ import com.snuabar.mycomfy.main.model.ReceivedMessageModel;
 import com.snuabar.mycomfy.main.model.SentMessageModel;
 import com.snuabar.mycomfy.main.model.UpscaleSentMessageModel;
 import com.snuabar.mycomfy.utils.ImageUtils;
-import com.snuabar.mycomfy.utils.VideoUtils;
+import com.snuabar.mycomfy.utils.ThumbnailCacheManager;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
@@ -34,6 +34,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHolder> {
@@ -135,7 +136,14 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
         ReceivedMessageModel model = (ReceivedMessageModel) models.get(position);
         boolean upscaled = model.getParameters().getUpscale_factor() > 1.0;
         if (ImageUtils.getThumbnail(model)) {
-            holder.binding.imageView.setImageBitmap(BitmapFactory.decodeFile(model.getThumbnailFile().getAbsolutePath()));
+            Bitmap thumb = ThumbnailCacheManager.Companion.getInstance().getThumbnail(model.getThumbnailFile().getAbsolutePath());
+            if (thumb != null) {
+                holder.binding.imageView.setImageBitmap(thumb);
+            } else {
+                ThumbnailCacheManager.Companion.getInstance().getThumbnailAsync(
+                        model.getThumbnailFile().getAbsolutePath(),
+                        model.getId(), this::onThumbnailLoad);
+            }
             holder.binding.textView.setVisibility(View.VISIBLE);
             if (upscaled) {
                 holder.binding.tvScaleFactor.setVisibility(View.VISIBLE);
@@ -145,13 +153,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
             } else {
                 holder.binding.tvScaleFactor.setVisibility(View.GONE);
             }
-            int[] size;
-            if (model.isVideo()) {
-                VideoUtils.VideoSize videoSize = VideoUtils.INSTANCE.getVideoSize(model.getImageFile());
-                size = new int[]{videoSize.getWidth(), videoSize.getHeight()};
-            } else {
-                size = ImageUtils.getImageSize(model.getImageFile());
-            }
+            int[] size = model.getImageSize();
             holder.binding.textView.setText(String.format(Locale.getDefault(), "%d x %d", size[0], size[1]));
         } else {
             holder.binding.tvScaleFactor.setVisibility(View.GONE);
@@ -173,6 +175,15 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
         Integer index = idToIndexMap.get(model.getId());
         if (index != null && index >= 0 && index < models.size()) {
             mHandler.post(() -> notifyItemChanged(index));
+        }
+    }
+
+    private void onThumbnailLoad(Bitmap bmp, Object passBack) {
+        if (passBack instanceof String) {
+            Integer index = idToIndexMap.get(passBack);
+            if (index != null && index >= 0 && index < models.size()) {
+                mHandler.post(() -> notifyItemChanged(index));
+            }
         }
     }
 
@@ -207,11 +218,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
 
     @SuppressLint("NotifyDataSetChanged")
     public void setData(List<AbstractMessageModel> list) {
-        if (list == null) {
-            models = new ArrayList<>();
-        } else {
-            models = list;
-        }
+        models = Objects.requireNonNullElseGet(list, ArrayList::new);
 
         updateIdToIndexMap();
 
