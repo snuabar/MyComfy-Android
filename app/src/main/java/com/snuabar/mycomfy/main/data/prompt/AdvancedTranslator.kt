@@ -8,6 +8,7 @@ import com.google.mlkit.nl.translate.TranslateLanguage
 import com.google.mlkit.nl.translate.Translation
 import com.google.mlkit.nl.translate.Translator
 import com.google.mlkit.nl.translate.TranslatorOptions
+import com.snuabar.mycomfy.utils.StringUtils
 import org.json.JSONObject
 import java.io.File
 
@@ -133,20 +134,63 @@ class AdvancedTranslator(context: Context) {
             null
         }
 
+    private fun detectLang(text: String): String? {
+        var lang = StringUtils.detectLanguage(text);
+        if (lang == "mixed") {
+            lang = if (StringUtils.isMainlyChinese(text)) {
+                "zh"
+            } else {
+                "en"
+            }
+            return lang
+        } else if (lang == "unknown") {
+            return null;
+        }
+        return lang
+    }
+
     /**
      * 执行翻译
      */
-    fun translate(text: String, srcLang: String, destLang: String, callback: TranslationCallback) {
+    fun translate(text: String, srcLang: String?, destLang: String?, callback: TranslationCallback) {
         if (TextUtils.isEmpty(text)) {
             callback.onResult(text, null)
             return
         }
-        if (get(text, srcLang, destLang) != null) {
-            callback.onResult(get(text, srcLang, destLang), null)
+
+        val srcL: String?
+        val destL: String?
+        if (srcLang == null) {
+            srcL = srcLang ?: detectLang(text)
+            if (srcL == null) {
+                callback.onResult(text, "unknown language.")
+                return
+            }
+            if (srcL == destLang) {
+                callback.onResult(text, null)
+                return
+            }
+            destL = if (srcL == "zh") {
+                "en"
+            } else {
+                "zh"
+            }
+        } else {
+            srcL = srcLang
+            destL = destLang
+        }
+
+        if (srcL == destL || destL == null) {
+            callback.onResult(text, null)
+            return;
+        }
+
+        if (get(text, srcL, destL) != null) {
+            callback.onResult(get(text, srcL, destL), null)
             return
         }
 
-        val translatorKey = "$srcLang-$destLang"
+        val translatorKey = "$srcL-$destL"
         val currentTranslator = translators[translatorKey]
         currentTranslator?.let { translator ->
             translator.translate(text)
@@ -172,10 +216,26 @@ class AdvancedTranslator(context: Context) {
     }
 
     /**
+     * 批量翻译成中文 (自动判断输入语言)
+     */
+    fun translateBatchToZhAuto(
+        texts: List<String>, callback: (List<String?>?) -> Unit) {
+        translateBatch(texts, null, "zh", callback)
+    }
+
+    /**
+     * 批量翻译英文 (自动判断输入语言)
+     */
+    fun translateBatchToEnAuto(
+        texts: List<String>, callback: (List<String?>?) -> Unit) {
+        translateBatch(texts, null, "en", callback)
+    }
+
+    /**
      * 批量翻译
      */
     fun translateBatch(
-        texts: List<String>, srcLang: String, destLang: String, callback: (List<String?>?) -> Unit) {
+        texts: List<String>, srcLang: String?, destLang: String?, callback: (List<String?>?) -> Unit) {
         val translatedResults = mutableListOf<String?>()
         var completedCount = 0
 

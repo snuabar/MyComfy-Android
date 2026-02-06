@@ -6,7 +6,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
-import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -48,7 +47,6 @@ import com.snuabar.mycomfy.main.data.DataIO;
 import com.snuabar.mycomfy.utils.ImageUtils;
 import com.snuabar.mycomfy.utils.ViewUtils;
 import com.snuabar.mycomfy.view.ParametersPopup;
-import com.snuabar.mycomfy.view.PromptEditPopup;
 import com.snuabar.mycomfy.view.dialog.OptionalDialog;
 
 import java.io.File;
@@ -68,7 +66,7 @@ public class HomeFragment extends Fragment {
     private FilePicker filePicker;
     private MessageAdapter messageAdapter = null;
     private ParametersPopup parametersPopup;
-    private PromptEditPopup promptEditPopup;
+//    private PromptEditPopup promptEditPopup;
     private PopupWindow messageItemOptionalPopup;
     private final OptionalDialog.ProgressDialog pgsDlg;
 
@@ -86,7 +84,7 @@ public class HomeFragment extends Fragment {
         mViewModel = new ViewModelProvider(requireActivity()).get(MainViewModel.class);
         filePicker = mViewModel.getFilePicker();
         parametersPopup = new ParametersPopup(requireContext());
-        promptEditPopup = new PromptEditPopup(requireContext(), onPromptChangeListener);
+//        promptEditPopup = new PromptEditPopup(requireContext(), onPromptChangeListener);
 
         pgsDlg.show(getChildFragmentManager());
         mViewModel.reloadMessageModels();
@@ -97,8 +95,8 @@ public class HomeFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         binding = FragmentHomeBinding.inflate(inflater, container, false);
         initViews();
-        // 设置按钮点击事件
-        setupClickListeners();
+        // 设置事件
+        setupListeners();
         return binding.getRoot();
     }
 
@@ -154,8 +152,8 @@ public class HomeFragment extends Fragment {
     public void onPause() {
         super.onPause();
         mViewModel.changeDeletionMode(false);
-        // 保存上一次的提示词
-        Settings.getInstance().edit().putString("prompt", binding.tvPrompt.getText().toString()).apply();
+//        // 保存上一次的提示词
+//        Settings.getInstance().edit().putString("prompt", binding.tvPrompt.getText().toString()).apply();
     }
 
     @Override
@@ -174,8 +172,8 @@ public class HomeFragment extends Fragment {
         }
     }
 
-    private final PromptEditPopup.OnPromptChangeListener onPromptChangeListener = prompt ->
-            binding.tvPrompt.setText(prompt);
+//    private final PromptEditPopup.OnPromptChangeListener onPromptChangeListener = prompt ->
+//            binding.tvPrompt.setText(prompt);
 
     private void onMessageElementClick(View view, int position, int ope, float[] downLocation) {
         if (position == RecyclerView.NO_POSITION) {
@@ -355,146 +353,26 @@ public class HomeFragment extends Fragment {
     }
 
     private void initViews() {
-        binding.tvPrompt.setText(Settings.getInstance().getString("prompt", getString(R.string.default_prompt)));
+        binding.tvPrompt.setText(Settings.getInstance().getPrompt(""));
     }
 
-    private void setupClickListeners() {
+    private void setupListeners() {
         // 提示词
-        binding.tvPrompt.setOnClickListener(this::openPromptEditor);
+        binding.tvPrompt.setOnClickListener(v -> parametersPopup.showAsDropDown(v));
         // 生成图像按钮
-        binding.btnSubmit.setOnClickListener(v -> enqueue(null));
+        binding.btnSubmit.setOnClickListener(v -> parametersPopup.showAsDropDown(v));
         // 更改参数按扭
         binding.btnParam.setOnClickListener(v -> parametersPopup.showAsDropDown(v));
-    }
-
-    private void openPromptEditor(View v) {
-        promptEditPopup.showAsDropDown(v);
-        promptEditPopup.setText(binding.tvPrompt.getText().toString());
-    }
-
-    private Parameters newParameters() {
-        String workflow = parametersPopup.getParameter(Settings.KEY_PARAM_WORKFLOW);
-        String modelName = parametersPopup.getParameter(Settings.KEY_PARAM_MODEL);
-        String prompt = binding.tvPrompt.getText().toString().trim();
-        String widthStr = parametersPopup.getParameter(Settings.KEY_PARAM_WIDTH);
-        String heightStr = parametersPopup.getParameter(Settings.KEY_PARAM_HEIGHT);
-        String seedStr = parametersPopup.getParameter(Settings.KEY_PARAM_SEED);
-        String upscaleFactorStr = parametersPopup.getParameter(Settings.KEY_PARAM_UPSCALE_FACTOR);
-        String stepStr = parametersPopup.getParameter(Settings.KEY_PARAM_STEP);
-        String cfgStr = parametersPopup.getParameter(Settings.KEY_PARAM_CFG);
-        String secondsStr = parametersPopup.getParameter(Settings.KEY_PARAM_SECONDS);
-
-        // 验证输入
-        if (workflow.isEmpty()) {
-            showToast("请选择工作流");
-            return null;
-        }
-
-        // 验证输入
-        if (TextUtils.isEmpty(modelName) && !parametersPopup.isModelAllowedEmpty()) {
-            showToast("请选择模型");
-            return null;
-        }
-
-        // 验证输入
-        if (prompt.isEmpty()) {
-            showToast("请输入图像描述");
-            return null;
-        }
-
-        int width, height;
-        try {
-            width = Integer.parseInt(widthStr);
-            height = Integer.parseInt(heightStr);
-
-            if (width < 64 || width > 4096 || height < 64 || height > 4096) {
-                showToast("图像尺寸应在 64 ~ 4096 之间");
-                return null;
-            }
-        } catch (NumberFormatException e) {
-            showToast("请输入有效的尺寸");
-            return null;
-        }
-
-        Integer seed = null;
-        if (!seedStr.isEmpty()) {
-            try {
-                seed = Integer.parseInt(seedStr);
-            } catch (NumberFormatException e) {
-                showToast("种子必须是数字");
-                return null;
-            }
-        }
-
-        double upscaleFactor = 1.0;
-        if (!upscaleFactorStr.isEmpty()) {
-            try {
-                upscaleFactor = Double.parseDouble(upscaleFactorStr);
-                if (upscaleFactor < 1.0 || upscaleFactor > 4.0) {
-                    showToast("放大系数应在 1.0 ~ 4.0 之间");
-                    return null;
-                }
-            } catch (NumberFormatException e) {
-                showToast("放大系数必须是数字");
-                return null;
-            }
-        }
-
-        int step = 20;
-        if (!stepStr.isEmpty()) {
-            try {
-                step = Integer.parseInt(stepStr);
-            } catch (NumberFormatException e) {
-                showToast("种子必须是数字");
-                return null;
-            }
-        }
-
-        double cfg = 8.0;
-        if (!cfgStr.isEmpty()) {
-            try {
-                cfg = Double.parseDouble(cfgStr);
-                if (cfg < 0.1 || cfg > 100.0) {
-                    showToast("CFG应在 0.1 ~ 100.0 之间");
-                    return null;
-                }
-            } catch (NumberFormatException e) {
-                showToast("CFG必须是数字");
-                return null;
-            }
-        }
-
-        int seconds = 0;
-        if (parametersPopup.isVideoWorkflow()) {
-            if (!secondsStr.isEmpty()) {
-                try {
-                    seconds = Integer.parseInt(secondsStr);
-                    if (seconds < 1 || seconds > 8) {
-                        showToast("时长应在 1 ~ 8 之间");
-                        return null;
-                    }
-                } catch (NumberFormatException e) {
-                    showToast("时长必须是数字");
-                    return null;
-                }
-            }
-        }
-
-
-        // 创建参数对象
-        Parameters parameters = new Parameters(workflow, modelName, prompt, seed, width, height, step, cfg, upscaleFactor);
-        if (seconds != 0) {
-            parameters.setSeconds(seconds);
-        }
-
-        return parameters;
+        parametersPopup.setOnSubmitCallback(() -> enqueue(null));
+        parametersPopup.setOnDismissListener(() -> binding.tvPrompt.setText(Settings.getInstance().getPrompt("")));
     }
 
     private void enqueue(AbstractMessageModel model, double... upscale) {
         final SentMessageModel sentMessageModel;
         final QueueRequest request;
         if (model == null) {
-            Parameters parameters = newParameters();
+//            Parameters parameters = newParameters();
+            Parameters parameters = parametersPopup.getParameters();
             if (parameters == null) {
                 return;
             }
@@ -531,10 +409,6 @@ public class HomeFragment extends Fragment {
 
         // 发送请求
         mViewModel.enqueue(request, sentMessageModel);
-    }
-
-    private void showToast(String message) {
-        Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show();
     }
 
     private void updateBaseUrl() {

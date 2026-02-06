@@ -33,8 +33,8 @@
     </style>
 
     <style name="ParameterEditTextStyle">
-        <item name="android:textSize">14sp</item>
-        <item name="android:minHeight">28dp</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:minHeight">24dp</item>
         <item name="android:padding">10dp</item>
         <item name="android:background">@drawable/edittext_background</item>
     </style>

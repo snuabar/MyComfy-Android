@@ -169,7 +169,8 @@ public class ReceivedMessageModel extends MessageModel {
             jsonObject.putOpt("utcTimestamp", utcTimestamp);
             jsonObject.putOpt("interruptionFlag", interruptionFlag);
             if (imageSize != null) {
-                jsonObject.putOpt("imageSize", imageSize);
+                jsonObject.putOpt("imageSize.width", imageSize[0]);
+                jsonObject.putOpt("imageSize.height", imageSize[1]);
             }
         } catch (JSONException e) {
             Log.e(TAG, "toJson. Failed to execute putOpt.", e);
@@ -196,8 +197,11 @@ public class ReceivedMessageModel extends MessageModel {
         utcTimestamp = jsonObject.optLong("utcTimestamp");
         interruptionFlag = jsonObject.optBoolean("interruptionFlag");
         if (jsonObject.has("imageSize")) {
-            imageSize = (int[]) jsonObject.opt("imageSize");
-        } else {
+            imageSize = new int[2];
+            imageSize[0] = jsonObject.optInt("imageSize.width");
+            imageSize[1] = jsonObject.optInt("imageSize.height");
+        }
+        if (imageSize == null || imageSize.length < 2 || imageSize[0] == 0 || imageSize[1] == 0) {
             imageSize = refetchImageSize();
         }
     }

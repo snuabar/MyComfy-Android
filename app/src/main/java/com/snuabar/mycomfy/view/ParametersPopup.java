@@ -3,6 +3,7 @@ package com.snuabar.mycomfy.view;
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -12,17 +13,21 @@ import android.view.WindowManager;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.BaseAdapter;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.appcompat.content.res.AppCompatResources;
 
+import com.google.android.material.chip.Chip;
 import com.snuabar.mycomfy.R;
 import com.snuabar.mycomfy.client.ModelResponse;
+import com.snuabar.mycomfy.client.Parameters;
 import com.snuabar.mycomfy.client.RetrofitClient;
 import com.snuabar.mycomfy.client.WorkflowsResponse;
+import com.snuabar.mycomfy.common.Callbacks;
 import com.snuabar.mycomfy.databinding.LayoutParametersPopupWindowBinding;
 import com.snuabar.mycomfy.databinding.LayoutWorkflowItemBinding;
+import com.snuabar.mycomfy.main.data.prompt.PromptManager;
 import com.snuabar.mycomfy.setting.Settings;
 import com.snuabar.mycomfy.utils.ViewUtils;
 
@@ -35,7 +40,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Random;
+import java.util.Stack;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -56,28 +63,43 @@ public class ParametersPopup extends GeneralPopup {
     private JSONObject paramJsonObject = null;
     private String paramKey = null;
     private static final Random random = new Random();
+    private final Stack<String> undoList;
+    private OnSubmitCallback onSubmitCallback;
 
     public ParametersPopup(Context context) {
         super(context);
+        undoList = new Stack<>();
         binding = LayoutParametersPopupWindowBinding.inflate(LayoutInflater.from(context));
         setContentView(binding.getRoot());
-        setWidth(WindowManager.LayoutParams.WRAP_CONTENT);
-        setHeight(WindowManager.LayoutParams.WRAP_CONTENT);
-        setFocusable(true);
-        setBackgroundDrawable(AppCompatResources.getDrawable(context, R.drawable.popup_bg));
-        setElevation(8);
+        setWidth(WindowManager.LayoutParams.MATCH_PARENT);
+        setHeight(WindowManager.LayoutParams.MATCH_PARENT);
         retrofitClient = RetrofitClient.getInstance();
         // 设置按钮点击事件
         setupClickListeners();
         // 设置工作流控件
         setupAdapters();
         handler.post(this::loadWorkflows);
+
+        binding.switchPromptsPopup.setChecked(binding.promptEditText.getShowSuggestions());
+        binding.switchPromptsPopup.setOnCheckedChangeListener((buttonView, isChecked) ->
+                binding.promptEditText.setShowSuggestions(isChecked));
+        binding.chipGroupTranslation.setOnCheckedStateChangeListener((chipGroup, list) -> {
+            if (list.contains(R.id.chipEnZh)) {
+                binding.promptEditText.translatePromptToZH();
+            } else if (list.contains(R.id.chipZhEn)) {
+                binding.promptEditText.translatePromptToEN();
+            } else {
+                binding.promptEditText.translateNone();
+            }
+        });
+        PromptManager.Companion.getInstance().getAllCategories().forEach(c -> addChip(c.getName(), c.getDisplayName()));
+        loadPrompt();
     }
 
     @Override
     public void showAsDropDown(View anchor, int xoff, int yoff, int gravity) {
         // 手动测量和布局
-        ViewUtils.measure(getContentView(), 300);
+        ViewUtils.measure(getContentView(), Integer.MAX_VALUE);
         mAnchor = new WeakReference<>(anchor);
         super.showAsDropDown(anchor, 0, -anchor.getHeight() - getContentView().getMeasuredHeight(), Gravity.TOP | Gravity.START);
         binding.btnSwitchWH.setEnabled(false);
@@ -113,6 +135,17 @@ public class ParametersPopup extends GeneralPopup {
             int seed = Math.abs(random.nextInt());
             binding.etSeed.setText(String.valueOf(seed));
         });
+        binding.btnClose.setOnClickListener(v -> dismiss());
+        binding.btnSubmit.setOnClickListener(v -> {
+            dismiss();
+            if (onSubmitCallback != null) {
+                onSubmitCallback.apply();
+            }
+        });
+    }
+
+    public void setOnSubmitCallback(OnSubmitCallback callback) {
+        this.onSubmitCallback = callback;
     }
 
     public void randomSeed(boolean save) {
@@ -122,6 +155,34 @@ public class ParametersPopup extends GeneralPopup {
         if (save) {
             saveValues();
         }
+    }
+
+    private void loadPrompt() {
+        String text = Settings.getInstance().getPrompt(getContentView().getContext().getString(R.string.default_prompt));
+        binding.chipGroupTranslation.clearCheck();
+        undoList.clear();
+        binding.promptEditText.setText(text);
+        binding.promptEditText.requestFocus();
+        binding.promptEditText.setSelection(text.length());
+    }
+
+    private void addChip(String name, String displayName) {
+        Chip chip = new Chip(getContentView().getContext());
+        chip.setBackground(null);
+        chip.setText(displayName);
+        chip.setTag(name);
+        binding.chipGroup.addView(chip);
+        ViewGroup.LayoutParams layoutParams = chip.getLayoutParams();
+        layoutParams.width = ViewGroup.LayoutParams.WRAP_CONTENT;
+        layoutParams.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+        chip.setLayoutParams(layoutParams);
+        chip.setOnClickListener(this::onClipsClick);
+    }
+
+    private void onClipsClick(View v) {
+        String name = v.getTag().toString();
+        List<String> prompts = PromptManager.Companion.getInstance().getKeywordsByCategory(name);
+        binding.promptEditText.showPromptsAsDropDown(v, prompts);
     }
 
     private void switchWidthAndHeight() {
@@ -221,7 +282,7 @@ public class ParametersPopup extends GeneralPopup {
             return;
         }
 
-        binding.tableRowModels.setAlpha(modelTypes.isEmpty() ? 0.3f : 1.0f);
+        binding.layoutModels.setAlpha(modelTypes.isEmpty() ? 0.3f : 1.0f);
         binding.spinnerModels.setEnabled(!modelTypes.isEmpty());
         binding.btnLoadModels.setEnabled(!modelTypes.isEmpty());
 
@@ -327,6 +388,7 @@ public class ParametersPopup extends GeneralPopup {
     }
 
     private void saveValues() {
+        Settings.getInstance().setPrompt(binding.promptEditText.getText() == null ? "" : binding.promptEditText.getText().toString());
         JSONObject jsonObject = getParametersJSON();
         try {
             jsonObject.putOpt(Settings.KEY_PARAM_WIDTH, binding.etWidth.getText().toString());
@@ -363,13 +425,14 @@ public class ParametersPopup extends GeneralPopup {
         return WorkflowsResponse.Workflow.OUTPUT_VIDEO.equals(workflow.getOutputType());
     }
 
-    public String getParameter(@Settings.ParamKeys String key) {
+    @NonNull
+    private String getParameter(@Settings.ParamKeys String key) {
         if (Settings.KEY_PARAM_WORKFLOW.equals(key)) {
             return Settings.getInstance().getWorkflow("").trim();
         }
         if (Settings.KEY_PARAM_MODEL.equals(key)) {
             if (isModelAllowedEmpty()) {
-                return null;
+                return "";
             }
             return Settings.getInstance().getModelName("").trim();
         }
@@ -380,7 +443,133 @@ public class ParametersPopup extends GeneralPopup {
         } catch (JSONException e) {
             Log.e(TAG, "getParameter. Failed to execute getString.", e);
         }
-        return Settings.DefaultParamMap.get(key);
+        return Objects.requireNonNullElse(Settings.DefaultParamMap.get(key), "");
+    }
+
+    private void showToast(String message) {
+        Toast.makeText(getContentView().getContext(), message, Toast.LENGTH_SHORT).show();
+    }
+
+    public Parameters getParameters() {
+        String workflow = getParameter(Settings.KEY_PARAM_WORKFLOW);
+        String modelName = getParameter(Settings.KEY_PARAM_MODEL);
+        String prompt = binding.promptEditText.getText() == null ? "" : binding.promptEditText.getText().toString();
+        String widthStr = getParameter(Settings.KEY_PARAM_WIDTH);
+        String heightStr = getParameter(Settings.KEY_PARAM_HEIGHT);
+        String seedStr = getParameter(Settings.KEY_PARAM_SEED);
+        String upscaleFactorStr = getParameter(Settings.KEY_PARAM_UPSCALE_FACTOR);
+        String stepStr = getParameter(Settings.KEY_PARAM_STEP);
+        String cfgStr = getParameter(Settings.KEY_PARAM_CFG);
+        String secondsStr = getParameter(Settings.KEY_PARAM_SECONDS);
+
+        // 验证输入
+        if (workflow.isEmpty()) {
+            showToast("请选择工作流");
+            return null;
+        }
+
+        // 验证输入
+        if (TextUtils.isEmpty(modelName) && !isModelAllowedEmpty()) {
+            showToast("请选择模型");
+            return null;
+        }
+
+        // 验证输入
+        if (prompt.isEmpty()) {
+            showToast("请输入图像描述");
+            return null;
+        }
+
+        int width, height;
+        try {
+            width = Integer.parseInt(widthStr);
+            height = Integer.parseInt(heightStr);
+
+            if (width < 64 || width > 4096 || height < 64 || height > 4096) {
+                showToast("图像尺寸应在 64 ~ 4096 之间");
+                return null;
+            }
+        } catch (NumberFormatException e) {
+            showToast("请输入有效的尺寸");
+            return null;
+        }
+
+        Integer seed = null;
+        if (!seedStr.isEmpty()) {
+            try {
+                seed = Integer.parseInt(seedStr);
+            } catch (NumberFormatException e) {
+                showToast("种子必须是数字");
+                return null;
+            }
+        }
+
+        double upscaleFactor = 1.0;
+        if (!upscaleFactorStr.isEmpty()) {
+            try {
+                upscaleFactor = Double.parseDouble(upscaleFactorStr);
+                if (upscaleFactor < 1.0 || upscaleFactor > 4.0) {
+                    showToast("放大系数应在 1.0 ~ 4.0 之间");
+                    return null;
+                }
+            } catch (NumberFormatException e) {
+                showToast("放大系数必须是数字");
+                return null;
+            }
+        }
+
+        int step = 20;
+        if (!stepStr.isEmpty()) {
+            try {
+                step = Integer.parseInt(stepStr);
+            } catch (NumberFormatException e) {
+                showToast("种子必须是数字");
+                return null;
+            }
+        }
+
+        double cfg = 8.0;
+        if (!cfgStr.isEmpty()) {
+            try {
+                cfg = Double.parseDouble(cfgStr);
+                if (cfg < 0.1 || cfg > 100.0) {
+                    showToast("CFG应在 0.1 ~ 100.0 之间");
+                    return null;
+                }
+            } catch (NumberFormatException e) {
+                showToast("CFG必须是数字");
+                return null;
+            }
+        }
+
+        int seconds = 0;
+        if (isVideoWorkflow()) {
+            if (!secondsStr.isEmpty()) {
+                try {
+                    seconds = Integer.parseInt(secondsStr);
+                    if (seconds < 1 || seconds > 8) {
+                        showToast("时长应在 1 ~ 8 之间");
+                        return null;
+                    }
+                } catch (NumberFormatException e) {
+                    showToast("时长必须是数字");
+                    return null;
+                }
+            }
+        }
+
+        // 创建参数对象
+        Parameters parameters = new Parameters(workflow, modelName, prompt, seed, width, height, step, cfg, upscaleFactor);
+        if (seconds != 0) {
+            parameters.setSeconds(seconds);
+        }
+
+        return parameters;
+    }
+
+    public interface OnSubmitCallback extends Callbacks.Callback {
+        @Override
+        void apply();
     }
 
     private class WorkflowAdapter extends BaseAdapter {
