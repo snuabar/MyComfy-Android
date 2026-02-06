@@ -41,4 +41,14 @@
 
     <style name="ParameterSpinnerStyle">
     </style>
+    <style name="Widget.MyApp.AutoHideFAB" parent="Widget.MaterialComponents.ExtendedFloatingActionButton">
+<!--        <item name="backgroundTint">?attr/colorPrimary</item>-->
+        <item name="tint">@null</item>
+        <item name="rippleColor">?attr/colorOnPrimary</item>
+        <item name="elevation">8dp</item>
+        <item name="fabSize">normal</item>
+        <item name="idleTimeout">3000</item>
+        <item name="hideAlpha">0.3</item>
+        <item name="draggable">true</item>
+    </style>
 </resources>

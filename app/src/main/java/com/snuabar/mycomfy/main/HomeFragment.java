@@ -83,7 +83,7 @@ public class HomeFragment extends Fragment {
         super.onCreate(savedInstanceState);
         mViewModel = new ViewModelProvider(requireActivity()).get(MainViewModel.class);
         filePicker = mViewModel.getFilePicker();
-        parametersPopup = new ParametersPopup(requireContext());
+        parametersPopup = new ParametersPopup(requireContext(), parameterPopupDataRequirer);
 //        promptEditPopup = new PromptEditPopup(requireContext(), onPromptChangeListener);
 
         pgsDlg.show(getChildFragmentManager());
@@ -146,6 +146,8 @@ public class HomeFragment extends Fragment {
                 messageAdapter.notifyItemChanged(state.index);
             }
         });
+        mViewModel.getWorkflowsLiveData().observe(getViewLifecycleOwner(), parametersPopup::setWorkflows);
+        mViewModel.getModelsLiveData().observe(getViewLifecycleOwner(), parametersPopup::setModels);
     }
 
     @Override
@@ -172,6 +174,17 @@ public class HomeFragment extends Fragment {
         }
     }
 
+    private final ParametersPopup.DataRequirer parameterPopupDataRequirer = new ParametersPopup.DataRequirer() {
+        @Override
+        public void loadWorkflows() {
+            mViewModel.loadWorkflows();
+        }
+
+        @Override
+        public void loadModels(@NonNull List<String> modelTypes) {
+            mViewModel.loadModels(modelTypes);
+        }
+    };
 //    private final PromptEditPopup.OnPromptChangeListener onPromptChangeListener = prompt ->
 //            binding.tvPrompt.setText(prompt);
 
@@ -353,18 +366,28 @@ public class HomeFragment extends Fragment {
     }
 
     private void initViews() {
-        binding.tvPrompt.setText(Settings.getInstance().getPrompt(""));
+//        binding.tvPrompt.setText(Settings.getInstance().getPrompt(""));
     }
 
     private void setupListeners() {
-        // 提示词
-        binding.tvPrompt.setOnClickListener(v -> parametersPopup.showAsDropDown(v));
-        // 生成图像按钮
-        binding.btnSubmit.setOnClickListener(v -> parametersPopup.showAsDropDown(v));
-        // 更改参数按扭
-        binding.btnParam.setOnClickListener(v -> parametersPopup.showAsDropDown(v));
+//        // 提示词
+//        binding.tvPrompt.setOnClickListener(v -> parametersPopup.showAsDropDown(v));
+//        // 生成图像按钮
+//        binding.btnSubmit.setOnClickListener(v -> parametersPopup.showAsDropDown(v));
+//        // 更改参数按扭
+//        binding.btnParam.setOnClickListener(v -> parametersPopup.showAsDropDown(v));
+        binding.fab.setOnClickListener(v -> parametersPopup.showAsDropDown(v));
         parametersPopup.setOnSubmitCallback(() -> enqueue(null));
-        parametersPopup.setOnDismissListener(() -> binding.tvPrompt.setText(Settings.getInstance().getPrompt("")));
+//        parametersPopup.setOnDismissListener(() -> binding.tvPrompt.setText(Settings.getInstance().getPrompt("")));
+        binding.fab.setOnPositionChangedListener((x, y) -> {
+
+            return null;
+        });
+        binding.fab.setLongClickable(true);
+        binding.fab.setOnLongClickListener(v -> {
+            parametersPopup.randomSeed(true);
+            return true;
+        });
     }
 
     private void enqueue(AbstractMessageModel model, double... upscale) {
@@ -417,7 +440,7 @@ public class HomeFragment extends Fragment {
         // 更新Base URL
         RetrofitClient.getInstance().setBaseUrl(ip, port);
 
-        parametersPopup.loadWorkflows();
+        mViewModel.loadWorkflows();
     }
 
     private void doDelete() {

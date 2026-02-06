@@ -3,4 +3,13 @@
         <attr name="fullscreenBackgroundColor" format="color" />
         <attr name="fullscreenTextColor" format="color" />
     </declare-styleable>
+
+    <declare-styleable name="AutoHideDraggableFAB">
+        <!-- 空闲超时时间（毫秒） -->
+        <attr name="idleTimeout" format="integer" />
+        <!-- 隐藏时的透明度（0.1-1.0） -->
+        <attr name="hideAlpha" format="float" />
+        <!-- 是否可拖动 -->
+        <attr name="draggable" format="boolean" />
+    </declare-styleable>
 </resources>

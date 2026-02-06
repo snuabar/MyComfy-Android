@@ -20,9 +20,7 @@ import androidx.annotation.Nullable;
 
 import com.google.android.material.chip.Chip;
 import com.snuabar.mycomfy.R;
-import com.snuabar.mycomfy.client.ModelResponse;
 import com.snuabar.mycomfy.client.Parameters;
-import com.snuabar.mycomfy.client.RetrofitClient;
 import com.snuabar.mycomfy.client.WorkflowsResponse;
 import com.snuabar.mycomfy.common.Callbacks;
 import com.snuabar.mycomfy.databinding.LayoutParametersPopupWindowBinding;
@@ -44,17 +42,12 @@ import java.util.Objects;
 import java.util.Random;
 import java.util.Stack;
 
-import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
-
 public class ParametersPopup extends GeneralPopup {
 
     private final static String TAG = ParametersPopup.class.getName();
 
     private WeakReference<View> mAnchor;
     private final LayoutParametersPopupWindowBinding binding;
-    private final RetrofitClient retrofitClient;
     private final Map<String, WorkflowsResponse.Workflow> workflows = new HashMap<>();
     private final List<String> models = new ArrayList<>();
     private WorkflowAdapter workflowAdapter;
@@ -65,15 +58,16 @@ public class ParametersPopup extends GeneralPopup {
     private static final Random random = new Random();
     private final Stack<String> undoList;
     private OnSubmitCallback onSubmitCallback;
+    private final DataRequirer dataRequirer;
 
-    public ParametersPopup(Context context) {
+    public ParametersPopup(Context context, DataRequirer dataRequirer) {
         super(context);
+        this.dataRequirer = dataRequirer;
         undoList = new Stack<>();
         binding = LayoutParametersPopupWindowBinding.inflate(LayoutInflater.from(context));
         setContentView(binding.getRoot());
         setWidth(WindowManager.LayoutParams.MATCH_PARENT);
         setHeight(WindowManager.LayoutParams.MATCH_PARENT);
-        retrofitClient = RetrofitClient.getInstance();
         // 设置按钮点击事件
         setupClickListeners();
         // 设置工作流控件
@@ -225,40 +219,26 @@ public class ParametersPopup extends GeneralPopup {
         });
     }
 
-    public void loadWorkflows() {
-        // 发送请求
-        retrofitClient.getApiService().loadWorkflow().enqueue(new Callback<>() {
-            @Override
-            public void onResponse(@NonNull Call<WorkflowsResponse> call, @NonNull Response<WorkflowsResponse> response) {
-                if (response.isSuccessful() && response.body() != null) {
-                    WorkflowsResponse workflowsResponse = response.body();
-                    workflows.clear();
-                    workflows.putAll(workflowsResponse.getWorkflows());
-                    handler.post(() -> {
-                        List<String> workflowNames = new ArrayList<>(workflows.keySet());
-                        workflowAdapter.clear();
-                        workflowAdapter.addAll(workflowNames);
-                        String selectedWorkflow = Settings.getInstance().getWorkflow(null);
-                        int index = workflowNames.indexOf(selectedWorkflow);
-                        if (index < 0 || index >= workflows.size()) {
-                            index = 0;
-                            String workflowName = workflows.isEmpty() ? "" : workflowNames.get(index);
-                            Settings.getInstance().edit().setWorkflow(workflowName).apply();
-                        }
-                        binding.spinnerWorkflow.setSelection(index);
+    private void loadWorkflows() {
+        dataRequirer.loadWorkflows();
+    }
 
-                        loadModels();
-                    });
-                } else {
-                    Log.e(TAG, "请求失败，状态码: " + response.code());
-                }
-            }
+    public void setWorkflows(Map<String, WorkflowsResponse.Workflow> workflowList) {
+        workflows.clear();
+        workflows.putAll(workflowList);
+        List<String> workflowNames = new ArrayList<>(workflows.keySet());
+        workflowAdapter.clear();
+        workflowAdapter.addAll(workflowNames);
+        String selectedWorkflow = Settings.getInstance().getWorkflow(null);
+        int index = workflowNames.indexOf(selectedWorkflow);
+        if (index < 0 || index >= workflows.size()) {
+            index = 0;
+            String workflowName = workflows.isEmpty() ? "" : workflowNames.get(index);
+            Settings.getInstance().edit().setWorkflow(workflowName).apply();
+        }
+        binding.spinnerWorkflow.setSelection(index);
 
-            @Override
-            public void onFailure(@NonNull Call<WorkflowsResponse> call, @NonNull Throwable t) {
-                Log.e(TAG, "请求失败。" + t.getMessage(), t);
-            }
-        });
+        loadModels();
     }
 
     private void loadModels() {
@@ -291,41 +271,37 @@ public class ParametersPopup extends GeneralPopup {
             return;
         }
 
-        Log.i(TAG, "发送请求: 加载模型列表。");
-        for (String modelType : modelTypes) {
-            // 发送请求
-            retrofitClient.getApiService().loadModels(modelType).enqueue(new Callback<>() {
-                @Override
-                public void onResponse(@NonNull Call<ModelResponse> call, @NonNull Response<ModelResponse> response) {
-                    if (response.isSuccessful() && response.body() != null) {
-                        ModelResponse modelResponse = response.body();
-                        models.clear();
-                        models.addAll(modelResponse.getModels());
-                        models.removeIf(m -> workflow.getExcludeModels().stream().anyMatch(m::contains));
-                        handler.post(() -> {
-                            modelAdapter.clear();
-                            modelAdapter.addAll(models);
-                            String selectedModel = Settings.getInstance().getModelName(null);
-                            int index = models.indexOf(selectedModel);
-                            if (index < 0 || index >= models.size()) {
-                                index = 0;
-                                String modeName = models.isEmpty() ? "" : models.get(index);
-                                Settings.getInstance().edit().setModelName(modeName).apply();
-                            }
-                            binding.spinnerModels.setSelection(index);
-                            loadValues();
-                        });
-                    } else {
-                        Log.e(TAG, "请求失败，状态码: " + response.code());
-                    }
-                }
+        dataRequirer.loadModels(modelTypes);
+    }
 
-                @Override
-                public void onFailure(@NonNull Call<ModelResponse> call, @NonNull Throwable t) {
-                    Log.e(TAG, "请求失败: " + t.getMessage());
-                }
-            });
+    public void setModels(List<String> modelNames) {
+        String selectedWorkflow = binding.spinnerWorkflow.getSelectedItem().toString();
+        WorkflowsResponse.Workflow workflow = workflows.get(selectedWorkflow);
+        if (workflow == null) {
+            loadValues();
+            return;
         }
+
+        List<String> modelTypes = workflow.getModelTypes();
+        if (modelTypes == null) {
+            loadValues();
+            return;
+        }
+
+        models.clear();
+        models.addAll(modelNames);
+        models.removeIf(m -> workflow.getExcludeModels().stream().anyMatch(m::contains));
+        modelAdapter.clear();
+        modelAdapter.addAll(models);
+        String selectedModel = Settings.getInstance().getModelName(null);
+        int index = models.indexOf(selectedModel);
+        if (index < 0 || index >= models.size()) {
+            index = 0;
+            String modeName = models.isEmpty() ? "" : models.get(index);
+            Settings.getInstance().edit().setModelName(modeName).apply();
+        }
+        binding.spinnerModels.setSelection(index);
+        loadValues();
     }
 
     private String getParametersSettingKey() {
@@ -406,7 +382,7 @@ public class ParametersPopup extends GeneralPopup {
         }
     }
 
-    public boolean isModelAllowedEmpty() {
+    private boolean isModelAllowedEmpty() {
         String selectedWorkflow = Settings.getInstance().getWorkflow("");
         WorkflowsResponse.Workflow workflow = workflows.get(selectedWorkflow);
         if (workflow == null) {
@@ -628,5 +604,10 @@ public class ParametersPopup extends GeneralPopup {
             items.addAll(workflowNames);
             notifyDataSetChanged();
         }
+    }
+
+    public interface DataRequirer {
+        void loadWorkflows();
+        void loadModels(@NonNull List<String> modelTypes);
     }
 }

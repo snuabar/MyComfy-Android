@@ -8,8 +8,16 @@
     android:fitsSystemWindows="true"
     tools:context=".main.MainActivity">
 
+    <androidx.viewpager2.widget.ViewPager2
+        android:id="@+id/viewPager2"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"/>
+
     <com.google.android.material.tabs.TabLayout
         android:id="@+id/tabLayout"
+        app:tabIndicatorGravity="top"
+        android:elevation="8dp"
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
@@ -24,11 +32,5 @@
             android:text="历史" />
 
     </com.google.android.material.tabs.TabLayout>
-
-    <androidx.viewpager2.widget.ViewPager2
-        android:id="@+id/viewPager2"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"/>
 
 </LinearLayout>
