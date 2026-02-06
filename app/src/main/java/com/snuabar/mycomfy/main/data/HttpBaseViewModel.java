@@ -14,8 +14,10 @@ import androidx.lifecycle.ViewModel;
 import com.snuabar.mycomfy.client.EnqueueResponse;
 import com.snuabar.mycomfy.client.ImageResponse;
 import com.snuabar.mycomfy.client.InterruptRequest;
+import com.snuabar.mycomfy.client.ModelResponse;
 import com.snuabar.mycomfy.client.QueueRequest;
 import com.snuabar.mycomfy.client.RetrofitClient;
+import com.snuabar.mycomfy.client.WorkflowsResponse;
 import com.snuabar.mycomfy.common.Callbacks;
 import com.snuabar.mycomfy.main.model.MessageModel;
 import com.snuabar.mycomfy.main.model.ReceivedMessageModel;
@@ -54,6 +56,8 @@ public class HttpBaseViewModel extends ViewModel {
     private final DataIO dataIO;
     private boolean isPromptCheckExecutorStop = false;
     private final MutableLiveData<MessageModelState> messageModelStateLiveData;
+    private final MutableLiveData<Map<String, WorkflowsResponse.Workflow>> workflowsLiveData;
+    private final MutableLiveData<List<String>> modelsLiveData;
 
     private final RetrofitClient retrofitClient;
 
@@ -61,6 +65,8 @@ public class HttpBaseViewModel extends ViewModel {
         messageModels = new ArrayList<>();
         messageModelsLiveData = new MutableLiveData<>();
         messageModelStateLiveData = new MutableLiveData<>();
+        workflowsLiveData = new MutableLiveData<>();
+        modelsLiveData = new MutableLiveData<>();
 
         // 初始化Retrofit客户端
         retrofitClient = RetrofitClient.getInstance();
@@ -102,6 +108,13 @@ public class HttpBaseViewModel extends ViewModel {
         messageModelsLiveData.observe(owner, observer);
     }
 
+    public LiveData<Map<String, WorkflowsResponse.Workflow>> getWorkflowsLiveData() {
+        return workflowsLiveData;
+    }
+
+    public LiveData<List<String>> getModelsLiveData() {
+        return modelsLiveData;
+    }
 
     private final Map<String, Integer> modelIdToIndexMap = new HashMap<>();
 
@@ -334,4 +347,48 @@ public class HttpBaseViewModel extends ViewModel {
             Log.i(TAG, newLog);
         }
     }
+
+    public void loadWorkflows() {
+        // 发送请求
+        retrofitClient.getApiService().loadWorkflow().enqueue(new Callback<>() {
+            @Override
+            public void onResponse(@NonNull Call<WorkflowsResponse> call, @NonNull Response<WorkflowsResponse> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    WorkflowsResponse workflowsResponse = response.body();
+                    workflowsLiveData.postValue(workflowsResponse.getWorkflows());
+                } else {
+                    Log.e(TAG, "请求失败，状态码: " + response.code());
+                }
+            }
+
+            @Override
+            public void onFailure(@NonNull Call<WorkflowsResponse> call, @NonNull Throwable t) {
+                Log.e(TAG, "请求失败。" + t.getMessage(), t);
+            }
+        });
+    }
+
+    public void loadModels(@NonNull List<String> modelTypes) {
+        Log.i(TAG, "发送请求: 加载模型列表。");
+        for (String modelType : modelTypes) {
+            // 发送请求
+            retrofitClient.getApiService().loadModels(modelType).enqueue(new Callback<>() {
+                @Override
+                public void onResponse(@NonNull Call<ModelResponse> call, @NonNull Response<ModelResponse> response) {
+                    if (response.isSuccessful() && response.body() != null) {
+                        ModelResponse modelResponse = response.body();
+                        modelsLiveData.postValue(modelResponse.getModels());
+                    } else {
+                        Log.e(TAG, "请求失败，状态码: " + response.code());
+                    }
+                }
+
+                @Override
+                public void onFailure(@NonNull Call<ModelResponse> call, @NonNull Throwable t) {
+                    Log.e(TAG, "请求失败: " + t.getMessage());
+                }
+            });
+        }
+    }
+
 }
