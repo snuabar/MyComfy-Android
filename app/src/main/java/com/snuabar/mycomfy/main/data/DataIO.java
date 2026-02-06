@@ -4,7 +4,14 @@ import android.content.Context;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
+import com.snuabar.mycomfy.main.model.ReceivedMessageModel;
+import com.snuabar.mycomfy.main.model.ReceivedVideoMessageModel;
+import com.snuabar.mycomfy.main.model.SentMessageModel;
+import com.snuabar.mycomfy.main.model.SentVideoMessageModel;
+import com.snuabar.mycomfy.main.model.UpscaleReceivedMessageModel;
+import com.snuabar.mycomfy.main.model.UpscaleSentMessageModel;
 import com.snuabar.mycomfy.utils.FileOperator;
 import com.snuabar.mycomfy.utils.ImageUtils;
 import com.snuabar.mycomfy.utils.TextCompressor;
@@ -26,6 +33,7 @@ import java.util.Locale;
 public class DataIO {
 
     private static final String TAG = DataIO.class.getName();
+    private final static String CLASS_IDENTITY_KEY = "class.identify.key.to.create.class.from.json";
 
     private static final String PREFIX = "MyComfy_";
     private static final String MSG_EXT = ".msg";
@@ -151,6 +159,11 @@ public class DataIO {
 
         JSONObject jsonObject = model.toJson();
         if (jsonObject != null) {
+            try {
+                jsonObject.putOpt(CLASS_IDENTITY_KEY, model.getClass().getName());
+            } catch (JSONException e) {
+                Log.e(TAG, "writeModelFile: failed to execute putOpt.");
+            }
             String jsonStr = jsonObject.toString();
             byte[] bytes = TextCompressor.INSTANCE.compress(jsonStr);
             try (FileOutputStream fos = new FileOutputStream(modelFile)) {
@@ -160,15 +173,6 @@ public class DataIO {
                 Log.e(TAG, "writeModelFile: failed to output model.");
                 return model;
             }
-
-//            // 更新缓存列表
-//            int index = getIndexWithId(model.getId());
-//            if (index == -1) {
-//                MessageModels.add(readModelFile(modelFile));
-//                refreshIdToIndexMap();
-//            } else {
-//                MessageModels.set(index, readModelFile(modelFile));
-//            }
         }
 
         return readModelFile(modelFile);
@@ -180,9 +184,35 @@ public class DataIO {
                 byte[] bytes = Files.readAllBytes(modelFile.toPath());
                 String jsonStr = TextCompressor.INSTANCE.decompress(bytes);
                 JSONObject jsonObject = new JSONObject(jsonStr);
-                return AbstractMessageModel.Create(jsonObject);
+                return createModel(jsonObject);
             } catch (IOException | JSONException e) {
                 Log.e(TAG, "readModelFile: failed to read model.");
+            }
+        }
+        return null;
+    }
+
+    @Nullable
+    private AbstractMessageModel createModel(JSONObject jsonObject) {
+        if (jsonObject != null && jsonObject.has(CLASS_IDENTITY_KEY)) {
+            String className = jsonObject.optString(CLASS_IDENTITY_KEY, null);
+            if (ReceivedMessageModel.class.getName().equals(className)) {
+                return new ReceivedMessageModel(jsonObject);
+            }
+            if (UpscaleReceivedMessageModel.class.getName().equals(className)) {
+                return new UpscaleReceivedMessageModel(jsonObject);
+            }
+            if (ReceivedVideoMessageModel.class.getName().equals(className)) {
+                return new ReceivedVideoMessageModel(jsonObject);
+            }
+            if (SentMessageModel.class.getName().equals(className)) {
+                return new SentMessageModel(jsonObject);
+            }
+            if (UpscaleSentMessageModel.class.getName().equals(className)) {
+                return new UpscaleSentMessageModel(jsonObject);
+            }
+            if (SentVideoMessageModel.class.getName().equals(className)) {
+                return new SentVideoMessageModel(jsonObject);
             }
         }
         return null;

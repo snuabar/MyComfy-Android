@@ -62,7 +62,7 @@ public class HistoryFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         binding = FragmentHistoryBinding.inflate(inflater, container, false);
-        binding.list.setAdapter(new HistoryAdapter(requireContext(), messageModels, this::onItemClick));
+        binding.list.setAdapter(new HistoryAdapter(requireContext(), this::onItemClick));
         return binding.getRoot();
     }
 
@@ -144,7 +144,7 @@ public class HistoryFragment extends Fragment {
         if (binding.list.getAdapter() != null) {
             messageModels.clear();
             messageModels.addAll(models);
-            binding.list.getAdapter().notifyDataSetChanged();
+            ((HistoryAdapter) binding.list.getAdapter()).setValues(messageModels);
         }
     }
 

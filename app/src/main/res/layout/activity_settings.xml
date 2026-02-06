@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fitsSystemWindows="true">
+    android:fitsSystemWindows="true"
+    tools:context=".setting.SettingsActivity">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -29,7 +31,9 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:stretchColumns="1,2">
+
                 <TableRow>
+
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -41,16 +45,17 @@
                         android:id="@+id/et_ip_address"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:hint="IP地址"
+                        android:layout_span="3"
                         android:background="@drawable/edittext_background"
+                        android:hint="IP地址"
                         android:inputType="text"
                         android:maxLines="1"
-                        android:layout_span="3"
                         android:padding="8dp"
                         android:textSize="16sp" />
                 </TableRow>
 
                 <TableRow>
+
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -62,12 +67,12 @@
                         android:id="@+id/et_port"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:hint="端口"
+                        android:layout_span="2"
                         android:background="@drawable/edittext_background"
+                        android:hint="端口"
                         android:inputType="number"
                         android:maxLines="1"
                         android:padding="8dp"
-                        android:layout_span="2"
                         android:textSize="16sp" />
 
                     <!-- 测试连接按钮 -->
@@ -76,7 +81,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="6dp"
-                        android:text="测试连接"/>
+                        android:text="测试连接" />
 
                 </TableRow>
             </TableLayout>
@@ -88,11 +93,16 @@
 
         </LinearLayout>
 
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginVertical="20dp"
+            android:background="@drawable/oval_horizontal_gradient_light_gray" />
+
         <!-- 导入导出标题 -->
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
             android:layout_marginBottom="2dp"
             android:text="导入导出"
             android:textSize="11sp"
@@ -101,8 +111,8 @@
         <TableLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
             android:layout_marginHorizontal="6dp"
+            android:orientation="horizontal"
             android:stretchColumns="0,1">
 
             <TableRow>
@@ -119,6 +129,39 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="导出" />
+            </TableRow>
+
+        </TableLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginVertical="20dp"
+            android:background="@drawable/oval_horizontal_gradient_light_gray" />
+
+        <!-- 重建缩略图标题 -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="2dp"
+            android:text="重建缩略图"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <TableLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="6dp"
+            android:orientation="horizontal"
+            android:stretchColumns="0,1">
+
+            <TableRow>
+
+                <Button
+                    android:id="@+id/btnRebuildThumbnails"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="重建缩略图" />
             </TableRow>
 
         </TableLayout>

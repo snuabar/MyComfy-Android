@@ -40,6 +40,7 @@ public class Settings {
     );
 
     public static final String KEY_DATA_IMPORTED = "data_imported";
+    public static final String KEY_PROMPT = "prompt";
 
     private final SharedPreferences preferences;
 
@@ -85,6 +86,14 @@ public class Settings {
 
     public boolean getBoolean(String key, boolean defValue) {
         return preferences.getBoolean(key, defValue);
+    }
+
+    public String getPrompt(String defValue) {
+        return preferences.getString(KEY_PROMPT, defValue);
+    }
+
+    public void setPrompt(String prompt) {
+        edit().putString(KEY_PROMPT, prompt).apply();
     }
 
     public void setDataImportedState() {

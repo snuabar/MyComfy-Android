@@ -136,6 +136,11 @@ public class MessageModel extends AbstractMessageModel {
     }
 
     @Override
+    public int[] getImageSize() {
+        return new int[]{0, 0};
+    }
+
+    @Override
     public JSONObject toJson() {
         JSONObject jsonObject = super.toJson();
         try {

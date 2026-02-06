@@ -4,12 +4,15 @@ import android.text.TextUtils;
 import android.util.Log;
 
 import com.snuabar.mycomfy.client.EnqueueResponse;
+import com.snuabar.mycomfy.utils.ImageUtils;
+import com.snuabar.mycomfy.utils.VideoUtils;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.File;
 import java.time.Clock;
+import java.util.Arrays;
 import java.util.Objects;
 
 public class ReceivedMessageModel extends MessageModel {
@@ -21,6 +24,7 @@ public class ReceivedMessageModel extends MessageModel {
     private File thumbnailFile;
     private long utcTimestamp = 0;
     private boolean interruptionFlag = false;
+    private int[] imageSize;
 
     public ReceivedMessageModel(EnqueueResponse response) {
         super();
@@ -95,7 +99,10 @@ public class ReceivedMessageModel extends MessageModel {
     @Override
     public void setFinished(File imageFile, int code, String message) {
         utcTimestamp = Clock.systemUTC().millis();
-        this.imageFile = imageFile;
+        if (!Objects.equals(this.imageFile, imageFile)) {
+            this.imageFile = imageFile;
+            refetchImageSize();
+        }
         setCode(code);
         setMessage(message);
     }
@@ -130,6 +137,23 @@ public class ReceivedMessageModel extends MessageModel {
     }
 
     @Override
+    public int[] getImageSize() {
+        return imageSize == null ? refetchImageSize() : imageSize;
+    }
+
+    private int[] refetchImageSize() {
+        if (this.imageFile != null && this.imageFile.exists()) {
+            if (isVideo()) {
+                VideoUtils.VideoSize videoSize = VideoUtils.INSTANCE.getVideoSize(this.imageFile);
+                imageSize = new int[]{videoSize.getWidth(), videoSize.getHeight()};
+            } else {
+                imageSize = ImageUtils.getImageSize(this.imageFile);
+            }
+        }
+        return imageSize;
+    }
+
+    @Override
     public JSONObject toJson() {
         JSONObject jsonObject = super.toJson();
         try {
@@ -144,6 +168,10 @@ public class ReceivedMessageModel extends MessageModel {
             }
             jsonObject.putOpt("utcTimestamp", utcTimestamp);
             jsonObject.putOpt("interruptionFlag", interruptionFlag);
+            if (imageSize != null) {
+                jsonObject.putOpt("imageSize.width", imageSize[0]);
+                jsonObject.putOpt("imageSize.height", imageSize[1]);
+            }
         } catch (JSONException e) {
             Log.e(TAG, "toJson. Failed to execute putOpt.", e);
         }
@@ -168,6 +196,14 @@ public class ReceivedMessageModel extends MessageModel {
         }
         utcTimestamp = jsonObject.optLong("utcTimestamp");
         interruptionFlag = jsonObject.optBoolean("interruptionFlag");
+        if (jsonObject.has("imageSize")) {
+            imageSize = new int[2];
+            imageSize[0] = jsonObject.optInt("imageSize.width");
+            imageSize[1] = jsonObject.optInt("imageSize.height");
+        }
+        if (imageSize == null || imageSize.length < 2 || imageSize[0] == 0 || imageSize[1] == 0) {
+            imageSize = refetchImageSize();
+        }
     }
 
     @Override
@@ -175,11 +211,11 @@ public class ReceivedMessageModel extends MessageModel {
         if (o == null || getClass() != o.getClass()) return false;
         if (!super.equals(o)) return false;
         ReceivedMessageModel that = (ReceivedMessageModel) o;
-        return utcTimestamp == that.utcTimestamp && interruptionFlag == that.interruptionFlag && Objects.equals(response, that.response) && Objects.equals(imageFile, that.imageFile) && Objects.equals(thumbnailFile, that.thumbnailFile);
+        return utcTimestamp == that.utcTimestamp && interruptionFlag == that.interruptionFlag && Objects.equals(response, that.response) && Objects.equals(imageFile, that.imageFile) && Objects.equals(thumbnailFile, that.thumbnailFile) && Objects.deepEquals(imageSize, that.imageSize);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(super.hashCode(), response, imageFile, thumbnailFile, utcTimestamp, interruptionFlag);
+        return Objects.hash(super.hashCode(), response, imageFile, thumbnailFile, utcTimestamp, interruptionFlag, Arrays.hashCode(imageSize));
     }
 }

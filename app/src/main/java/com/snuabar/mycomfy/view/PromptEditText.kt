@@ -38,7 +38,7 @@ class PromptEditText @JvmOverloads constructor(
                 popupWindow?.dismiss()
             }
         }
-    private var untranslatedText: Editable? = null
+    private var untranslatedText: String? = null
 
     init {
         val inflater = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
@@ -51,7 +51,7 @@ class PromptEditText @JvmOverloads constructor(
         addTextChangedListener(object : android.text.TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-            override fun afterTextChanged(s: android.text.Editable?) {
+            override fun afterTextChanged(s: Editable?) {
                 handleTextChanged(s?.toString() ?: "")
             }
         })
@@ -76,7 +76,7 @@ class PromptEditText @JvmOverloads constructor(
             // 设置背景，让PopupWindow可以响应外部点击
             setBackgroundDrawable (AppCompatResources.getDrawable(
                 context,
-                R.drawable.parameters_popup_bg
+                R.drawable.popup_bg
             ))
             isOutsideTouchable = true
             elevation = 8.0f
@@ -181,6 +181,33 @@ class PromptEditText @JvmOverloads constructor(
         }
     }
 
+    fun showPromptsAsDropDown(anchor: View, prompts: List<String>) {
+        if (prompts.isEmpty()) {
+            return
+        }
+
+        directlyInsert = true
+
+        measurePopupWindowSize()
+
+        // 使PopupWindow出现在光标下方
+        val x = 0
+        val y = 0
+
+//        popupWindow?.isOutsideTouchable = true
+        if (popupWindow?.isShowing == true) {
+            popupWindow?.update(anchor, x, y, -1, -1)
+        } else {
+            popupWindow?.showAsDropDown(anchor, x, y);
+        }
+
+        post {
+            suggestionAdapter?.clear()
+            suggestionAdapter?.addAll(prompts)
+            suggestionAdapter?.notifyDataSetChanged()
+        }
+    }
+
     private fun insertSuggestion(suggestion: String) {
         val text = this.text.toString()
         val cursorPosition = selectionStart
@@ -230,13 +257,31 @@ class PromptEditText @JvmOverloads constructor(
         popupWindow?.dismiss()
     }
 
-    fun translateToEN() {
-        untranslatedText = text
-        val list = text?.split(',')
+    fun translatePromptToZH() {
+        if (untranslatedText == null) {
+            untranslatedText = text.toString()
+        }
+        val list = untranslatedText?.split(',', '，', '.', '。')
         if (list != null) {
-            AdvancedTranslator.getInstance()?.translateBatch(list, "zh", "en") {
+            AdvancedTranslator.getInstance()?.translateBatchToZhAuto(list) {
+                if (it != null) {
+                    setText(it.joinToString("，").lowercase())
+                    setSelection(text?.length ?: 0)
+                }
+            }
+        }
+    }
+
+    fun translatePromptToEN() {
+        if (untranslatedText == null) {
+            untranslatedText = text.toString()
+        }
+        val list = untranslatedText?.split(',', '，', '.', '。')
+        if (list != null) {
+            AdvancedTranslator.getInstance()?.translateBatchToEnAuto(list) {
                 if (it != null) {
                     setText(it.joinToString(",").lowercase())
+                    setSelection(text?.length ?: 0)
                 }
             }
         }
@@ -244,6 +289,8 @@ class PromptEditText @JvmOverloads constructor(
 
     fun translateNone() {
         setText(untranslatedText)
+        setSelection(text?.length ?: 0)
+        untranslatedText = null;
     }
 
     private class SuggestionAdapter(context: Context) :
