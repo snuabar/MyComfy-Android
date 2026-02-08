@@ -12,19 +12,23 @@ import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModel;
 
 import com.snuabar.mycomfy.client.EnqueueResponse;
-import com.snuabar.mycomfy.client.ImageResponse;
+import com.snuabar.mycomfy.client.FileSearchResponse;
+import com.snuabar.mycomfy.client.JobResponse;
 import com.snuabar.mycomfy.client.InterruptRequest;
 import com.snuabar.mycomfy.client.ModelResponse;
 import com.snuabar.mycomfy.client.QueueRequest;
 import com.snuabar.mycomfy.client.RetrofitClient;
+import com.snuabar.mycomfy.client.UploadResponse;
 import com.snuabar.mycomfy.client.WorkflowsResponse;
 import com.snuabar.mycomfy.common.Callbacks;
+import com.snuabar.mycomfy.main.model.I2IReceivedMessageModel;
 import com.snuabar.mycomfy.main.model.MessageModel;
 import com.snuabar.mycomfy.main.model.ReceivedMessageModel;
 import com.snuabar.mycomfy.main.model.ReceivedVideoMessageModel;
 import com.snuabar.mycomfy.main.model.SentMessageModel;
 import com.snuabar.mycomfy.main.model.UpscaleReceivedMessageModel;
 import com.snuabar.mycomfy.main.model.UpscaleSentMessageModel;
+import com.snuabar.mycomfy.utils.ImageHashCalculator;
 import com.snuabar.mycomfy.utils.ThumbnailCacheManager;
 
 import java.io.File;
@@ -52,7 +56,7 @@ public class HttpBaseViewModel extends ViewModel {
     private final MutableLiveData<List<AbstractMessageModel>> messageModelsLiveData;
     private List<AbstractMessageModel> messageModels;
     private final Executor messageModelsLoadingExecutor;
-    private Executor promptCheckExecutor;
+    private Executor promptCheckExecutor, requestExecutor;
     private final DataIO dataIO;
     private boolean isPromptCheckExecutorStop = false;
     private final MutableLiveData<MessageModelState> messageModelStateLiveData;
@@ -162,7 +166,91 @@ public class HttpBaseViewModel extends ViewModel {
         return -1;
     }
 
+    private void fetchImagesBeforeEnqueueing(QueueRequest request, SentMessageModel sentMessageModel) {
+        Executor executor = getRequestExecutor();
+        executor.execute(() -> {
+            String[] images = null;
+            for (int i = 0; i < request.getImageFiles().length; i++) {
+                File imageFile = request.getImageFiles()[i];
+                if (imageFile == null) {
+                    continue;
+                }
+
+                String md5;
+                try {
+                    md5 = ImageHashCalculator.calculateMD5(imageFile);
+                } catch (Exception e) {
+                    sentMessageModel.setStatus(MessageModel.STATUS_FAILED, 999, "无法处理图像: " + e.getMessage());
+                    int index = saveMessageModel(sentMessageModel);
+                    setMessageModelState(MessageModelState.changed(index));
+                    break;
+                }
+
+                Response<FileSearchResponse> response;
+                try {
+                    response = retrofitClient.getApiService().searchFile(md5).execute();
+                } catch (IOException e) {
+                    sentMessageModel.setStatus(MessageModel.STATUS_FAILED, 999, "图像校验失败: " + e.getMessage());
+                    int index = saveMessageModel(sentMessageModel);
+                    setMessageModelState(MessageModelState.changed(index));
+                    break;
+                }
+
+                int responseCode = response.code();
+                if (!response.isSuccessful() && responseCode != 404) {
+                    sentMessageModel.setStatus(MessageModel.STATUS_FAILED, response.code(), response.message());
+                    int index = saveMessageModel(sentMessageModel);
+                    setMessageModelState(MessageModelState.changed(index));
+                    break;
+                }
+
+                if (responseCode == 404) {
+                    UploadResponse uploadResponse;
+                    try {
+                        uploadResponse = retrofitClient.uploadFileSync(imageFile, "");
+                    } catch (IOException e) {
+                        sentMessageModel.setStatus(MessageModel.STATUS_FAILED, 999, "图像上传失败: " + e.getMessage());
+                        int index = saveMessageModel(sentMessageModel);
+                        setMessageModelState(MessageModelState.changed(index));
+                        break;
+                    }
+
+                    if (images == null) {
+                        images = new String[request.getImageFiles().length];
+                    }
+                    images[i] = uploadResponse.getFilename();
+                } else {
+                    FileSearchResponse body = response.body();
+                    if (body == null) {
+                        sentMessageModel.setStatus(MessageModel.STATUS_FAILED, 1000, "未知错误");
+                        int index = saveMessageModel(sentMessageModel);
+                        setMessageModelState(MessageModelState.changed(index));
+                        break;
+                    }
+
+                    if (images == null) {
+                        images = new String[request.getImageFiles().length];
+                    }
+                    images[i] = body.getFile_name();
+                }
+            }
+
+            if (images != null) {
+                request.setImages(images);
+            }
+
+            enqueue(request, sentMessageModel);
+        });
+    }
+
     public void enqueue(QueueRequest request, SentMessageModel sentMessageModel) {
+
+        // 图像列表需要更新
+        if (request.fetchingImagesIsNeeded()) {
+            fetchImagesBeforeEnqueueing(request, sentMessageModel);
+            return;
+        }
+
         // 发送请求
         retrofitClient.getApiService().enqueue(request).enqueue(new Callback<>() {
             @Override
@@ -176,7 +264,10 @@ public class HttpBaseViewModel extends ViewModel {
                         }
                         // 保存响应对应，更新列表
                         ReceivedMessageModel receivedMessageModel;
-                        if (sentMessageModel.isVideo()) {
+                        if (sentMessageModel.isI2I()) {
+                            receivedMessageModel = new I2IReceivedMessageModel(enqueueResponse);
+                            receivedMessageModel.getParameters().setImageFiles(sentMessageModel.getParameters().getImageFiles());
+                        } else if (sentMessageModel.isVideo()) {
                             receivedMessageModel = new ReceivedVideoMessageModel(enqueueResponse);
                         }else if (sentMessageModel instanceof UpscaleSentMessageModel) {
                             receivedMessageModel = new UpscaleReceivedMessageModel(enqueueResponse);
@@ -247,9 +338,9 @@ public class HttpBaseViewModel extends ViewModel {
                         if (model.isFileExistsOnServer()) {
                             downloadContentSync(model, null);
                         } else {
-                            retrofit2.Response<ImageResponse> response = retrofitClient.getApiService().getImageStatus(model.getPromptId()).execute();
+                            retrofit2.Response<JobResponse> response = retrofitClient.getApiService().getJobStatus(model.getPromptId()).execute();
                             if (response.isSuccessful()) {
-                                ImageResponse body = response.body();
+                                JobResponse body = response.body();
                                 if (body != null) {
                                     if (body.getCode() == 200) {
                                         downloadContentSync(model, body.getUtc_timestamp());
@@ -329,7 +420,7 @@ public class HttpBaseViewModel extends ViewModel {
             }
 
             // 保存文件
-            if (RetrofitClient.downloadFile(body, file, callback)) {
+            if (retrofitClient.downloadFile(body, file, callback)) {
                 return file;
             }
         } catch (Exception e) {
@@ -391,4 +482,10 @@ public class HttpBaseViewModel extends ViewModel {
         }
     }
 
+    private Executor getRequestExecutor() {
+        if (requestExecutor == null) {
+            requestExecutor = Executors.newSingleThreadExecutor();
+        }
+        return requestExecutor;
+    }
 }

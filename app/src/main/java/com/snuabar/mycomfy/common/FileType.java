@@ -1,5 +1,10 @@
 package com.snuabar.mycomfy.common;
 
+import java.io.File;
+import java.net.URLConnection;
+
+import okhttp3.MediaType;
+
 public final class FileType {
     public static final int UNKNOWN = 0;
     public static final int JPEG = 1;
@@ -77,11 +82,19 @@ public final class FileType {
         if (EXT_HEIF.equalsIgnoreCase(ext)) {
             return MIME_HEIF;
         }
-        return null;
+        return "*/*";
     }
 
     public static int fileNameToFileType(String fileName) {
         final String mimeType = fileNameToMimeType(fileName);
         return mimeTypeToFileType(mimeType);
+    }
+
+    public static MediaType gguessMediaType(File file) {
+        String mimeType = URLConnection.guessContentTypeFromName(file.getName());
+        if (mimeType == null) {
+            mimeType = "application/octet-stream"; // 默认类型
+        }
+        return MediaType.parse(mimeType);
     }
 }

@@ -21,8 +21,26 @@ public class Settings {
     public static final String KEY_PARAM_CFG = "cfg";
     public static final String KEY_PARAM_UPSCALE_FACTOR = "upscale_factor";
     public static final String KEY_PARAM_SECONDS = "seconds";
+    public static final String KEY_PARAM_MEGAPIXELS = "megapixels";
+    public static final String KEY_PARAM_IMAGE1 = "image1";
+    public static final String KEY_PARAM_IMAGE2 = "image2";
+    public static final String KEY_PARAM_IMAGE3 = "image3";
 
-    @StringDef({KEY_PARAM_WORKFLOW, KEY_PARAM_MODEL, KEY_PARAM_WIDTH, KEY_PARAM_HEIGHT, KEY_PARAM_SEED, KEY_PARAM_STEP, KEY_PARAM_CFG, KEY_PARAM_UPSCALE_FACTOR, KEY_PARAM_SECONDS})
+    @StringDef({
+            KEY_PARAM_WORKFLOW,
+            KEY_PARAM_MODEL,
+            KEY_PARAM_WIDTH,
+            KEY_PARAM_HEIGHT,
+            KEY_PARAM_SEED,
+            KEY_PARAM_STEP,
+            KEY_PARAM_CFG,
+            KEY_PARAM_UPSCALE_FACTOR,
+            KEY_PARAM_SECONDS,
+            KEY_PARAM_MEGAPIXELS,
+            KEY_PARAM_IMAGE1,
+            KEY_PARAM_IMAGE2,
+            KEY_PARAM_IMAGE3
+    })
     @Retention(RetentionPolicy.SOURCE)
     public @interface ParamKeys {
 

@@ -76,6 +76,8 @@ public abstract class AbstractMessageModel {
 
     public abstract int[] getImageSize();
 
+    public abstract boolean isI2I();
+
     @CallSuper
     public JSONObject toJson() {
         try {

@@ -9,3 +9,4 @@
 8. [   ] 将消息数据的保存由文件改为DB。
 9. [ x ] promptCheckExecutor以及所有的网络请求都放到ViewModel中。
 10. [   ] bug：连接提交多条后，第一条完成后，后面的任务也同时显示完成。
+11. [   ] 将种子生成long数据，再转成string，传到服务器后再转成 py int。

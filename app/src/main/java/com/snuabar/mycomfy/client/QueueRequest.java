@@ -5,6 +5,8 @@ import android.util.Log;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.File;
+import java.util.Arrays;
 import java.util.Objects;
 
 // 请求模型
@@ -22,6 +24,9 @@ public class QueueRequest {
     private int step;
     private double cfg;
     private int seconds;
+    private double megapixels;
+    private String[] images;
+    private File[] imageFiles;
 
     // 构造函数
     public QueueRequest(String workflow, String model, String prompt, Integer seed, int img_width, int img_height, int step, double cfg, double upscale_factor) {
@@ -146,6 +151,44 @@ public class QueueRequest {
         return seconds;
     }
 
+    public double getMegapixels() {
+        return megapixels;
+    }
+
+    public void setMegapixels(double megapixels) {
+        this.megapixels = megapixels;
+    }
+
+    public String[] getImages() {
+        return images;
+    }
+
+    public void setImages(String[] images) {
+        this.images = images;
+    }
+
+    public File[] getImageFiles() {
+        return imageFiles;
+    }
+
+    public void setImageFiles(File[] imageFiles) {
+        this.imageFiles = imageFiles;
+    }
+
+    public boolean fetchingImagesIsNeeded() {
+        if (imageFiles != null) {
+            if (images == null || imageFiles.length != images.length) {
+                return true;
+            }
+
+            return (imageFiles[0] != null && images[0] == null) ||
+                    (imageFiles[1] != null && images[1] == null) ||
+                    (imageFiles[2] != null && images[2] == null);
+        }
+
+        return false;
+    }
+
     public JSONObject toJson() {
         try {
             JSONObject jsonObject = new JSONObject();
@@ -162,6 +205,31 @@ public class QueueRequest {
             jsonObject.putOpt("step", getStep());
             jsonObject.putOpt("cfg", getCfg());
             jsonObject.putOpt("seconds", getSeconds());
+            jsonObject.putOpt("megapixels", getMegapixels());
+            String[] images = getImages();
+            if (images != null) {
+                if (images.length > 0) {
+                    jsonObject.putOpt("image1", images[0]);
+                }
+                if (images.length > 1) {
+                    jsonObject.putOpt("image2", images[1]);
+                }
+                if (images.length > 2) {
+                    jsonObject.putOpt("image2", images[2]);
+                }
+            }
+            File[] imageFiles = getImageFiles();
+            if (imageFiles != null) {
+                if (imageFiles.length > 0) {
+                    jsonObject.putOpt("imageFile1", imageFiles[0]);
+                }
+                if (imageFiles.length > 1) {
+                    jsonObject.putOpt("imageFile2", imageFiles[1]);
+                }
+                if (imageFiles.length > 2) {
+                    jsonObject.putOpt("imageFile3", imageFiles[2]);
+                }
+            }
             return jsonObject;
         } catch (JSONException e) {
             Log.e("ImageRequest", "toJson. exception thrown.", e);
@@ -183,17 +251,40 @@ public class QueueRequest {
         setStep(jsonObject.optInt("step"));
         setCfg(jsonObject.optDouble("cfg"));
         setSeconds(jsonObject.optInt("seconds"));
+        setMegapixels(jsonObject.optInt("megapixels"));
+        String[] images = new String[3];
+        if (jsonObject.has("image1")) {
+            images[0] = jsonObject.optString("image1");
+        }
+        if (jsonObject.has("image2")) {
+            images[1] = jsonObject.optString("image2");
+        }
+        if (jsonObject.has("image3")) {
+            images[2] = jsonObject.optString("image3");
+        }
+        setImages(images);
+        File[] imageFiles = new File[3];
+        if (jsonObject.has("imageFile1")) {
+            imageFiles[0] = new File(jsonObject.optString("imageFile1"));
+        }
+        if (jsonObject.has("imageFile2")) {
+            imageFiles[1] = new File(jsonObject.optString("imageFile2"));
+        }
+        if (jsonObject.has("imageFile3")) {
+            imageFiles[2] = new File(jsonObject.optString("imageFile3"));
+        }
+        setImageFiles(imageFiles);
     }
 
     @Override
     public boolean equals(Object o) {
         if (o == null || getClass() != o.getClass()) return false;
         QueueRequest that = (QueueRequest) o;
-        return img_width == that.img_width && img_height == that.img_height && num_images == that.num_images && Double.compare(upscale_factor, that.upscale_factor) == 0 && step == that.step && Double.compare(cfg, that.cfg) == 0 && seconds == that.seconds && Objects.equals(workflow, that.workflow) && Objects.equals(model, that.model) && Objects.equals(prompt, that.prompt) && Objects.equals(seed, that.seed) && Objects.equals(style, that.style) && Objects.equals(negative_prompt, that.negative_prompt);
+        return img_width == that.img_width && img_height == that.img_height && num_images == that.num_images && Double.compare(upscale_factor, that.upscale_factor) == 0 && step == that.step && Double.compare(cfg, that.cfg) == 0 && seconds == that.seconds && Double.compare(megapixels, that.megapixels) == 0 && Objects.equals(workflow, that.workflow) && Objects.equals(model, that.model) && Objects.equals(prompt, that.prompt) && Objects.equals(seed, that.seed) && Objects.equals(style, that.style) && Objects.equals(negative_prompt, that.negative_prompt) && Objects.deepEquals(images, that.images) && Objects.deepEquals(imageFiles, that.imageFiles);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(workflow, model, prompt, seed, img_width, img_height, num_images, style, negative_prompt, upscale_factor, step, cfg, seconds);
+        return Objects.hash(workflow, model, prompt, seed, img_width, img_height, num_images, style, negative_prompt, upscale_factor, step, cfg, seconds, megapixels, Arrays.hashCode(images), Arrays.hashCode(imageFiles));
     }
 }

@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content">
+
+    <View
+        android:layout_width="2dp"
+        android:layout_height="match_parent"
+        android:background="@drawable/oval_horizontal_gradient_light_gray" />
+
+    <ImageButton
+        android:id="@+id/button0"
+        style="@style/ButtonBorderless"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:importantForAccessibility="no"
+        android:scaleType="center"
+        android:padding="20dp"
+        android:src="@drawable/ic_delete_red" />
+
+    <View
+        android:layout_width="2dp"
+        android:layout_height="match_parent"
+        android:background="@drawable/oval_horizontal_gradient_light_gray" />
+
+    <ImageButton
+        android:id="@+id/button1"
+        style="@style/ButtonBorderless"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:importantForAccessibility="no"
+        android:scaleType="center"
+        android:padding="20dp"
+        android:src="@drawable/ic_picture" />
+
+    <View
+        android:layout_width="2dp"
+        android:layout_height="match_parent"
+        android:background="@drawable/oval_horizontal_gradient_light_gray" />
+
+    <ImageButton
+        android:id="@+id/button2"
+        style="@style/ButtonBorderless"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:importantForAccessibility="no"
+        android:scaleType="center"
+        android:padding="20dp"
+        android:src="@drawable/ic_camera" />
+
+    <View
+        android:layout_width="2dp"
+        android:layout_height="match_parent"
+        android:background="@drawable/oval_horizontal_gradient_light_gray" />
+
+</LinearLayout>

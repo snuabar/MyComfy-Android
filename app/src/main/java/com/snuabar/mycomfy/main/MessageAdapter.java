@@ -1,14 +1,15 @@
 package com.snuabar.mycomfy.main;
 
 import android.annotation.SuppressLint;
+import android.content.Context;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -27,6 +28,7 @@ import com.snuabar.mycomfy.main.model.UpscaleSentMessageModel;
 import com.snuabar.mycomfy.utils.ImageUtils;
 import com.snuabar.mycomfy.utils.ThumbnailCacheManager;
 
+import java.io.File;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -94,6 +96,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
         Parameters param = model.getParameters();
         if (param != null) {
             if (model instanceof UpscaleSentMessageModel) {
+                holder.binding.layoutImages.setVisibility(View.GONE);
                 holder.binding.textView.setText(String.format(Locale.getDefault(),
                         "放大%.01f倍",
                         param.getUpscale_factor()
@@ -107,7 +110,13 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
                 ));
                 holder.binding.layoutImageView.setVisibility(View.VISIBLE);
                 if (ImageUtils.getThumbnail(model)) {
-                    holder.binding.imageView.setImageBitmap(BitmapFactory.decodeFile(model.getThumbnailFile().getAbsolutePath()));
+                    Bitmap thumb = ThumbnailCacheManager.Companion.getInstance().getThumbnail(model.getThumbnailFile().getAbsolutePath());
+                    holder.binding.imageView.setImageBitmap(thumb);
+                    if (thumb == null) {
+                        ThumbnailCacheManager.Companion.getInstance().getThumbnailAsync(
+                                model.getThumbnailFile().getAbsolutePath(),
+                                model.getId(), this::onThumbnailLoad);
+                    }
                 } else {
                     holder.binding.imageView.setImageBitmap(null);
                     float width = holder.itemView.getContext().getResources().getDimension(R.dimen.thumbnail_width);
@@ -117,16 +126,13 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
             } else {
                 holder.binding.layoutImageView.setVisibility(View.GONE);
                 holder.binding.textView.setText(param.getPrompt());
-                holder.binding.textView0.setText(String.format(Locale.getDefault(),
-                        "%s\n%s\n%dx%d %d %d %.01f %.01f %s",
-                        param.getWorkflow(),
-                        param.getModel(),
-                        param.getImg_width(), param.getImg_height(),
-                        param.getSeed(),
-                        param.getStep(), param.getCfg(),
-                        param.getUpscale_factor(),
-                        (model.isVideo() ? model.getParameters().getSeconds() + "s" : "")
-                ));
+                if (model.isI2I()) {
+                    holder.binding.layoutImages.setVisibility(View.VISIBLE);
+                    displayI2ISentImages(holder, model);
+                } else {
+                    holder.binding.layoutImages.setVisibility(View.GONE);
+                }
+                displayDetailedParams(holder, model);
             }
         }
         holder.binding.btnResent.setVisibility(MessageModel.STATUS_FAILED.equals(model.getStatus()) && !isEditMode ? View.VISIBLE : View.GONE);
@@ -168,7 +174,34 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
         holder.binding.tvDateCompletion.setText(model.isFinished() ? Common.formatTimestamp(model.getUTCTimestampCompletion()) : "");
         holder.binding.btnSave.setVisibility(isEditMode ? View.INVISIBLE : View.VISIBLE);
         holder.binding.btnShare.setVisibility(isEditMode ? View.INVISIBLE : View.VISIBLE);
-        holder.binding.layoutUpscale.setVisibility(!model.isVideo() && model.getCode() == 200 && !model.getInterruptionFlag() && !upscaled && !isEditMode ? View.VISIBLE : View.GONE);
+        holder.binding.layoutUpscale.setVisibility(canBeUpscaled(model) ? View.VISIBLE : View.GONE);
+    }
+
+    private void displayI2ISentImages(SentViewHolder holder, SentMessageModel model) {
+        File[] imageFiles = model.getParameters().getImageFiles();
+        if (imageFiles != null) {
+            Context context = holder.itemView.getContext();
+            ThumbnailCacheManager thumbnailCacheManager = ThumbnailCacheManager.Companion.getInstance();
+            ImageView[] imageViews = new ImageView[]{holder.binding.imageView1, holder.binding.imageView2, holder.binding.imageView3};
+            for (int i = 0; i < imageFiles.length; i++) {
+                File imageFile = imageFiles[i];
+                if (imageFile != null) {
+                    File thumbnailFile = ImageUtils.getThumbnailFileInCacheDir(context, imageFile);
+                    Bitmap thumb = thumbnailCacheManager.getThumbnail(thumbnailFile.getAbsolutePath());
+                    imageViews[i].setImageBitmap(thumb);
+                    if (thumb == null) {
+                        thumbnailCacheManager.getThumbnailAsync(
+                                thumbnailFile.getAbsolutePath(),
+                                model.getId(), this::onThumbnailLoad);
+                    }
+                }
+            }
+        }
+    }
+
+    private boolean canBeUpscaled(ReceivedMessageModel model) {
+        boolean upscaled = model.getParameters().getUpscale_factor() > 1.0;
+        return !model.isI2I() && !model.isVideo() && model.getCode() == 200 && !model.getInterruptionFlag() && !upscaled && !isEditMode;
     }
 
     private void onThumbnailMake(AbstractMessageModel model) {
@@ -279,6 +312,41 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
         return new ArrayList<>(selections);
     }
 
+    private void displayDetailedParams(SentViewHolder holder, AbstractMessageModel model) {
+        Parameters param = model.getParameters();
+        if (model.isI2I()) {
+            holder.binding.textView0.setText(String.format(Locale.getDefault(),
+                    "%s\n%s\n%d %d %.01f %.01f",
+                    param.getWorkflow(),
+                    param.getModel(),
+                    param.getSeed(),
+                    param.getStep(), param.getCfg(),
+                    param.getMegapixels()
+            ));
+        } else if (model.isVideo()){
+            holder.binding.textView0.setText(String.format(Locale.getDefault(),
+                    "%s\n%s\n%dx%d %d %d %.01f %.01f %s",
+                    param.getWorkflow(),
+                    param.getModel(),
+                    param.getImg_width(), param.getImg_height(),
+                    param.getSeed(),
+                    param.getStep(), param.getCfg(),
+                    param.getUpscale_factor(),
+                    model.getParameters().getSeconds() + "s"
+            ));
+        } else {
+            holder.binding.textView0.setText(String.format(Locale.getDefault(),
+                    "%s\n%s\n%dx%d %d %d %.01f %.01f",
+                    param.getWorkflow(),
+                    param.getModel(),
+                    param.getImg_width(), param.getImg_height(),
+                    param.getSeed(),
+                    param.getStep(), param.getCfg(),
+                    param.getUpscale_factor()
+            ));
+        }
+    }
+
     public class ViewHolder extends RecyclerView.ViewHolder {
         public TextView tvTip;
         public TextView tvDate;
@@ -288,13 +356,13 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
             itemView.setLongClickable(true);
             itemView.setOnLongClickListener(v -> {
                 if (listener != null) {
-                    listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_LONG_CLICK, downLocation);
+                    listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_LONG_CLICK, downLocation, null);
                 }
                 return false;
             });
             itemView.setOnClickListener(v -> {
                 if (listener != null) {
-                    listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_NONE, null);
+                    listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_NONE, null, null);
                 }
             });// 设置触摸监听器
             itemView.setOnTouchListener(new View.OnTouchListener() {
@@ -333,7 +401,25 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
 
             binding.btnResent.setOnClickListener(v -> {
                 if (listener != null) {
-                    listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_RESENT, null);
+                    listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_RESENT, null, null);
+                }
+            });
+
+            binding.imageView1.setOnClickListener(v -> {
+                if (listener != null) {
+                    listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_I2I_IMAGES, null, 0);
+                }
+            });
+
+            binding.imageView2.setOnClickListener(v -> {
+                if (listener != null) {
+                    listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_I2I_IMAGES, null, 1);
+                }
+            });
+
+            binding.imageView3.setOnClickListener(v -> {
+                if (listener != null) {
+                    listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_I2I_IMAGES, null, 2);
                 }
             });
         }
@@ -349,32 +435,32 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
             this.tvTip = binding.tvTip;
             binding.btnInterrupt.setOnClickListener(v -> {
                 if (listener != null) {
-                    listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_INTERRUPT, null);
+                    listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_INTERRUPT, null, null);
                 }
             });
             binding.btnSave.setOnClickListener(v -> {
                 if (listener != null) {
-                    listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_SAVE, null);
+                    listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_SAVE, null, null);
                 }
             });
             binding.btnShare.setOnClickListener(v -> {
                 if (listener != null) {
-                    listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_SHARE, null);
+                    listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_SHARE, null, null);
                 }
             });
             binding.btnX2.setOnClickListener(v -> {
                 if (listener != null) {
-                    listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_X2, null);
+                    listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_X2, null, null);
                 }
             });
             binding.btnX4.setOnClickListener(v -> {
                 if (listener != null) {
-                    listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_X4, null);
+                    listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_X4, null, null);
                 }
             });
             binding.btnXN.setOnClickListener(v -> {
                 if (listener != null) {
-                    listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_XN, null);
+                    listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_XN, null, null);
                 }
             });
         }
@@ -390,6 +476,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
         int OPE_X2 = 5;
         int OPE_X4 = 6;
         int OPE_XN = 7;
-        void onClick(View view, int index, int ope, float[] downLocation);
+        int OPE_I2I_IMAGES = 8;
+        void onClick(View view, int index, int ope, float[] downLocation, Object obj);
     }
 }

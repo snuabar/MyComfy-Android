@@ -141,6 +141,11 @@ public class MessageModel extends AbstractMessageModel {
     }
 
     @Override
+    public boolean isI2I() {
+        return false;
+    }
+
+    @Override
     public JSONObject toJson() {
         JSONObject jsonObject = super.toJson();
         try {

@@ -34,6 +34,7 @@ import com.snuabar.mycomfy.databinding.LayoutMessageItemOptionalDialogBinding;
 import com.snuabar.mycomfy.main.data.AbstractMessageModel;
 import com.snuabar.mycomfy.main.data.MainViewModel;
 import com.snuabar.mycomfy.main.data.MessageModelState;
+import com.snuabar.mycomfy.main.model.I2ISentMessageModel;
 import com.snuabar.mycomfy.main.model.MessageModel;
 import com.snuabar.mycomfy.main.model.ReceivedMessageModel;
 import com.snuabar.mycomfy.main.model.SentMessageModel;
@@ -44,6 +45,7 @@ import com.snuabar.mycomfy.setting.Settings;
 import com.snuabar.mycomfy.utils.FileOperator;
 import com.snuabar.mycomfy.utils.FilePicker;
 import com.snuabar.mycomfy.main.data.DataIO;
+import com.snuabar.mycomfy.utils.ImageTools;
 import com.snuabar.mycomfy.utils.ImageUtils;
 import com.snuabar.mycomfy.utils.ViewUtils;
 import com.snuabar.mycomfy.view.ParametersPopup;
@@ -184,11 +186,34 @@ public class HomeFragment extends Fragment {
         public void loadModels(@NonNull List<String> modelTypes) {
             mViewModel.loadModels(modelTypes);
         }
+
+        @Override
+        public void requirePicture(int which, boolean useCamera) {
+            final ImageTools.OnPictureResultListener pictureResultListener = new ImageTools.OnPictureResultListener() {
+                @Override
+                public void onPictureResult(File file) {
+                    parametersPopup.setPictureFile(file, which);
+                }
+
+                @Override
+                public void onError(String message) {
+
+                }
+            };
+
+            if (useCamera) {
+                ImageTools.getInstance().takePicture(requireActivity(), pictureResultListener);
+            } else {
+                ImageTools.getInstance().selectPicture(pictureResultListener);
+            }
+        }
     };
+
+
 //    private final PromptEditPopup.OnPromptChangeListener onPromptChangeListener = prompt ->
 //            binding.tvPrompt.setText(prompt);
 
-    private void onMessageElementClick(View view, int position, int ope, float[] downLocation) {
+    private void onMessageElementClick(View view, int position, int ope, float[] downLocation, Object obj) {
         if (position == RecyclerView.NO_POSITION) {
             return;
         }
@@ -234,6 +259,17 @@ public class HomeFragment extends Fragment {
             enqueue(model, 4.f);
         } else if (ope == MessageAdapter.OnElementClickListener.OPE_XN) {
             showUpscaleAdjustmentDialog(model);
+        } else if (ope == MessageAdapter.OnElementClickListener.OPE_I2I_IMAGES) {
+            if (model.isI2I()) {
+                File[] imageFiles = model.getParameters().getImageFiles();
+                File clickedImageFile = imageFiles[(int) obj];
+                if (clickedImageFile != null && clickedImageFile.exists()) {
+                    Intent intent = new Intent(requireActivity(), FullScreenImageActivity.class);
+                    intent.putExtra(FullScreenImageActivity.EXTRA_ID_LIST, new ArrayList<>(Collections.singletonList(model.getId())));
+                    intent.putExtra(FullScreenImageActivity.EXTRA_I2I_IMAGE_INDEX, (int) obj);
+                    startActivity(intent);
+                }
+            }
         }
     }
 
@@ -383,11 +419,6 @@ public class HomeFragment extends Fragment {
 
             return null;
         });
-        binding.fab.setLongClickable(true);
-        binding.fab.setOnLongClickListener(v -> {
-            parametersPopup.randomSeed(true);
-            return true;
-        });
     }
 
     private void enqueue(AbstractMessageModel model, double... upscale) {
@@ -403,7 +434,9 @@ public class HomeFragment extends Fragment {
             // 创建请求对象
             request = new QueueRequest(parameters);
 
-            if (parametersPopup.isVideoWorkflow()) {
+            if (parametersPopup.isWorkflowInputImage()) {
+                sentMessageModel = new I2ISentMessageModel(parameters);
+            } else if (parametersPopup.isVideoWorkflow()) {
                 sentMessageModel = new SentVideoMessageModel(parameters);
             } else {
                 sentMessageModel = new SentMessageModel(parameters);
@@ -438,9 +471,9 @@ public class HomeFragment extends Fragment {
         String ip = Settings.getInstance().getString("server_ip", "192.168.1.17");
         String port = Settings.getInstance().getString("server_port", "8000");
         // 更新Base URL
-        RetrofitClient.getInstance().setBaseUrl(ip, port);
-
-        mViewModel.loadWorkflows();
+        if (RetrofitClient.getInstance().setBaseUrl(ip, port)) {
+            mViewModel.loadWorkflows();
+        }
     }
 
     private void doDelete() {

@@ -13,6 +13,7 @@ public class WorkflowsResponse {
         private double cfg = 8.0;
         private double upscale_factor = 1.0;
         private int seconds = 5;
+        private double megapixels = 2;
 
         public static final DefaultParameters Default = new DefaultParameters();
 
@@ -71,6 +72,14 @@ public class WorkflowsResponse {
         public void setSeconds(int seconds) {
             this.seconds = seconds;
         }
+
+        public double getMegapixels() {
+            return megapixels;
+        }
+
+        public void setMegapixels(double megapixels) {
+            this.megapixels = megapixels;
+        }
     }
 
     public static class Workflow {
@@ -82,7 +91,8 @@ public class WorkflowsResponse {
         private String inputType;
         private String outputType;
         private List<String> modelTypes;
-        private List<String> excludeModels;
+        private List<String> modelKeywords;
+        private List<String> excludeModelKeywords;
         private DefaultParameters defaultParameters;
 
         public String getDisplayName() {
@@ -117,12 +127,20 @@ public class WorkflowsResponse {
             this.modelTypes = modelTypes;
         }
 
-        public List<String> getExcludeModels() {
-            return excludeModels;
+        public List<String> getModelKeywords() {
+            return modelKeywords;
         }
 
-        public void setExcludeModels(List<String> excludeModels) {
-            this.excludeModels = excludeModels;
+        public void setModelKeywords(List<String> modelKeywords) {
+            this.modelKeywords = modelKeywords;
+        }
+
+        public List<String> getExcludeModelKeywords() {
+            return excludeModelKeywords;
+        }
+
+        public void setExcludeModelKeywords(List<String> excludeModelKeywords) {
+            this.excludeModelKeywords = excludeModelKeywords;
         }
 
         public DefaultParameters getDefaultParameters() {
