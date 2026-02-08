@@ -341,6 +341,15 @@ public class HomeFragment extends Fragment {
             messageItemOptionalPopup.dismiss();
         });
 
+        binding.btnCopySeed.setOnClickListener(v -> {
+            ClipboardManager clipboard = (ClipboardManager) requireContext().getSystemService(Context.CLIPBOARD_SERVICE);
+            ClipData clip = ClipData.newPlainText("seed", model.getParameters().getSeed());
+            clipboard.setPrimaryClip(clip);
+            Toast.makeText(requireContext(), "已复制到剪贴板", Toast.LENGTH_SHORT).show();
+
+            messageItemOptionalPopup.dismiss();
+        });
+
         binding.btnCopyImage.setOnClickListener(v -> {
             ImageUtils.copyImageUsingContentUri(requireContext(), model.getImageFile());
 

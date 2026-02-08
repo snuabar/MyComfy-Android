@@ -139,11 +139,6 @@ public class ParametersPopup extends GeneralPopup {
                 generateSeed();
             }
         });
-        binding.chipGroupSeed.setOnCheckedStateChangeListener((chipGroup, list) -> {
-            if (list.isEmpty()) {
-
-            }
-        });
         binding.imageView1.setOnClickListener(this::onImageViewClick);
         binding.imageView2.setOnClickListener(this::onImageViewClick);
         binding.imageView3.setOnClickListener(this::onImageViewClick);
@@ -201,12 +196,13 @@ public class ParametersPopup extends GeneralPopup {
     }
 
     private void generateSeed() {
-        if (binding.chipSeedFixed.isChecked()) {
+        int seedCtl = getSeedCtl();
+        if (seedCtl == 3) {
             return;
         }
 
         long seed = 0;
-        if (binding.chipSeedRandom.isChecked()) {
+        if (seedCtl == 0) {
             byte[] bytes = new byte[Long.BYTES];
             secureRandom.nextBytes(bytes);
             // 转换为 long，确保为正数
@@ -214,14 +210,14 @@ public class ParametersPopup extends GeneralPopup {
                 seed = (seed << 8) | (bytes[i] & 0xFF);
             }
             seed = Math.abs(seed);
-        } else if (binding.chipSeedIncrease.isChecked()) {
+        } else if (seedCtl == 1) {
             String text = binding.etSeed.getText().toString();
             if (TextUtils.isEmpty(text)) {
                 text = "0";
             }
             seed = Long.parseLong(text);
             seed++;
-        } else if (binding.chipSeedDecrease.isChecked()) {
+        } else if (seedCtl == 2) {
             String text = binding.etSeed.getText().toString();
             if (TextUtils.isEmpty(text)) {
                 text = "0";
@@ -230,6 +226,25 @@ public class ParametersPopup extends GeneralPopup {
             seed--;
         }
         binding.etSeed.setText(String.valueOf(seed));
+        saveValues();
+    }
+
+    private void setSeedCtl(int ctl) {
+        binding.chipSeedRandom.setChecked(ctl == 0);
+        binding.chipSeedIncrease.setChecked(ctl == 1);
+        binding.chipSeedDecrease.setChecked(ctl == 2);
+        binding.chipSeedFixed.setChecked(ctl == 3);
+    }
+
+    private int getSeedCtl() {
+        if (binding.chipSeedRandom.isChecked()) {
+            return 0;
+        } else if (binding.chipSeedIncrease.isChecked()) {
+            return 1;
+        } else if (binding.chipSeedDecrease.isChecked()) {
+            return 2;
+        }
+        return 3;
     }
 
     private void loadPrompt() {
@@ -487,6 +502,8 @@ public class ParametersPopup extends GeneralPopup {
             setPictureFile(file3, 2);
         }
 
+        setSeedCtl(jsonObject.optInt(Settings.KEY_PARAM_SEED_CTL, 0));
+
         if (layoutChanged) {
             update();
         }
@@ -499,6 +516,7 @@ public class ParametersPopup extends GeneralPopup {
             jsonObject.putOpt(Settings.KEY_PARAM_WIDTH, binding.etWidth.getText().toString());
             jsonObject.putOpt(Settings.KEY_PARAM_HEIGHT, binding.etHeight.getText().toString());
             jsonObject.putOpt(Settings.KEY_PARAM_SEED, binding.etSeed.getText().toString());
+            jsonObject.putOpt(Settings.KEY_PARAM_SEED_CTL, getSeedCtl());
             jsonObject.putOpt(Settings.KEY_PARAM_STEP, binding.etStep.getText().toString());
             jsonObject.putOpt(Settings.KEY_PARAM_CFG, binding.etCFG.getText().toString());
             jsonObject.putOpt(Settings.KEY_PARAM_UPSCALE_FACTOR, binding.etUpscaleFactor.getText().toString());
@@ -623,14 +641,17 @@ public class ParametersPopup extends GeneralPopup {
             return null;
         }
 
-        Integer seed = null;
-        if (!seedStr.isEmpty()) {
-            try {
-                seed = Integer.parseInt(seedStr);
-            } catch (NumberFormatException e) {
-                showToast("种子必须是数字");
-                return null;
-            }
+//        long seed = 0;
+//        if (!seedStr.isEmpty()) {
+//            try {
+//                seed = Long.parseLong(seedStr);
+//            } catch (NumberFormatException e) {
+//                showToast("种子必须是数字");
+//                return null;
+//            }
+//        }
+        if (TextUtils.isEmpty(seedStr)) {
+            seedStr = "0";
         }
 
         double upscaleFactor = 1.0;
@@ -672,7 +693,7 @@ public class ParametersPopup extends GeneralPopup {
         }
 
         // 创建参数对象
-        Parameters parameters = new Parameters(workflow, modelName, prompt, seed, width, height, step, cfg, upscaleFactor);
+        Parameters parameters = new Parameters(workflow, modelName, prompt, seedStr, width, height, step, cfg, upscaleFactor);
 
         int seconds = 0;
         if (isVideoWorkflow()) {

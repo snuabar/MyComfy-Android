@@ -30,9 +30,9 @@ public class ComparisonPhotoView extends PhotoView {
     }
 
     @Override
-    protected void onDetachedFromWindow() {
-        super.onDetachedFromWindow();
+    protected void finalize() throws Throwable {
         freeBitmaps();
+        super.finalize();
     }
 
     @Override

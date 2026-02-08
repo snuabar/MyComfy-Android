@@ -194,6 +194,8 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
                                 thumbnailFile.getAbsolutePath(),
                                 model.getId(), this::onThumbnailLoad);
                     }
+                } else {
+                    imageViews[i].setImageBitmap(null);
                 }
             }
         }
@@ -316,7 +318,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
         Parameters param = model.getParameters();
         if (model.isI2I()) {
             holder.binding.textView0.setText(String.format(Locale.getDefault(),
-                    "%s\n%s\n%d %d %.01f %.01f",
+                    "%s\n%s\n%s %d %.01f %.01f",
                     param.getWorkflow(),
                     param.getModel(),
                     param.getSeed(),
@@ -325,7 +327,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
             ));
         } else if (model.isVideo()){
             holder.binding.textView0.setText(String.format(Locale.getDefault(),
-                    "%s\n%s\n%dx%d %d %d %.01f %.01f %s",
+                    "%s\n%s\n%dx%d %s %d %.01f %.01f %s",
                     param.getWorkflow(),
                     param.getModel(),
                     param.getImg_width(), param.getImg_height(),
@@ -336,7 +338,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
             ));
         } else {
             holder.binding.textView0.setText(String.format(Locale.getDefault(),
-                    "%s\n%s\n%dx%d %d %d %.01f %.01f",
+                    "%s\n%s\n%dx%d %s %d %.01f %.01f",
                     param.getWorkflow(),
                     param.getModel(),
                     param.getImg_width(), param.getImg_height(),

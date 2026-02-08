@@ -173,7 +173,7 @@ public class FullScreenImageActivity extends AppCompatActivity {
                 binding.tvFileSize.setText(Common.formatFileSize(model.getImageFile().length()));
                 binding.tvPrompt.setText(model.getParameters().getPrompt());
                 binding.tvParams.setText(String.format(Locale.getDefault(),
-                        "%s\n%s\n%dx%d %d %d %.01f",
+                        "%s\n%s\n%dx%d %s %d %.01f",
                         model.getParameters().getWorkflow(),
                         model.getParameters().getModel(),
                         model.getParameters().getImg_width(), model.getParameters().getImg_height(),

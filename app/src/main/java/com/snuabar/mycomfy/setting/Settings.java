@@ -17,6 +17,7 @@ public class Settings {
     public static final String KEY_PARAM_WIDTH = "width";
     public static final String KEY_PARAM_HEIGHT = "height";
     public static final String KEY_PARAM_SEED = "seed";
+    public static final String KEY_PARAM_SEED_CTL = "seed_ctl";
     public static final String KEY_PARAM_STEP = "step";
     public static final String KEY_PARAM_CFG = "cfg";
     public static final String KEY_PARAM_UPSCALE_FACTOR = "upscale_factor";
@@ -32,6 +33,7 @@ public class Settings {
             KEY_PARAM_WIDTH,
             KEY_PARAM_HEIGHT,
             KEY_PARAM_SEED,
+            KEY_PARAM_SEED_CTL,
             KEY_PARAM_STEP,
             KEY_PARAM_CFG,
             KEY_PARAM_UPSCALE_FACTOR,
@@ -54,7 +56,8 @@ public class Settings {
             KEY_PARAM_STEP, String.valueOf(WorkflowsResponse.DefaultParameters.Default.getStep()),
             KEY_PARAM_CFG, String.valueOf(WorkflowsResponse.DefaultParameters.Default.getCfg()),
             KEY_PARAM_UPSCALE_FACTOR, String.valueOf(WorkflowsResponse.DefaultParameters.Default.getUpscale_factor()),
-            KEY_PARAM_SECONDS, String.valueOf(WorkflowsResponse.DefaultParameters.Default.getSeconds())
+            KEY_PARAM_SECONDS, String.valueOf(WorkflowsResponse.DefaultParameters.Default.getSeconds()),
+            KEY_PARAM_MEGAPIXELS, String.valueOf(WorkflowsResponse.DefaultParameters.Default.getMegapixels())
     );
 
     public static final String KEY_DATA_IMPORTED = "data_imported";
