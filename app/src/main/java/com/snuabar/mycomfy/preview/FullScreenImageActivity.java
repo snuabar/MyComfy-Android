@@ -35,6 +35,8 @@ import com.snuabar.mycomfy.databinding.LayoutFullScreenImageItemBinding;
 import com.snuabar.mycomfy.databinding.LayoutFullScreenVideoItemBinding;
 import com.snuabar.mycomfy.main.data.AbstractMessageModel;
 import com.snuabar.mycomfy.main.data.DataIO;
+import com.snuabar.mycomfy.main.model.I2IReceivedMessageModel;
+import com.snuabar.mycomfy.main.model.I2ISentMessageModel;
 import com.snuabar.mycomfy.main.model.ReceivedMessageModel;
 import com.snuabar.mycomfy.utils.FileOperator;
 import com.snuabar.mycomfy.utils.FilePicker;
@@ -59,12 +61,14 @@ public class FullScreenImageActivity extends AppCompatActivity {
 
     public static final String EXTRA_ID_LIST = "extra_id_list";
     public static final String EXTRA_CURRENT_ID = "extra_current_id";
+    public static final String EXTRA_I2I_IMAGE_INDEX = "extra_i2i_image_index";
     public static final String TAG = FullScreenImageActivity.class.getName();
 
     private ActivityFullScreenImageBinding binding;
 
     private List<AbstractMessageModel> messageList;
     private int currentIndex;
+    private int i2iImageIndex;
     private Adapter adapter = null;
     private boolean isFullscreen = false;
     private int mDefaultSystemUIVisibility = 0;
@@ -91,6 +95,7 @@ public class FullScreenImageActivity extends AppCompatActivity {
         List<String> messageIds = Collections.unmodifiableList(Objects.requireNonNull(getIntent().getStringArrayListExtra(EXTRA_ID_LIST)));
         String currentId = getIntent().getStringExtra(EXTRA_CURRENT_ID);
         currentIndex = messageIds.indexOf(currentId);
+        i2iImageIndex = getIntent().getIntExtra(EXTRA_I2I_IMAGE_INDEX, 0);
 
         List<AbstractMessageModel> models = DataIO.getInstance().copyMessageModels();
         models.removeIf(m -> !messageIds.contains(m.getId()));
@@ -434,6 +439,8 @@ public class FullScreenImageActivity extends AppCompatActivity {
         private final List<AbstractMessageModel> messageModels;
         private final Map<Integer, WeakReference<Bitmap>> bitmapRefs;
         private final HashSet<VideoHolder> videoHolders = new HashSet<>();
+        private Bitmap bitmapTemp;
+        private String imageFilePathTemp;
 
         private Adapter(List<AbstractMessageModel> messageModels) {
             this.messageModels = messageModels;
@@ -458,19 +465,22 @@ public class FullScreenImageActivity extends AppCompatActivity {
                 videoHolders.add(videoHolder);
             } else {
                 ImageHolder imageHolder = (ImageHolder) holder;
-                WeakReference<Bitmap> bitmapRef = bitmapRefs.get(position);
-                Bitmap bitmap;
-                if (bitmapRef != null && bitmapRef.get() != null) {
-                    bitmap = bitmapRef.get();
-                } else {
-                    bitmap = BitmapFactory.decodeFile(model.getImageFile().getAbsolutePath());
-                    bitmapRefs.put(position, new WeakReference<>(bitmap));
-                }
+                Bitmap bitmap = getBitmap(position);
                 imageHolder.binding.photoView.setImageBitmap(bitmap);
                 float[] scales = Common.getPhotoViewScales(holder.itemView.getContext(), bitmap.getWidth(), bitmap.getHeight());
                 imageHolder.binding.photoView.setMaximumScale(scales[0]);
                 imageHolder.binding.photoView.setMediumScale(scales[1]);
                 imageHolder.binding.photoView.setZoomTransitionDuration(holder.itemView.getResources().getInteger(android.R.integer.config_longAnimTime));
+                if (model.isI2I() && model instanceof I2IReceivedMessageModel) {
+                    imageHolder.binding.photoView.setImagePaths(
+                            model.getImageFile().getAbsolutePath(),
+                            model.getParameters().getImageFiles()[0].getAbsolutePath()
+                    );
+                    imageHolder.binding.btnCompare.setVisibility(View.VISIBLE);
+                } else {
+                    imageHolder.binding.photoView.setImagePaths();
+                    imageHolder.binding.btnCompare.setVisibility(View.INVISIBLE);
+                }
             }
         }
 
@@ -487,6 +497,23 @@ public class FullScreenImageActivity extends AppCompatActivity {
             return super.getItemViewType(position);
         }
 
+        private Bitmap getBitmap(int position) {
+            AbstractMessageModel model = messageModels.get(position);
+            WeakReference<Bitmap> bitmapRef = bitmapRefs.get(position);
+            Bitmap bitmap;
+            if (bitmapRef != null && bitmapRef.get() != null) {
+                bitmap = bitmapRef.get();
+            } else {
+                if (model.isI2I() && model instanceof I2ISentMessageModel) {
+                    bitmap = BitmapFactory.decodeFile(model.getParameters().getImageFiles()[i2iImageIndex].getAbsolutePath());
+                } else {
+                    bitmap = BitmapFactory.decodeFile(model.getImageFile().getAbsolutePath());
+                }
+                bitmapRefs.put(position, new WeakReference<>(bitmap));
+            }
+            return bitmap;
+        }
+
         public int getVideoControlLayoutHeight() {
             for (VideoHolder videoHolder : videoHolders) {
                 return videoHolder.binding.videoView.getControlLayoutHeight();
@@ -501,6 +528,10 @@ public class FullScreenImageActivity extends AppCompatActivity {
                 }
             }
             bitmapRefs.clear();
+
+            if (bitmapTemp != null && !bitmapTemp.isRecycled()) {
+                bitmapTemp.recycle();
+            }
 
             for (VideoHolder videoHolder : videoHolders) {
                 videoHolder.binding.videoView.release();
@@ -526,6 +557,7 @@ public class FullScreenImageActivity extends AppCompatActivity {
                 binding.photoView.setOnMatrixChangeListener(rect -> onPhotoViewMatrixChange(getAbsoluteAdapterPosition(), binding.photoView));
                 // 点击切换全屏
                 binding.photoView.setOnClickListener(v -> toggleFullScreen());
+                binding.btnCompare.setOnStateChangeListener(isOn -> binding.photoView.showImageBitmap(isOn ? 1 : 0));
             }
         }
 

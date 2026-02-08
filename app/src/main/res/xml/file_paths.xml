@@ -2,4 +2,6 @@
 <paths>
     <external-files-path name="output" path="output" />
     <external-files-path name="msg" path="msg" />
+    <external-files-path name="exchange" path="exchange" />
+    <external-files-path name="cache" path="cache" />
 </paths>

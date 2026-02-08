@@ -1,7 +1,7 @@
 package com.snuabar.mycomfy.client;
 
 // 响应模型
-public class ImageResponse {
+public class JobResponse {
     private String prompt_id;
     private int code;
     private String message;

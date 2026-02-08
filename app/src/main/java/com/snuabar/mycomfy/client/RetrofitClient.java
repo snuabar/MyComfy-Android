@@ -7,6 +7,7 @@ import android.util.Log;
 import androidx.annotation.NonNull;
 
 import com.snuabar.mycomfy.common.Callbacks;
+import com.snuabar.mycomfy.common.FileType;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -16,8 +17,11 @@ import java.util.concurrent.TimeUnit;
 
 import okhttp3.Cache;
 import okhttp3.Interceptor;
+import okhttp3.MediaType;
+import okhttp3.MultipartBody;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
+import okhttp3.RequestBody;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
 import okhttp3.logging.HttpLoggingInterceptor;
@@ -95,7 +99,7 @@ public class RetrofitClient {
         return apiService;
     }
 
-    public void setBaseUrl(String ip, String port) {
+    public boolean setBaseUrl(String ip, String port) {
         String baseUrl;
         if (ip != null && ip.indexOf(':') != -1 && ip.indexOf(':') != ip.lastIndexOf(':')) {
             baseUrl = "http://[" + ip + "]:" + port;
@@ -106,17 +110,44 @@ public class RetrofitClient {
             this.baseUrl = baseUrl;
             apiService = null;
             createRetrofit();
+            return true;
         }
+        return false;
     }
 
     public String getBaseUrl() {
         return baseUrl;
     }
 
+    public UploadResponse uploadFileSync(File file, String description) throws IOException {
+        // 创建描述部分的RequestBody
+        RequestBody descriptionBody = RequestBody.create(
+                MediaType.parse("text/plain"),
+                description != null ? description : ""
+        );
+
+        // 创建文件部分的RequestBody
+        RequestBody fileBody = RequestBody.create(
+                FileType.gguessMediaType(file),
+                file
+        );
+
+        // 创建MultipartBody.Part
+        MultipartBody.Part filePart = MultipartBody.Part.createFormData(
+                "file",
+                file.getName(),
+                fileBody
+        );
+
+        // 执行上传
+        retrofit2.Response<UploadResponse> response = apiService.uploadFile(descriptionBody, filePart).execute();
+        return response.body();
+    }
+
     /**
      * 下载文件到本地
      */
-    public static boolean downloadFile(ResponseBody body, File file, Callbacks.Callback2T<Long, Long> callback) {
+    public boolean downloadFile(ResponseBody body, File file, Callbacks.Callback2T<Long, Long> callback) {
         try {
             InputStream inputStream = null;
             FileOutputStream outputStream = null;

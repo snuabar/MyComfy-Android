@@ -2,6 +2,7 @@ package com.snuabar.mycomfy.main;
 
 import androidx.activity.EdgeToEdge;
 import androidx.activity.OnBackPressedCallback;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.lifecycle.ViewModelProvider;
 
@@ -19,6 +20,7 @@ import com.snuabar.mycomfy.main.data.prompt.PromptManager;
 import com.snuabar.mycomfy.setting.Settings;
 import com.snuabar.mycomfy.setting.SettingsActivity;
 import com.snuabar.mycomfy.utils.FilePicker;
+import com.snuabar.mycomfy.utils.ImageTools;
 import com.snuabar.mycomfy.utils.ThumbnailCacheManager;
 
 public class MainActivity extends AppCompatActivity {
@@ -30,6 +32,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         Settings.init(this);
+        ImageTools.Initialize(this);
         ThumbnailCacheManager.Companion.init(this);
         DataIO.init(this);
         AdvancedTranslator translator = AdvancedTranslator.Companion.init(this);
@@ -50,6 +53,15 @@ public class MainActivity extends AppCompatActivity {
         mViewModel.getDeletionModeLiveData().observe(this, aBoolean -> invalidateOptionsMenu());
 
         getOnBackPressedDispatcher().addCallback(this, onBackPressedCallback);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (ImageTools.getInstance() != null) {
+            ImageTools.getInstance().handleRequestPermissionsResult(this, requestCode, permissions, grantResults);
+        }
     }
 
     @Override

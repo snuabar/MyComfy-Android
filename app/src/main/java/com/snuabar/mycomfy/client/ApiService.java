@@ -1,5 +1,7 @@
 package com.snuabar.mycomfy.client;
 
+import okhttp3.MultipartBody;
+import okhttp3.RequestBody;
 import okhttp3.ResponseBody;
 import retrofit2.Call;
 import retrofit2.http.*;
@@ -25,11 +27,26 @@ public interface ApiService {
     Call<EnqueueResponse> enqueue(@Body QueueRequest request);
 
     /**
-     * 获取图像生成状态
+     * 获取生成状态
      */
-    @GET("/api/images/{prompt_id}")
-    @Streaming
-    Call<ImageResponse> getImageStatus(@Path("prompt_id") String promptId);
+    @GET("/api/jobs/{prompt_id}")
+    Call<JobResponse> getJobStatus(@Path("prompt_id") String promptId);
+
+    /**
+     * 获取生成状态
+     */
+    @GET("/api/search/{file_hash}")
+    Call<FileSearchResponse> searchFile(@Path("file_hash") String fileHash);
+
+    /**
+     * 上传文件
+     */
+    @POST("/api/upload")
+    @Multipart
+    Call<UploadResponse> uploadFile(
+            @Part("description") RequestBody description,
+            @Part MultipartBody.Part file
+    );
 
     /**
      * 下载

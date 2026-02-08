@@ -44,7 +44,7 @@ public class ImageUtils {
             return;
         }
         if (ThumbnailExecutor == null) {
-            ThumbnailExecutor = Executors.newScheduledThreadPool(10);
+            ThumbnailExecutor = Executors.newScheduledThreadPool(5);
         }
         ThumbnailExecutor.execute(() -> {
             if (model.isVideo()) {
@@ -60,8 +60,24 @@ public class ImageUtils {
         });
     }
 
+    public static File getCacheDir(Context context) {
+        File file = context.getExternalFilesDir(null);
+        if (file != null && !file.exists() && !file.mkdirs()) {
+            Log.e(TAG, "getMessageDir: failed to execute mkdirs()");
+        }
+        file = context.getExternalFilesDir("cache");
+        if (file != null && !file.exists() && !file.mkdirs()) {
+            Log.e(TAG, "getMessageDir: failed to execute mkdirs()");
+        }
+        return file;
+    }
+
     public static File getThumbnailFile(File file) {
         return new File(file.getParent(), file.getName() + THUMB_EXT);
+    }
+
+    public static File getThumbnailFileInCacheDir(Context context, File file) {
+        return new File(getCacheDir(context), file.getName() + THUMB_EXT);
     }
 
     public static int[] getImageSize(File imageFile) {
@@ -134,12 +150,13 @@ public class ImageUtils {
      * 将图像文件等比缩放成指定尺寸的Bitmap，并保存缩略图
      *
      * @param imageFile 原始图像文件
+     * @param thumbnailFile 指定的缩略图文件
      * @param maxWidth  目标最大宽度
      * @param maxHeight 目标最大高度
      * @param quality   保存质量 (0-100)
      * @return 缩略图的File对象，失败返回null
      */
-    public static File createAndSaveThumbnail(File imageFile, float maxWidth, float maxHeight, int quality) {
+    public static File createAndSaveThumbnail(File imageFile, File thumbnailFile, float maxWidth, float maxHeight, int quality) {
         if (imageFile == null || !imageFile.exists()) {
             return null;
         }
@@ -190,7 +207,7 @@ public class ImageUtils {
             }
 
             // 6. 保存缩略图
-            File thumbFile = getThumbnailFile(imageFile);
+            File thumbFile = thumbnailFile == null ? getThumbnailFile(imageFile) : thumbnailFile;
             saveBitmapToFile(bitmap, thumbFile, quality);
 
             bitmap.recycle();
@@ -321,8 +338,15 @@ public class ImageUtils {
     /**
      * 简化版本，使用默认质量
      */
+    public static File createAndSaveThumbnail(File imageFile, File thumbnailFile, float maxWidth, float maxHeight) {
+        return createAndSaveThumbnail(imageFile, thumbnailFile, maxWidth, maxHeight, 85);
+    }
+
+    /**
+     * 简化版本，使用默认质量
+     */
     public static File createAndSaveThumbnail(File imageFile, float maxWidth, float maxHeight) {
-        return createAndSaveThumbnail(imageFile, maxWidth, maxHeight, 85);
+        return createAndSaveThumbnail(imageFile, null, maxWidth, maxHeight, 85);
     }
 
     /**

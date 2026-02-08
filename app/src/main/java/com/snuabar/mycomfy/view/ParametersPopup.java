@@ -1,6 +1,8 @@
 package com.snuabar.mycomfy.view;
 
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.TextUtils;
@@ -13,6 +15,7 @@ import android.view.WindowManager;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.BaseAdapter;
+import android.widget.ImageView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -27,19 +30,20 @@ import com.snuabar.mycomfy.databinding.LayoutParametersPopupWindowBinding;
 import com.snuabar.mycomfy.databinding.LayoutWorkflowItemBinding;
 import com.snuabar.mycomfy.main.data.prompt.PromptManager;
 import com.snuabar.mycomfy.setting.Settings;
+import com.snuabar.mycomfy.utils.ImageUtils;
 import com.snuabar.mycomfy.utils.ViewUtils;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.File;
 import java.lang.ref.WeakReference;
-import java.time.Clock;
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Random;
 import java.util.Stack;
 
 public class ParametersPopup extends GeneralPopup {
@@ -54,38 +58,29 @@ public class ParametersPopup extends GeneralPopup {
     private ArrayAdapter<String> modelAdapter;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private JSONObject paramJsonObject = null;
-    private String paramKey = null;
-    private static final Random random = new Random();
+    private String paramKey = null;// 使用加密强度的随机数生成器
+    private final SecureRandom secureRandom = new SecureRandom();
     private final Stack<String> undoList;
     private OnSubmitCallback onSubmitCallback;
     private final DataRequirer dataRequirer;
+    private PickPicturePopup pickPicturePopup;
+    private final PictureInfo[] pictureInfos;
 
     public ParametersPopup(Context context, DataRequirer dataRequirer) {
         super(context);
         this.dataRequirer = dataRequirer;
         undoList = new Stack<>();
+        pictureInfos = new PictureInfo[]{new PictureInfo(), new PictureInfo(), new PictureInfo()};
         binding = LayoutParametersPopupWindowBinding.inflate(LayoutInflater.from(context));
         setContentView(binding.getRoot());
         setWidth(WindowManager.LayoutParams.MATCH_PARENT);
         setHeight(WindowManager.LayoutParams.MATCH_PARENT);
-        // 设置按钮点击事件
-        setupClickListeners();
+        // 设置事件
+        setupListeners();
         // 设置工作流控件
         setupAdapters();
         handler.post(this::loadWorkflows);
 
-        binding.switchPromptsPopup.setChecked(binding.promptEditText.getShowSuggestions());
-        binding.switchPromptsPopup.setOnCheckedChangeListener((buttonView, isChecked) ->
-                binding.promptEditText.setShowSuggestions(isChecked));
-        binding.chipGroupTranslation.setOnCheckedStateChangeListener((chipGroup, list) -> {
-            if (list.contains(R.id.chipEnZh)) {
-                binding.promptEditText.translatePromptToZH();
-            } else if (list.contains(R.id.chipZhEn)) {
-                binding.promptEditText.translatePromptToEN();
-            } else {
-                binding.promptEditText.translateNone();
-            }
-        });
         PromptManager.Companion.getInstance().getAllCategories().forEach(c -> addChip(c.getName(), c.getDisplayName()));
         loadPrompt();
     }
@@ -118,37 +113,123 @@ public class ParametersPopup extends GeneralPopup {
         super.dismiss();
     }
 
-    private void setupClickListeners() {
+    private void setupListeners() {
         // 更新工作流按扭
         binding.btnLoadWorkflows.setOnClickListener(v -> loadWorkflows());
         // 更新工作流按扭
         binding.btnLoadModels.setOnClickListener(v -> loadModels());
-        binding.btnSwitchWH.setOnClickListener(v -> switchWidthAndHeight());
-        binding.btnRandom.setOnClickListener(v -> {
-            random.setSeed(Clock.systemUTC().millis());
-            int seed = Math.abs(random.nextInt());
-            binding.etSeed.setText(String.valueOf(seed));
+        binding.switchPromptsPopup.setChecked(binding.promptEditText.getShowSuggestions());
+        binding.switchPromptsPopup.setOnCheckedChangeListener((buttonView, isChecked) ->
+                binding.promptEditText.setShowSuggestions(isChecked));
+        binding.chipGroupTranslation.setOnCheckedStateChangeListener((chipGroup, list) -> {
+            if (list.contains(R.id.chipEnZh)) {
+                binding.promptEditText.translatePromptToZH();
+            } else if (list.contains(R.id.chipZhEn)) {
+                binding.promptEditText.translatePromptToEN();
+            } else {
+                binding.promptEditText.translateNone();
+            }
         });
+        binding.btnSwitchWH.setOnClickListener(v -> switchWidthAndHeight());
         binding.btnClose.setOnClickListener(v -> dismiss());
         binding.btnSubmit.setOnClickListener(v -> {
             dismiss();
             if (onSubmitCallback != null) {
                 onSubmitCallback.apply();
+                generateSeed();
             }
         });
+        binding.chipGroupSeed.setOnCheckedStateChangeListener((chipGroup, list) -> {
+            if (list.isEmpty()) {
+
+            }
+        });
+        binding.imageView1.setOnClickListener(this::onImageViewClick);
+        binding.imageView2.setOnClickListener(this::onImageViewClick);
+        binding.imageView3.setOnClickListener(this::onImageViewClick);
+    }
+
+    private void onImageViewClick(View v) {
+        if (pickPicturePopup == null) {
+            pickPicturePopup = new PickPicturePopup(getContentView().getContext());
+        }
+        pickPicturePopup.setListener((view, button) -> {
+            int which = 0;
+            if (v == binding.imageView2) {
+                which = 1;
+            } else if (v == binding.imageView3) {
+                which = 2;
+            }
+            if (button == 0) {
+                setPictureFile(null, which);
+            } else {
+                dataRequirer.requirePicture(which, button == 2);
+            }
+            return true;
+        }).showAsDropDown(v);
+    }
+
+    private void displayPicture(int which, Bitmap bmp) {
+        ImageView imageView = binding.imageView1;
+        if (which == 1) {
+            imageView = binding.imageView2;
+        } else if (which == 2) {
+            imageView = binding.imageView3;
+        }
+
+        if (bmp != null) {
+            imageView.setImageBitmap(bmp);
+            imageView.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        } else {
+            imageView.setImageResource(R.drawable.ic_add);
+            imageView.setScaleType(ImageView.ScaleType.CENTER);
+        }
+    }
+
+    public void setPictureFile(File file, int which) {
+        if (which < 0 || which > 2) {
+            return;
+        }
+
+        pictureInfos[which].setFile(file);
+        Bitmap bmp = pictureInfos[which].bmp;
+        displayPicture(which, bmp);
     }
 
     public void setOnSubmitCallback(OnSubmitCallback callback) {
         this.onSubmitCallback = callback;
     }
 
-    public void randomSeed(boolean save) {
-        random.setSeed(Clock.systemUTC().millis());
-        int seed = Math.abs(random.nextInt());
-        binding.etSeed.setText(String.valueOf(seed));
-        if (save) {
-            saveValues();
+    private void generateSeed() {
+        if (binding.chipSeedFixed.isChecked()) {
+            return;
         }
+
+        long seed = 0;
+        if (binding.chipSeedRandom.isChecked()) {
+            byte[] bytes = new byte[Long.BYTES];
+            secureRandom.nextBytes(bytes);
+            // 转换为 long，确保为正数
+            for (int i = 0; i < 8; i++) {
+                seed = (seed << 8) | (bytes[i] & 0xFF);
+            }
+            seed = Math.abs(seed);
+        } else if (binding.chipSeedIncrease.isChecked()) {
+            String text = binding.etSeed.getText().toString();
+            if (TextUtils.isEmpty(text)) {
+                text = "0";
+            }
+            seed = Long.parseLong(text);
+            seed++;
+        } else if (binding.chipSeedDecrease.isChecked()) {
+            String text = binding.etSeed.getText().toString();
+            if (TextUtils.isEmpty(text)) {
+                text = "0";
+            }
+            seed = Long.parseLong(text);
+            seed--;
+        }
+        binding.etSeed.setText(String.valueOf(seed));
     }
 
     private void loadPrompt() {
@@ -208,8 +289,11 @@ public class ParametersPopup extends GeneralPopup {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 String selectedModel = binding.spinnerModels.getItemAtPosition(position).toString();
-                Settings.getInstance().edit().setModelName(selectedModel).apply();
-                loadValues();
+                if (!Settings.getInstance().getModelName("").equals(selectedModel)) {
+                    saveValues();
+                    Settings.getInstance().edit().setModelName(selectedModel).apply();
+                    loadValues();
+                }
             }
 
             @Override
@@ -290,7 +374,12 @@ public class ParametersPopup extends GeneralPopup {
 
         models.clear();
         models.addAll(modelNames);
-        models.removeIf(m -> workflow.getExcludeModels().stream().anyMatch(m::contains));
+        if (workflow.getModelKeywords() != null && !workflow.getModelKeywords().isEmpty()) {
+            models.removeIf(m -> workflow.getModelKeywords().stream().noneMatch(m::contains));
+        }
+        if (workflow.getExcludeModelKeywords() != null && !workflow.getExcludeModelKeywords().isEmpty()) {
+            models.removeIf(m -> workflow.getExcludeModelKeywords().stream().anyMatch(m::contains));
+        }
         modelAdapter.clear();
         modelAdapter.addAll(models);
         String selectedModel = Settings.getInstance().getModelName(null);
@@ -337,6 +426,7 @@ public class ParametersPopup extends GeneralPopup {
                     paramJsonObject.putOpt(Settings.KEY_PARAM_CFG, String.valueOf(dp.getCfg()));
                     paramJsonObject.putOpt(Settings.KEY_PARAM_UPSCALE_FACTOR, String.valueOf(dp.getUpscale_factor()));
                     paramJsonObject.putOpt(Settings.KEY_PARAM_SECONDS, String.valueOf(dp.getSeconds()));
+                    paramJsonObject.putOpt(Settings.KEY_PARAM_MEGAPIXELS, String.valueOf(dp.getMegapixels()));
                 } catch (JSONException e1) {
                     Log.e(TAG, "getParametersJSON. default. Failed to execute putOpt.", e1);
                 }
@@ -355,10 +445,49 @@ public class ParametersPopup extends GeneralPopup {
         binding.etUpscaleFactor.setText(jsonObject.optString(Settings.KEY_PARAM_UPSCALE_FACTOR));
         binding.etSeconds.setText(jsonObject.optString(Settings.KEY_PARAM_SECONDS));
         binding.btnSwitchWH.setEnabled(true);
+        binding.etMegapixels.setText(jsonObject.optString(Settings.KEY_PARAM_MEGAPIXELS));
 
-        int visibility = binding.rowSeconds.getVisibility();
-        binding.rowSeconds.setVisibility(isVideoWorkflow() ? View.VISIBLE : View.GONE);
-        if (binding.rowSeconds.getVisibility() != visibility) {
+        boolean layoutChanged = false;
+        int visibility = binding.layoutSeconds.getVisibility();
+        binding.layoutSeconds.setVisibility(isVideoWorkflow() ? View.VISIBLE : View.GONE);
+        if (binding.layoutSeconds.getVisibility() != visibility) {
+            layoutChanged = true;
+        }
+
+        visibility = binding.layoutImageSize.getVisibility();
+        binding.layoutImageSize.setVisibility(isWorkflowInputImage() ? View.GONE : View.VISIBLE);
+        if (binding.layoutImageSize.getVisibility() != visibility) {
+            layoutChanged = true;
+        }
+
+        visibility = binding.layoutMegapixels.getVisibility();
+        binding.layoutMegapixels.setVisibility(isWorkflowInputImage() ? View.VISIBLE : View.GONE);
+        if (binding.layoutMegapixels.getVisibility() != visibility) {
+            layoutChanged = true;
+        }
+
+        visibility = binding.layoutImages.getVisibility();
+        binding.layoutImages.setVisibility(isWorkflowInputImage() ? View.VISIBLE : View.GONE);
+        if (binding.layoutImages.getVisibility() != visibility) {
+            layoutChanged = true;
+        }
+        if (binding.layoutImages.getVisibility() == View.VISIBLE) {
+            File file1 = null, file2 = null, file3 = null;
+            if (jsonObject.has(Settings.KEY_PARAM_IMAGE1)) {
+                file1 = new File(jsonObject.optString(Settings.KEY_PARAM_IMAGE1));
+            }
+            if (jsonObject.has(Settings.KEY_PARAM_IMAGE2)) {
+                file2 = new File(jsonObject.optString(Settings.KEY_PARAM_IMAGE2));
+            }
+            if (jsonObject.has(Settings.KEY_PARAM_IMAGE3)) {
+                file3 = new File(jsonObject.optString(Settings.KEY_PARAM_IMAGE3));
+            }
+            setPictureFile(file1, 0);
+            setPictureFile(file2, 1);
+            setPictureFile(file3, 2);
+        }
+
+        if (layoutChanged) {
             update();
         }
     }
@@ -374,6 +503,22 @@ public class ParametersPopup extends GeneralPopup {
             jsonObject.putOpt(Settings.KEY_PARAM_CFG, binding.etCFG.getText().toString());
             jsonObject.putOpt(Settings.KEY_PARAM_UPSCALE_FACTOR, binding.etUpscaleFactor.getText().toString());
             jsonObject.putOpt(Settings.KEY_PARAM_SECONDS, binding.etSeconds.getText().toString());
+            jsonObject.putOpt(Settings.KEY_PARAM_MEGAPIXELS, binding.etMegapixels.getText().toString());
+            if (pictureInfos[0].file == null) {
+                jsonObject.remove(Settings.KEY_PARAM_IMAGE1);
+            } else {
+                jsonObject.putOpt(Settings.KEY_PARAM_IMAGE1, pictureInfos[0].file.getAbsolutePath());
+            }
+            if (pictureInfos[1].file == null) {
+                jsonObject.remove(Settings.KEY_PARAM_IMAGE2);
+            } else {
+                jsonObject.putOpt(Settings.KEY_PARAM_IMAGE2, pictureInfos[1].file.getAbsolutePath());
+            }
+            if (pictureInfos[2].file == null) {
+                jsonObject.remove(Settings.KEY_PARAM_IMAGE3);
+            } else {
+                jsonObject.putOpt(Settings.KEY_PARAM_IMAGE3, pictureInfos[2].file.getAbsolutePath());
+            }
 
             String key = getParametersSettingKey();
             Settings.getInstance().edit().putString(key, jsonObject.toString()).apply();
@@ -399,6 +544,15 @@ public class ParametersPopup extends GeneralPopup {
             return false;
         }
         return WorkflowsResponse.Workflow.OUTPUT_VIDEO.equals(workflow.getOutputType());
+    }
+
+    public boolean isWorkflowInputImage() {
+        String selectedWorkflow = Settings.getInstance().getWorkflow("");
+        WorkflowsResponse.Workflow workflow = workflows.get(selectedWorkflow);
+        if (workflow == null) {
+            return false;
+        }
+        return WorkflowsResponse.Workflow.INPUT_IMAGE.equals(workflow.getInputType());
     }
 
     @NonNull
@@ -436,7 +590,6 @@ public class ParametersPopup extends GeneralPopup {
         String upscaleFactorStr = getParameter(Settings.KEY_PARAM_UPSCALE_FACTOR);
         String stepStr = getParameter(Settings.KEY_PARAM_STEP);
         String cfgStr = getParameter(Settings.KEY_PARAM_CFG);
-        String secondsStr = getParameter(Settings.KEY_PARAM_SECONDS);
 
         // 验证输入
         if (workflow.isEmpty()) {
@@ -518,8 +671,12 @@ public class ParametersPopup extends GeneralPopup {
             }
         }
 
+        // 创建参数对象
+        Parameters parameters = new Parameters(workflow, modelName, prompt, seed, width, height, step, cfg, upscaleFactor);
+
         int seconds = 0;
         if (isVideoWorkflow()) {
+            String secondsStr = getParameter(Settings.KEY_PARAM_SECONDS);
             if (!secondsStr.isEmpty()) {
                 try {
                     seconds = Integer.parseInt(secondsStr);
@@ -532,12 +689,33 @@ public class ParametersPopup extends GeneralPopup {
                     return null;
                 }
             }
+            parameters.setSeconds(seconds);
         }
 
-        // 创建参数对象
-        Parameters parameters = new Parameters(workflow, modelName, prompt, seed, width, height, step, cfg, upscaleFactor);
-        if (seconds != 0) {
-            parameters.setSeconds(seconds);
+        if (isWorkflowInputImage()) {
+            String megapixelsStr = getParameter(Settings.KEY_PARAM_MEGAPIXELS);
+            try {
+                double megapixels = Double.parseDouble(megapixelsStr);
+                if (megapixels < 0.1 || megapixels > 5.0) {
+                    showToast("像素值应在 0.1 ~ 5.0 之间");
+                    return null;
+                }
+                parameters.setMegapixels(megapixels);
+            } catch (NumberFormatException e) {
+                showToast("像素值必须是数字");
+                return null;
+            }
+
+            if (pictureInfos[0].file == null || !pictureInfos[0].file.exists()) {
+                showToast("必须指定图1");
+                return null;
+            }
+
+            File[] imageFiles = new File[pictureInfos.length];
+            for (int i = 0; i < pictureInfos.length; i++) {
+                imageFiles[i] = pictureInfos[i].file;
+            }
+            parameters.setImageFiles(imageFiles);
         }
 
         return parameters;
@@ -609,5 +787,32 @@ public class ParametersPopup extends GeneralPopup {
     public interface DataRequirer {
         void loadWorkflows();
         void loadModels(@NonNull List<String> modelTypes);
+        void requirePicture(int which, boolean useCamera);
+    }
+
+    private class PictureInfo {
+        private Bitmap bmp;
+        private File file;
+
+        private void setFile(File file) {
+            this.file = file;
+            File thumbnail = null;
+            if (file != null) {
+                thumbnail = ImageUtils.getThumbnailFileInCacheDir(getContentView().getContext(), file);
+                if (!thumbnail.exists()) {
+                    float width = getContentView().getContext().getResources().getDimension(R.dimen.thumbnail_width);
+                    float height = getContentView().getContext().getResources().getDimension(R.dimen.thumbnail_height);
+                    thumbnail = ImageUtils.createAndSaveThumbnail(file, thumbnail, width, height);
+                }
+            }
+            if (bmp != null && !bmp.isRecycled()) {
+                bmp.recycle();
+            }
+            if (thumbnail != null && thumbnail.exists()) {
+                bmp = BitmapFactory.decodeFile(thumbnail.getAbsolutePath());
+            } else {
+                bmp = null;
+            }
+        }
     }
 }
