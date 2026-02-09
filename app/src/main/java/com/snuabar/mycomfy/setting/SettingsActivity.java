@@ -4,6 +4,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.view.MenuItem;
 import android.widget.Toast;
 
@@ -24,6 +25,9 @@ import com.snuabar.mycomfy.utils.ThumbnailCacheManager;
 import com.snuabar.mycomfy.view.TwoButtonPopup;
 import com.snuabar.mycomfy.view.dialog.OptionalDialog;
 
+import org.json.JSONException;
+
+import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -33,6 +37,8 @@ import retrofit2.Callback;
 import retrofit2.Response;
 
 public class SettingsActivity extends AppCompatActivity {
+
+    private static final String TAG = SettingsActivity.class.getName();
 
     private ActivitySettingsBinding binding;
     private final Executor executor = Executors.newSingleThreadExecutor();
@@ -105,6 +111,14 @@ public class SettingsActivity extends AppCompatActivity {
         dataHelper.executeImport(fileUri, succeeded -> {
             pgsDlg.dismiss();
             if (succeeded) {
+                // 先恢复SharedPreference设定
+                try {
+                    Settings.getInstance().restoreBackup();
+                    initViews();
+                } catch (JSONException | IOException e) {
+                    Log.e(TAG, "importData > SharedPreference设定恢复失败.", e);
+                }
+
                 Settings.getInstance().setDataImportedState();
                 Toast.makeText(this, "导入成功", Toast.LENGTH_SHORT).show();
             } else {
@@ -133,6 +147,14 @@ public class SettingsActivity extends AppCompatActivity {
             return;
         }
         pgsDlg.setText("正在导出...").show(getSupportFragmentManager());
+
+        // 先备份SharedPreference设定
+        try {
+            Settings.getInstance().backup();
+        } catch (JSONException | IOException e) {
+            Log.e(TAG, "exportData > SharedPreference设定备份失败.", e);
+        }
+
         dataHelper.executeExport(null, destinationUri, state -> {
             pgsDlg.dismiss();
             if (state == DataHelper.STATE_OK) {

@@ -12,11 +12,25 @@
         android:text="复制提示词"/>
 
     <Button
+        android:id="@+id/btnCopySeed"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        style="@style/ButtonBorderless"
+        android:text="复制种子"/>
+
+    <Button
         android:id="@+id/btnCopyImage"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         style="@style/ButtonBorderless"
         android:text="复制图像"/>
+
+    <Button
+        android:id="@+id/btnDeleteAssociated"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        style="@style/ButtonBorderless"
+        android:text="关联删除"/>
 
     <Button
         android:id="@+id/btnDelete"

@@ -21,6 +21,7 @@ import com.snuabar.mycomfy.client.RetrofitClient;
 import com.snuabar.mycomfy.client.UploadResponse;
 import com.snuabar.mycomfy.client.WorkflowsResponse;
 import com.snuabar.mycomfy.common.Callbacks;
+import com.snuabar.mycomfy.main.data.livedata.MessageModelState;
 import com.snuabar.mycomfy.main.model.I2IReceivedMessageModel;
 import com.snuabar.mycomfy.main.model.MessageModel;
 import com.snuabar.mycomfy.main.model.ReceivedMessageModel;
@@ -64,6 +65,7 @@ public class HttpBaseViewModel extends ViewModel {
     private final MutableLiveData<List<String>> modelsLiveData;
 
     private final RetrofitClient retrofitClient;
+    private boolean isWorkflowLoading = false;
 
     public HttpBaseViewModel() {
         messageModels = new ArrayList<>();
@@ -83,6 +85,7 @@ public class HttpBaseViewModel extends ViewModel {
         super.onCleared();
         ThumbnailCacheManager.Companion.getInstance().release();
         isPromptCheckExecutorStop = true;
+        dataIO.close();
     }
 
     public LiveData<MessageModelState> getMessageModelStateLiveData() {
@@ -140,7 +143,10 @@ public class HttpBaseViewModel extends ViewModel {
     }
 
     public int saveMessageModel(AbstractMessageModel model) {
-        AbstractMessageModel newModel = dataIO.writeModelFile(model);
+        AbstractMessageModel newModel = dataIO.writeModel(model);
+        if (newModel == null) {
+            newModel = dataIO.writeModelFile(model);
+        }
         // 更新缓存列表
         int index = getIndexWithId(model.getId());
         if (index == -1) {
@@ -153,12 +159,21 @@ public class HttpBaseViewModel extends ViewModel {
         return index;
     }
 
+    public int deleteModelFile(String modelId) {
+        int index = getIndexWithId(modelId);
+        if (index >= 0) {
+            return deleteModelFile(messageModels.get(index));
+        }
+        return -1;
+    }
+
+
     public int deleteModelFile(AbstractMessageModel model) {
-        if (dataIO.deleteModelFile(model)) {
-            // 更新缓存列表
+        if (dataIO.deleteModel(model) || dataIO.deleteModelFile(model)) {
             int index = getIndexWithId(model.getId());
             if (index >= 0) {
                 messageModels.remove(index);
+                // 更新缓存列表
                 refreshIdToIndexMap();
             }
             return index;
@@ -274,6 +289,7 @@ public class HttpBaseViewModel extends ViewModel {
                         } else {
                             receivedMessageModel = new ReceivedMessageModel(enqueueResponse);
                         }
+                        receivedMessageModel.setAssociatedSentModelId(sentMessageModel.getId());
                         int index = saveMessageModel(receivedMessageModel);
 //                        messageAdapter.notifyItemAdded(index);
                         setMessageModelState(MessageModelState.added(index));
@@ -440,10 +456,15 @@ public class HttpBaseViewModel extends ViewModel {
     }
 
     public void loadWorkflows() {
+        if (isWorkflowLoading) {
+            return;
+        }
+        isWorkflowLoading = true;
         // 发送请求
         retrofitClient.getApiService().loadWorkflow().enqueue(new Callback<>() {
             @Override
             public void onResponse(@NonNull Call<WorkflowsResponse> call, @NonNull Response<WorkflowsResponse> response) {
+                isWorkflowLoading = false;
                 if (response.isSuccessful() && response.body() != null) {
                     WorkflowsResponse workflowsResponse = response.body();
                     workflowsLiveData.postValue(workflowsResponse.getWorkflows());
@@ -454,6 +475,7 @@ public class HttpBaseViewModel extends ViewModel {
 
             @Override
             public void onFailure(@NonNull Call<WorkflowsResponse> call, @NonNull Throwable t) {
+                isWorkflowLoading = false;
                 Log.e(TAG, "请求失败。" + t.getMessage(), t);
             }
         });

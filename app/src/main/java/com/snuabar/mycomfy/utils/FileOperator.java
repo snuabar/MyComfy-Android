@@ -171,17 +171,10 @@ public class FileOperator {
             return;
         }
 
-        // 3. 获取文件的Uri（适配不同Android版本）
-        Uri imageUri;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            // Android 7.0及以上需要使用FileProvider
-            imageUri = FileProvider.getUriForFile(context,
-                    context.getPackageName() + ".provider",
-                    imageFile);
-        } else {
-            // Android 7.0以下
-            imageUri = Uri.fromFile(imageFile);
-        }
+        // 3. 获取文件的Uri
+        Uri imageUri = FileProvider.getUriForFile(context,
+                context.getPackageName() + ".provider",
+                imageFile);
 
         // 4. 创建分享Intent
         Intent shareIntent = new Intent(Intent.ACTION_SEND);

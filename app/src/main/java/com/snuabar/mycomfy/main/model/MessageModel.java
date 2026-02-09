@@ -146,6 +146,11 @@ public class MessageModel extends AbstractMessageModel {
     }
 
     @Override
+    public String getAssociatedSentModelId() {
+        return "";
+    }
+
+    @Override
     public JSONObject toJson() {
         JSONObject jsonObject = super.toJson();
         try {

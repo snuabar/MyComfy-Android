@@ -70,6 +70,7 @@ public class MainActivity extends AppCompatActivity {
         menu.findItem(R.id.action_settings).setVisible(!deletionMode);
         menu.findItem(R.id.action_multi_select).setVisible(!deletionMode);
         menu.findItem(R.id.action_delete).setVisible(deletionMode);
+        menu.findItem(R.id.action_delete_associated).setVisible(deletionMode);
         return super.onPrepareOptionsMenu(menu);
     }
 
@@ -93,6 +94,11 @@ public class MainActivity extends AppCompatActivity {
         if (id == R.id.action_delete) {
             mViewModel.changeDeletionHasPressed(true);
             mViewModel.changeDeletionHasPressed(false);
+            return true;
+        }
+        if (id == R.id.action_delete_associated) {
+            mViewModel.changeAssociatedDeletionHasPressed(true);
+            mViewModel.changeAssociatedDeletionHasPressed(false);
             return true;
         }
         if (id == R.id.action_multi_select) {

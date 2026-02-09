@@ -3,25 +3,26 @@ package com.snuabar.mycomfy.main.data;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
+import com.snuabar.mycomfy.main.data.livedata.DeletionData;
 import com.snuabar.mycomfy.utils.FilePicker;
-
-import java.util.List;
-import java.util.Map;
 
 public class MainViewModel extends HttpBaseViewModel {
 
     private FilePicker filePicker;
     private final MutableLiveData<Boolean> deletionHasPressed;
+    private final MutableLiveData<Boolean> associatedDeletionHasPressed;
     private final MutableLiveData<Boolean> deletionModeLiveData;
     private final MutableLiveData<Integer> selectedTabLiveData;
-    private final MutableLiveData<Map<String, List<AbstractMessageModel>>> deletedModelsLiveData;
+    private final MutableLiveData<DeletionData> deletionDataLiveData;
+    private final MutableLiveData<Boolean> modelListChangeLiveData;
 
     public MainViewModel() {
         deletionHasPressed = new MutableLiveData<>();
+        associatedDeletionHasPressed = new MutableLiveData<>();
         deletionModeLiveData = new MutableLiveData<>();
         selectedTabLiveData = new MutableLiveData<>();
-        deletedModelsLiveData = new MutableLiveData<>();
-
+        deletionDataLiveData = new MutableLiveData<>();
+        modelListChangeLiveData = new MutableLiveData<>();
     }
 
     public LiveData<Boolean> getDeletionModeLiveData() {
@@ -48,12 +49,29 @@ public class MainViewModel extends HttpBaseViewModel {
         deletionHasPressed.setValue(pressed);
     }
 
-    public LiveData<Map<String, List<AbstractMessageModel>>> getDeletedModelsLiveData() {
-        return deletedModelsLiveData;
+    public LiveData<Boolean> getAssociatedDeletionHasPressedLiveData() {
+        return associatedDeletionHasPressed;
     }
 
-    public void changeDeletedModels(Map<String, List<AbstractMessageModel>> deletedModels) {
-        deletedModelsLiveData.postValue(deletedModels);
+    public void changeAssociatedDeletionHasPressed(boolean pressed) {
+        associatedDeletionHasPressed.setValue(pressed);
+    }
+
+    public LiveData<DeletionData> getDeletionDataLiveData() {
+        return deletionDataLiveData;
+    }
+
+    public void changeDeletionData(DeletionData deletionData) {
+        deletionDataLiveData.postValue(deletionData);
+    }
+
+
+    public LiveData<Boolean> getModelListChangeLiveData() {
+        return modelListChangeLiveData;
+    }
+
+    public void setModelListChange(boolean changed) {
+        modelListChangeLiveData.setValue(changed);
     }
 
     public void setFilePicker(FilePicker filePicker) {

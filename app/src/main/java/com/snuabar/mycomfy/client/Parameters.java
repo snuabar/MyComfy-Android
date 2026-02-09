@@ -12,7 +12,7 @@ public class Parameters extends QueueRequest {
     private long timestamp;
 
     public Parameters() {
-        this(null, null, null, 0, 0, 0, 0, 0.0, 0.0);
+        this(null, null, null, "0", 0, 0, 0, 0.0, 0.0);
     }
 
     public Parameters(Parameters other) {
@@ -21,7 +21,7 @@ public class Parameters extends QueueRequest {
         timestamp = Clock.systemUTC().millis();
     }
 
-    public Parameters(String workflow, String modelName, String prompt, Integer seed, int width, int height, int step, double cfg, double upscaleFactor) {
+    public Parameters(String workflow, String modelName, String prompt, String seed, int width, int height, int step, double cfg, double upscaleFactor) {
         super(workflow, modelName, prompt, seed, width, height, step, cfg, upscaleFactor);
         timestamp = Clock.systemUTC().millis();
     }

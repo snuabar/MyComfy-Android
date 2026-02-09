@@ -14,7 +14,7 @@ public class QueueRequest {
     private String workflow;
     private String model;
     private String prompt;
-    private Integer seed;
+    private String seed;
     private int img_width;
     private int img_height;
     private int num_images = 1;
@@ -29,7 +29,7 @@ public class QueueRequest {
     private File[] imageFiles;
 
     // 构造函数
-    public QueueRequest(String workflow, String model, String prompt, Integer seed, int img_width, int img_height, int step, double cfg, double upscale_factor) {
+    public QueueRequest(String workflow, String model, String prompt, String seed, int img_width, int img_height, int step, double cfg, double upscale_factor) {
         this.workflow = workflow;
         this.model = model;
         this.prompt = prompt;
@@ -71,11 +71,11 @@ public class QueueRequest {
         this.prompt = prompt;
     }
 
-    public Integer getSeed() {
+    public String getSeed() {
         return seed;
     }
 
-    public void setSeed(Integer seed) {
+    public void setSeed(String seed) {
         this.seed = seed;
     }
 
@@ -241,7 +241,7 @@ public class QueueRequest {
         setWorkflow(jsonObject.optString("workflow"));
         setModel(jsonObject.optString("model", null));
         setPrompt(jsonObject.optString("prompt", null));
-        setSeed(jsonObject.optInt("seed"));
+        setSeed(jsonObject.optString("seed"));
         setImg_width(jsonObject.optInt("img_width"));
         setImg_height(jsonObject.optInt("img_height"));
         setNum_images(jsonObject.optInt("num_images"));

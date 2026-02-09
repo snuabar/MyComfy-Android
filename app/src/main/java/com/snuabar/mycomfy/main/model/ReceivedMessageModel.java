@@ -25,6 +25,7 @@ public class ReceivedMessageModel extends MessageModel {
     private long utcTimestamp = 0;
     private boolean interruptionFlag = false;
     private int[] imageSize;
+    private String associatedSentModelId;
 
     public ReceivedMessageModel(EnqueueResponse response) {
         super();
@@ -141,6 +142,15 @@ public class ReceivedMessageModel extends MessageModel {
         return imageSize == null ? refetchImageSize() : imageSize;
     }
 
+    public void setAssociatedSentModelId(String associatedSentModelId) {
+        this.associatedSentModelId = associatedSentModelId;
+    }
+
+    @Override
+    public String getAssociatedSentModelId() {
+        return associatedSentModelId;
+    }
+
     private int[] refetchImageSize() {
         if (this.imageFile != null && this.imageFile.exists()) {
             if (isVideo()) {
@@ -172,6 +182,7 @@ public class ReceivedMessageModel extends MessageModel {
                 jsonObject.putOpt("imageSize.width", imageSize[0]);
                 jsonObject.putOpt("imageSize.height", imageSize[1]);
             }
+            jsonObject.putOpt("associatedSentModelId", associatedSentModelId);
         } catch (JSONException e) {
             Log.e(TAG, "toJson. Failed to execute putOpt.", e);
         }
@@ -204,6 +215,7 @@ public class ReceivedMessageModel extends MessageModel {
         if (imageSize == null || imageSize.length < 2 || imageSize[0] == 0 || imageSize[1] == 0) {
             imageSize = refetchImageSize();
         }
+        associatedSentModelId = jsonObject.optString("associatedSentModelId");
     }
 
     @Override

@@ -78,6 +78,8 @@ public abstract class AbstractMessageModel {
 
     public abstract boolean isI2I();
 
+    public abstract String getAssociatedSentModelId();
+
     @CallSuper
     public JSONObject toJson() {
         try {

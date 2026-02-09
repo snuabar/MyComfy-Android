@@ -260,7 +260,8 @@
             <com.google.android.material.chip.ChipGroup
                 android:id="@+id/chipGroupSeed"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_height="match_parent"
+                app:checkedChip="@id/chipSeedRandom"
                 app:chipSpacingHorizontal="2dp"
                 app:singleSelection="true">
 
@@ -268,6 +269,7 @@
                     android:id="@+id/chipSeedRandom"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:checkable="true"
                     android:text="随机"
                     android:textSize="11sp" />
 
@@ -275,6 +277,7 @@
                     android:id="@+id/chipSeedIncrease"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:checkable="true"
                     android:text="增加"
                     android:textSize="11sp" />
 
@@ -282,6 +285,7 @@
                     android:id="@+id/chipSeedDecrease"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:checkable="true"
                     android:text="减少"
                     android:textSize="11sp" />
 
@@ -289,6 +293,7 @@
                     android:id="@+id/chipSeedFixed"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:checkable="true"
                     android:text="固定"
                     android:textSize="11sp" />
 
@@ -306,6 +311,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:gravity="center|end"
+                android:layout_marginEnd="6dp"
                 android:orientation="horizontal">
 
                 <TextView
@@ -328,8 +334,8 @@
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
                 android:layout_weight="1"
+                android:layout_marginEnd="6dp"
                 android:gravity="center|end"
                 android:orientation="horizontal">
 
@@ -354,7 +360,6 @@
                 android:id="@+id/layoutUpscale"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
                 android:layout_weight="1"
                 android:gravity="center|end"
                 android:orientation="horizontal"
@@ -389,6 +394,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:layout_marginEnd="6dp"
                 android:gravity="center|end"
                 android:orientation="horizontal">
 
@@ -412,7 +418,6 @@
                 android:id="@+id/layoutMegapixels"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
                 android:layout_weight="1"
                 android:gravity="center|end"
                 android:orientation="horizontal"
