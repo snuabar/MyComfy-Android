@@ -1,4 +1,4 @@
-package com.snuabar.mycomfy.main.data;
+package com.snuabar.mycomfy.main.data.livedata;
 
 public class MessageModelState {
     public static int STATE_NONE = -1;

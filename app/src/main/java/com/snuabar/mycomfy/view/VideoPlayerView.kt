@@ -100,7 +100,7 @@ class VideoPlayerView @JvmOverloads constructor(
     }
 
     fun getControlLayoutHeight(): Int {
-        ViewUtils.measure(controlsLayout, 0)
+        ViewUtils.measure(controlsLayout)
         return controlsLayout.height
     }
 

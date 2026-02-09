@@ -2,16 +2,31 @@ package com.snuabar.mycomfy.setting;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.util.Log;
 
 import androidx.annotation.StringDef;
 
 import com.snuabar.mycomfy.client.WorkflowsResponse;
+import com.snuabar.mycomfy.utils.TextCompressor;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.nio.file.Files;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.Set;
 
 public class Settings {
+    public static final String TAG = Settings.class.getName();
+
     public static final String KEY_PARAM_WORKFLOW = "workflow";
     public static final String KEY_PARAM_MODEL = "model";
     public static final String KEY_PARAM_WIDTH = "width";
@@ -76,10 +91,88 @@ public class Settings {
         return Instance;
     }
 
+    private final Context context;
+    private final String prefsName;
     private SharedPreferences.Editor editor = null;
 
     private Settings(Context context) {
-        preferences = context.getSharedPreferences(context.getPackageName() + ".main.settings", Context.MODE_PRIVATE);
+        this.context = context;
+        this.prefsName = context.getPackageName() + ".main.settings";
+        preferences = context.getSharedPreferences(prefsName, Context.MODE_PRIVATE);
+    }
+
+    private File getExternalSharedPrefsDir() {
+        File file = context.getExternalFilesDir(null);
+        if (file != null && !file.exists() && !file.mkdirs()) {
+            Log.e(TAG, "getExternalSharedPrefsDir: failed to execute mkdirs()");
+        }
+        file = context.getExternalFilesDir("shared_prefs");
+        if (file != null && !file.exists() && !file.mkdirs()) {
+            Log.e(TAG, "getExternalSharedPrefsDir: failed to execute mkdirs()");
+        }
+        return file;
+    }
+
+    private File getExternalSharedPrefsFile() {
+        File externalSharedPrefsDir = getExternalSharedPrefsDir();
+        return new File(externalSharedPrefsDir, prefsName + ".json");
+    }
+
+    public void backup() throws JSONException, IOException {
+        File file = getExternalSharedPrefsFile();
+        JSONObject jsonObject = new JSONObject();
+        Map<String, ?> all = preferences.getAll();
+        for (String key : all.keySet()) {
+            Object object = all.get(key);
+            if (object instanceof Set<?>) {
+                JSONArray jsonArray = new JSONArray();
+                for (Object str : (Set<?>)object) {
+                    jsonArray.put(str);
+                }
+                jsonObject.putOpt(key, jsonArray);
+            } else {
+                jsonObject.putOpt(key, object);
+            }
+        }
+        String jsonStr = jsonObject.toString();
+        byte[] bytes = TextCompressor.INSTANCE.compress(jsonStr);
+        try (FileOutputStream fos = new FileOutputStream(file)) {
+            fos.write(bytes);
+            fos.flush();
+        }
+    }
+
+    public void restoreBackup() throws IOException, JSONException {
+        File file = getExternalSharedPrefsFile();
+        if (file.exists() && file.isFile()) {
+            SharedPreferences.Editor editor = preferences.edit();
+            byte[] bytes = Files.readAllBytes(file.toPath());
+            String jsonStr = TextCompressor.INSTANCE.decompress(bytes);
+            JSONObject jsonObject = new JSONObject(jsonStr);
+            for (Iterator<String> it = jsonObject.keys(); it.hasNext(); ) {
+                String key = it.next();
+                Object object = jsonObject.opt(key);
+                if (object instanceof Integer) {
+                    editor.putInt(key, (int) object);
+                } else if (object instanceof Boolean) {
+                    editor.putBoolean(key, (boolean) object);
+                } else if (object instanceof Float) {
+                    editor.putFloat(key, (float) object);
+                } else if (object instanceof Long) {
+                    editor.putLong(key, (long) object);
+                } else if (object instanceof String) {
+                    editor.putString(key, (String) object);
+                } else if (object instanceof JSONArray){
+                    Set<String> stringSet = new HashSet<>();
+                    JSONArray jsonArray = (JSONArray) object;
+                    for (int i = 0; i < jsonArray.length(); i++) {
+                        stringSet.add(jsonArray.getString(i));
+                    }
+                    editor.putStringSet(key, stringSet);
+                }
+            }
+            editor.apply();
+        }
     }
 
     public Settings edit() {

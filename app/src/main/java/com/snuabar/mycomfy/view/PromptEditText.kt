@@ -119,7 +119,7 @@ class PromptEditText @JvmOverloads constructor(
 
     private fun measurePopupWindowSize() {
         // 手动测量和布局
-        ViewUtils.measure(popupViewBinding.root, 200)
+        ViewUtils.measure(popupViewBinding.root)
     }
 
     private fun showSuggestions(prefix: String) {

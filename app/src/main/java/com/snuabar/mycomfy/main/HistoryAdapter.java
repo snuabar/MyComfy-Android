@@ -120,7 +120,9 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
     @SuppressLint("NotifyDataSetChanged")
     public void setEditMode(boolean editMode) {
         this.isEditMode = editMode;
-        selections.clear();
+        if (!editMode) {
+            selections.clear();
+        }
         notifyDataSetChanged();
     }
 
@@ -149,19 +151,6 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
 
     public List<Integer> getSelectedIndices() {
         return new ArrayList<>(selections);
-    }
-
-    public List<AbstractMessageModel> deleteSelection() {
-        List<Integer> indices = getSelectedIndices();
-        indices.sort((o1, o2) -> o2 - o1);
-
-        List<AbstractMessageModel> deletedModels = new ArrayList<>();
-        for (int i : indices) {
-            deletedModels.add(mValues.remove(i));
-            notifyItemRemoved(i);
-        }
-        updateIdToIndexMap();
-        return deletedModels;
     }
 
     public class ViewHolder extends RecyclerView.ViewHolder {

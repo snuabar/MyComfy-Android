@@ -28,12 +28,14 @@ import com.snuabar.mycomfy.R;
 import com.snuabar.mycomfy.client.QueueRequest;
 import com.snuabar.mycomfy.client.Parameters;
 import com.snuabar.mycomfy.client.RetrofitClient;
+import com.snuabar.mycomfy.common.Callbacks;
 import com.snuabar.mycomfy.common.Common;
 import com.snuabar.mycomfy.databinding.FragmentHomeBinding;
 import com.snuabar.mycomfy.databinding.LayoutMessageItemOptionalDialogBinding;
 import com.snuabar.mycomfy.main.data.AbstractMessageModel;
 import com.snuabar.mycomfy.main.data.MainViewModel;
-import com.snuabar.mycomfy.main.data.MessageModelState;
+import com.snuabar.mycomfy.main.data.livedata.DeletionData;
+import com.snuabar.mycomfy.main.data.livedata.MessageModelState;
 import com.snuabar.mycomfy.main.model.I2ISentMessageModel;
 import com.snuabar.mycomfy.main.model.MessageModel;
 import com.snuabar.mycomfy.main.model.ReceivedMessageModel;
@@ -49,14 +51,17 @@ import com.snuabar.mycomfy.utils.ImageTools;
 import com.snuabar.mycomfy.utils.ImageUtils;
 import com.snuabar.mycomfy.utils.ViewUtils;
 import com.snuabar.mycomfy.view.ParametersPopup;
+import com.snuabar.mycomfy.view.TwoButtonPopup;
 import com.snuabar.mycomfy.view.dialog.OptionalDialog;
 
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
 
 public class HomeFragment extends Fragment {
 
@@ -68,9 +73,10 @@ public class HomeFragment extends Fragment {
     private FilePicker filePicker;
     private MessageAdapter messageAdapter = null;
     private ParametersPopup parametersPopup;
-//    private PromptEditPopup promptEditPopup;
+    //    private PromptEditPopup promptEditPopup;
     private PopupWindow messageItemOptionalPopup;
     private final OptionalDialog.ProgressDialog pgsDlg;
+    private TwoButtonPopup interruptionConfirmPopup;
 
     public static HomeFragment newInstance() {
         return new HomeFragment();
@@ -111,7 +117,14 @@ public class HomeFragment extends Fragment {
         mViewModel.getDeletionHasPressLiveData().observe(getViewLifecycleOwner(), aBoolean -> {
             if (getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.RESUMED)) {
                 if (aBoolean) {
-                    doDelete();
+                    doDelete(false);
+                }
+            }
+        });
+        mViewModel.getAssociatedDeletionHasPressedLiveData().observe(getViewLifecycleOwner(), aBoolean -> {
+            if (getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.RESUMED)) {
+                if (aBoolean) {
+                    doDelete(true);
                 }
             }
         });
@@ -120,17 +133,7 @@ public class HomeFragment extends Fragment {
                 messageAdapter.setEditMode(aBoolean);
             }
         });
-        mViewModel.getDeletedModelsLiveData().observe(getViewLifecycleOwner(), stringListMap -> {
-            stringListMap.remove(HomeFragment.class.getName());
-            if (!stringListMap.isEmpty()) {
-                for (String key : stringListMap.keySet()) {
-                    for (AbstractMessageModel model : Objects.requireNonNull(stringListMap.get(key))) {
-                        int index = mViewModel.getIndexWithId(model.getId());
-                        messageAdapter.notifyItemDeleted(index);
-                    }
-                }
-            }
-        });
+        mViewModel.getDeletionDataLiveData().observe(getViewLifecycleOwner(), this::doDelete);
         mViewModel.observeMessageModelsLiveData(getViewLifecycleOwner(), abstractMessageModels -> {
             messageAdapter.setData(abstractMessageModels);
             pgsDlg.dismiss();
@@ -173,6 +176,7 @@ public class HomeFragment extends Fragment {
         if (Settings.getInstance().hasDataImportedState()) {
             Settings.getInstance().clearDataImportedState();
             mViewModel.reloadMessageModels();
+            parametersPopup.reload();
         }
     }
 
@@ -235,11 +239,15 @@ public class HomeFragment extends Fragment {
                 }
             }
         } else if (ope == MessageAdapter.OnElementClickListener.OPE_LONG_CLICK) {
-            showMessageItemOptionalPopup(view, downLocation, model);
+            if (!messageAdapter.isEditMode()) {
+                showMessageItemOptionalPopup(view, downLocation, model);
+            }
         } else if (ope == MessageAdapter.OnElementClickListener.OPE_INTERRUPT) {
-            model.setInterruptionFlag(true);
-            int index = mViewModel.saveMessageModel(model);
-            messageAdapter.notifyItemChanged(index);
+            showInterruptionConfirmPopup(view, () -> {
+                model.setInterruptionFlag(true);
+                int index = mViewModel.saveMessageModel(model);
+                messageAdapter.notifyItemChanged(index);
+            });
         } else if (ope == MessageAdapter.OnElementClickListener.OPE_SAVE) {
             if (imageFile != null && imageFile.exists()) {
                 // 使用文档创建API
@@ -273,6 +281,21 @@ public class HomeFragment extends Fragment {
         }
     }
 
+    private void showInterruptionConfirmPopup(View anchor, Callbacks.Callback confirmedCallback) {
+        if (interruptionConfirmPopup == null) {
+            interruptionConfirmPopup = new TwoButtonPopup(requireContext())
+                    .setButton2TextColor(android.R.color.holo_red_light)
+                    .setWidthWrapContent().switchButtons();
+        }
+        interruptionConfirmPopup.setListener((view, button) -> {
+            if (button == 1 && confirmedCallback != null) {
+                confirmedCallback.apply();
+            }
+            return true;
+        });
+        interruptionConfirmPopup.show(anchor, TwoButtonPopup.Edge.Start);
+    }
+
     private void showUpscaleAdjustmentDialog(AbstractMessageModel model) {
         final double[] factorGetter = new double[]{model.getParameters().getUpscale_factor()};
         new OptionalDialog()
@@ -300,10 +323,12 @@ public class HomeFragment extends Fragment {
                                 tvFactor.setText(String.format(Locale.getDefault(), "x%.01f", factor));
                                 tvDest.setText(String.format(Locale.getDefault(), "%d x %d", destWidth, destHeight));
                             }
+
                             @Override
                             public void onStartTrackingTouch(SeekBar seekBar) {
 
                             }
+
                             @Override
                             public void onStopTrackingTouch(SeekBar seekBar) {
 
@@ -323,7 +348,7 @@ public class HomeFragment extends Fragment {
             PopupWindow popupWindow = new PopupWindow(requireContext());
             popupWindow.setContentView(binding.getRoot());
             popupWindow.setOutsideTouchable(true);
-            popupWindow.setFocusable(true);
+            popupWindow.setFocusable(false);
             popupWindow.setElevation(8);
             popupWindow.setBackgroundDrawable(AppCompatResources.getDrawable(requireContext(), R.drawable.message_item_optional_popup_bg));
             popupWindow.getContentView().setTag(binding);
@@ -359,7 +384,6 @@ public class HomeFragment extends Fragment {
         binding.btnDelete.setOnClickListener(v -> {
             new OptionalDialog()
                     .setType(OptionalDialog.Type.Alert)
-                    .setTitle("提示")
                     .setMessage("删除？")
                     .setPositive(() -> {
                         int index = mViewModel.deleteModelFile(model);
@@ -370,6 +394,27 @@ public class HomeFragment extends Fragment {
 
             messageItemOptionalPopup.dismiss();
         });
+        binding.btnDelete.setVisibility(model instanceof ReceivedMessageModel && !model.isFinished() ? View.GONE : View.VISIBLE);
+
+        binding.btnDeleteAssociated.setOnClickListener(v -> {
+            new OptionalDialog()
+                    .setType(OptionalDialog.Type.Alert)
+                    .setMessage("删除本条及其关联？")
+                    .setPositive(() -> {
+                        String associatedId = model.getAssociatedSentModelId();
+                        int index = mViewModel.deleteModelFile(associatedId);
+                        if (index != -1) {
+                            messageAdapter.notifyItemDeleted(index);
+                        }
+                        index = mViewModel.deleteModelFile(model);
+                        messageAdapter.notifyItemDeleted(index);
+                    })
+                    .setNegative(null)
+                    .show(getChildFragmentManager());
+
+            messageItemOptionalPopup.dismiss();
+        });
+        binding.btnDeleteAssociated.setVisibility(model instanceof ReceivedMessageModel && model.isFinished() ? View.VISIBLE : View.GONE);
 
         if (model.getImageFile() != null && model.getImageFile().exists()) {
             binding.btnCopyImage.setVisibility(View.VISIBLE);
@@ -378,7 +423,7 @@ public class HomeFragment extends Fragment {
         }
 
         // 手动测量和布局
-        ViewUtils.measure(messageItemOptionalPopup.getContentView(), 300);
+        ViewUtils.measure(messageItemOptionalPopup.getContentView());
 
         int x = (int) downLocation[0] - messageItemOptionalPopup.getContentView().getWidth() / 2;
         int y = -(anchor.getHeight() - (int) downLocation[1]) - messageItemOptionalPopup.getContentView().getHeight() - 100;
@@ -485,29 +530,73 @@ public class HomeFragment extends Fragment {
         }
     }
 
-    private void doDelete() {
-        List<Integer> indices = messageAdapter.getSelectedIndices();
+    private void doDelete(List<Integer> indices, boolean deleteAssociated) {
         if (indices.isEmpty()) {
             return;
+        }
+        if (deleteAssociated) {
+            List<AbstractMessageModel> models = mViewModel.getMessageModels();
+            List<Integer> associatedIndices = new ArrayList<>();
+            for (int i : indices) {
+                String associatedId = models.get(i).getAssociatedSentModelId();
+                int associatedIndex = mViewModel.getIndexWithId(associatedId);
+                if (associatedIndex != -1) {
+                    associatedIndices.add(associatedIndex);
+                }
+            }
+            indices.addAll(associatedIndices);
+
+            // 去重
+            Set<Integer> indicesSet = new HashSet<>(indices);
+            indices.clear();
+            indices.addAll(indicesSet);
         }
 
         // 从大到小排序
         indices.sort((o1, o2) -> o2 - o1);
 
+        String formatter = "删除 %d 项。";
+        if (deleteAssociated) {
+            formatter = "删除所选项及所有关联项，共 %d 项。";
+        }
+        String message = String.format(Locale.getDefault(), formatter, indices.size()) ;
+
         new OptionalDialog()
                 .setType(OptionalDialog.Type.Alert)
-                .setTitle("提示")
-                .setMessage(String.format(Locale.getDefault(), "删除 %d 项！", indices.size()))
+                .setMessage(message)
                 .setPositive(() -> {
                     for (int i : indices) {
                         AbstractMessageModel model = mViewModel.getMessageModels().get(i);
                         int index = mViewModel.deleteModelFile(model);
-                        assert i == index;
                         messageAdapter.notifyItemDeleted(index);
                     }
                     mViewModel.changeDeletionMode(false);
+                    mViewModel.setModelListChange(true);
+                    mViewModel.setModelListChange(false);
                 })
                 .setNegative(null)
                 .show(getChildFragmentManager());
+    }
+
+    private void doDelete(boolean deleteAssociated) {
+        doDelete(messageAdapter.getSelectedIndices(), deleteAssociated);
+    }
+
+    private void doDelete(DeletionData deletionData) {
+        if (deletionData == null) {
+            return;
+        }
+
+        List<Integer> indices = new ArrayList<>();
+        for (String id : deletionData.modelIdSet) {
+            int index = mViewModel.getIndexWithId(id);
+            if (index == -1) {
+                Toast.makeText(getContext(), "无法删除！", Toast.LENGTH_SHORT).show();
+                break;
+            }
+            indices.add(index);
+        }
+
+        doDelete(indices, deletionData.includeAssociated);
     }
 }

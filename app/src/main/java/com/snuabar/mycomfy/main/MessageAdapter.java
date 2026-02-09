@@ -301,6 +301,10 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
         notifyDataSetChanged();
     }
 
+    public boolean isEditMode() {
+        return isEditMode;
+    }
+
     public void toggleSelection(int position) {
         if (selections.contains(position)) {
             selections.remove(position);
@@ -310,7 +314,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
         notifyItemChanged(position);
     }
 
-    public List<Integer> getSelectedIndices() {
+    public ArrayList<Integer> getSelectedIndices() {
         return new ArrayList<>(selections);
     }
 
@@ -360,7 +364,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
                 if (listener != null) {
                     listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_LONG_CLICK, downLocation, null);
                 }
-                return false;
+                return true;
             });
             itemView.setOnClickListener(v -> {
                 if (listener != null) {
@@ -374,7 +378,6 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
                     if (event.getAction() == MotionEvent.ACTION_DOWN) {// 记录按下时的坐标和时间
                         downLocation[0] = event.getX();
                         downLocation[1] = event.getY();
-                        return false;
                     }
                     return false;
                 }

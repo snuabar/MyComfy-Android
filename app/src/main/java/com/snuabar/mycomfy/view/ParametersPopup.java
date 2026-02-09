@@ -88,7 +88,7 @@ public class ParametersPopup extends GeneralPopup {
     @Override
     public void showAsDropDown(View anchor, int xoff, int yoff, int gravity) {
         // 手动测量和布局
-        ViewUtils.measure(getContentView(), Integer.MAX_VALUE);
+        ViewUtils.measure(getContentView());
         mAnchor = new WeakReference<>(anchor);
         super.showAsDropDown(anchor, 0, -anchor.getHeight() - getContentView().getMeasuredHeight(), Gravity.TOP | Gravity.START);
         binding.btnSwitchWH.setEnabled(false);
@@ -99,7 +99,7 @@ public class ParametersPopup extends GeneralPopup {
     public void update() {
         if (mAnchor != null && mAnchor.get() != null) {
             // 手动测量和布局
-            ViewUtils.measure(getContentView(), 0);
+            ViewUtils.measure(getContentView());
             View anchor = mAnchor.get();
             super.update(anchor, 0, -anchor.getHeight() - getContentView().getMeasuredHeight(), -1, -1);
         } else {
@@ -245,6 +245,11 @@ public class ParametersPopup extends GeneralPopup {
             return 2;
         }
         return 3;
+    }
+
+    public void reload() {
+        loadPrompt();
+        loadWorkflows();
     }
 
     private void loadPrompt() {

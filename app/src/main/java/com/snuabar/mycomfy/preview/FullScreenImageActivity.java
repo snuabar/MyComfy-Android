@@ -172,15 +172,27 @@ public class FullScreenImageActivity extends AppCompatActivity {
                 binding.tvDate.setText(Common.formatTimestamp(model.getUTCTimestampCompletion()));
                 binding.tvFileSize.setText(Common.formatFileSize(model.getImageFile().length()));
                 binding.tvPrompt.setText(model.getParameters().getPrompt());
-                binding.tvParams.setText(String.format(Locale.getDefault(),
-                        "%s\n%s\n%dx%d %s %d %.01f",
-                        model.getParameters().getWorkflow(),
-                        model.getParameters().getModel(),
-                        model.getParameters().getImg_width(), model.getParameters().getImg_height(),
-                        model.getParameters().getSeed(),
-                        model.getParameters().getStep(),
-                        model.getParameters().getCfg()
-                ));
+                if (model.isI2I()) {
+                    binding.tvParams.setText(String.format(Locale.getDefault(),
+                            "%s\n%s\n%s %d %.01f %.01f",
+                            model.getParameters().getWorkflow(),
+                            model.getParameters().getModel(),
+                            model.getParameters().getSeed(),
+                            model.getParameters().getStep(),
+                            model.getParameters().getCfg(),
+                            model.getParameters().getMegapixels()
+                    ));
+                } else {
+                    binding.tvParams.setText(String.format(Locale.getDefault(),
+                            "%s\n%s\n%dx%d %s %d %.01f",
+                            model.getParameters().getWorkflow(),
+                            model.getParameters().getModel(),
+                            model.getParameters().getImg_width(), model.getParameters().getImg_height(),
+                            model.getParameters().getSeed(),
+                            model.getParameters().getStep(),
+                            model.getParameters().getCfg()
+                    ));
+                }
                 if (model.getParameters().getUpscale_factor() > 1.0) {
                     binding.tvScaleFactor.setVisibility(View.VISIBLE);
                     binding.tvScaleFactor.setText(String.format(Locale.getDefault(),

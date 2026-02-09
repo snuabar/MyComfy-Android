@@ -43,7 +43,7 @@ public class DataIO {
     private static final String VIDEO_EXT = ".mp4";
     private List<AbstractMessageModel> sharedMessageModels;
     private final Context context;
-
+    private Object __db;
     private static DataIO Instance = null;
 
     public static DataIO init(Context context) {
@@ -66,6 +66,15 @@ public class DataIO {
 
     void setSharedMessageModels(List<AbstractMessageModel> sharedMessageModels) {
         this.sharedMessageModels = sharedMessageModels;
+    }
+
+    @NonNull
+    private DB getDB() {
+        if (__db == null || !((DB) __db).isOpened()) {
+            String dbFilePath = new File(getDBDir(context), context.getPackageName() + ".db").getAbsolutePath();
+            __db = new DB(context, dbFilePath);
+        }
+        return (DB) __db;
     }
 
     private File getOutputDir() {
@@ -92,15 +101,44 @@ public class DataIO {
         return file;
     }
 
+    private static File getDBDir(Context context) {
+        File file = context.getExternalFilesDir(null);
+        if (file != null && !file.exists() && !file.mkdirs()) {
+            Log.e(TAG, "getDBDir: failed to execute mkdirs()");
+        }
+        file = context.getExternalFilesDir("db");
+        if (file != null && !file.exists() && !file.mkdirs()) {
+            Log.e(TAG, "getDBDir: failed to execute mkdirs()");
+        }
+        return file;
+    }
+
     @NonNull
     List<AbstractMessageModel> loadMessageModels() {
-        File msgDir = getMsgDir();
-
         ArrayList<AbstractMessageModel> models = new ArrayList<>();
-        File[] files = msgDir.listFiles((dir, name) -> name.startsWith(PREFIX) && name.endsWith(MSG_EXT));
-        if (files != null) {
-            for (File file : files) {
-                AbstractMessageModel model = readModelFile(file);
+        List<String> messageJsonList = getDB().getAllMessages();
+
+        if (messageJsonList.isEmpty()) {
+            File msgDir = getMsgDir();
+
+            File[] files = msgDir.listFiles((dir, name) -> name.startsWith(PREFIX) && name.endsWith(MSG_EXT));
+            if (files != null) {
+                for (File file : files) {
+                    AbstractMessageModel model = readModelFile(file);
+                    if (model != null) {
+                        AbstractMessageModel modelFromDB = writeModel(model);
+                        if (modelFromDB != null) {
+                            models.add(modelFromDB);
+                            deleteModelFile(model);
+                        } else {
+                            models.add(model);
+                        }
+                    }
+                }
+            }
+        } else {
+            for (String jsonStr : messageJsonList) {
+                AbstractMessageModel model = readModel(jsonStr);
                 if (model != null) {
                     models.add(model);
                 }
@@ -154,6 +192,23 @@ public class DataIO {
 
     //region 模型读写
 
+    AbstractMessageModel writeModel(AbstractMessageModel model) {
+        JSONObject jsonObject = model.toJson();
+        if (jsonObject != null) {
+            try {
+                jsonObject.putOpt(CLASS_IDENTITY_KEY, model.getClass().getName());
+            } catch (JSONException e) {
+                Log.e(TAG, "writeModel: failed to execute putOpt.");
+            }
+            String jsonStr = jsonObject.toString();
+            if (getDB().putMessage(model.getId(), jsonStr)) {
+                return readModel(getDB().getMessageById(model.getId()));
+            }
+        }
+
+        return model;
+    }
+
     AbstractMessageModel writeModelFile(AbstractMessageModel model) {
         File msgDir = getMsgDir();
         String fileName = PREFIX + model.getId() + MSG_EXT;
@@ -177,8 +232,8 @@ public class DataIO {
             }
         }
 
-        return readModelFile(modelFile);
-    }
+            return readModelFile(modelFile);
+        }
 
     private AbstractMessageModel readModelFile(File modelFile) {
         if (modelFile.exists() && modelFile.isFile()) {
@@ -192,6 +247,16 @@ public class DataIO {
             }
         }
         return null;
+    }
+
+    private AbstractMessageModel readModel(String jsonStr) {
+        JSONObject jsonObject = null;
+        try {
+            jsonObject = new JSONObject(jsonStr);
+        } catch (JSONException e) {
+            Log.e(TAG, "readModelFile: failed to read model.");
+        }
+        return createModel(jsonObject);
     }
 
     @Nullable
@@ -228,6 +293,25 @@ public class DataIO {
         return null;
     }
 
+    boolean deleteModel(AbstractMessageModel model) {
+        if (getDB().removeMessageById(model.getId())) {
+            try {
+                // 删除图像和缩略图
+                if (model.getImageFile() != null && model.getImageFile().exists()) {
+                    File thumbFile = ImageUtils.getThumbnailFile(model.getImageFile());
+                    model.getImageFile().delete();
+                    if (thumbFile.exists()) {
+                        thumbFile.delete();
+                    }
+                }
+            } catch (Throwable e) {
+                Log.e(TAG, "deleteModelFile: failed to read model.");
+            }
+            return true;
+        }
+        return false;
+    }
+
     boolean deleteModelFile(AbstractMessageModel model) {
 
         File msgDir = getMsgDir();
@@ -250,6 +334,13 @@ public class DataIO {
             return true;
         }
         return false;
+    }
+
+    public void close() {
+        if (__db != null) {
+            ((DB) __db).close();
+            __db = null;
+        }
     }
 
     //endregion
