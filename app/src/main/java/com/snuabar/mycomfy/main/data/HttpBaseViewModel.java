@@ -55,7 +55,7 @@ public class HttpBaseViewModel extends ViewModel {
     private static final String TAG = HttpBaseViewModel.class.getName();
 
     private final MutableLiveData<List<AbstractMessageModel>> messageModelsLiveData;
-    private List<AbstractMessageModel> messageModels;
+    protected List<AbstractMessageModel> messageModels;
     private final Executor messageModelsLoadingExecutor;
     private Executor promptCheckExecutor, requestExecutor;
     private final DataIO dataIO;
@@ -291,18 +291,15 @@ public class HttpBaseViewModel extends ViewModel {
                         }
                         receivedMessageModel.setAssociatedSentModelId(sentMessageModel.getId());
                         int index = saveMessageModel(receivedMessageModel);
-//                        messageAdapter.notifyItemAdded(index);
                         setMessageModelState(MessageModelState.added(index));
                         startStatusCheck();
                     } else if (enqueueResponse.getCode() == 409) { // conflict 已存在相同任务
                         int index = deleteModelFile(sentMessageModel);
-//                        messageAdapter.notifyItemDeleted(index);
                         setMessageModelState(MessageModelState.deleted(index));
                     }
                 } else {
                     sentMessageModel.setStatus(MessageModel.STATUS_FAILED, response.code(), response.message());
                     int index = saveMessageModel(sentMessageModel);
-//                    messageAdapter.notifyItemChanged(index);
                     setMessageModelState(MessageModelState.changed(index));
                 }
             }
@@ -311,7 +308,6 @@ public class HttpBaseViewModel extends ViewModel {
             public void onFailure(@NonNull Call<EnqueueResponse> call, @NonNull Throwable t) {
                 sentMessageModel.setStatus(MessageModel.STATUS_FAILED, 999, t.getMessage());
                 int index = saveMessageModel(sentMessageModel);
-//                messageAdapter.notifyItemChanged(index);
                 setMessageModelState(MessageModelState.changed(index));
             }
         });
@@ -325,7 +321,7 @@ public class HttpBaseViewModel extends ViewModel {
         promptCheckExecutor = Executors.newSingleThreadExecutor();
         promptCheckExecutor.execute(() -> {
             while (!isPromptCheckExecutorStop) {
-
+                SystemClock.sleep(3000);
                 for (int i = 0; i < messageModels.size(); i++) {
                     AbstractMessageModel model = messageModels.get(i);
                     if (!(model instanceof ReceivedMessageModel) ||
@@ -340,11 +336,10 @@ public class HttpBaseViewModel extends ViewModel {
                             if (response.isSuccessful()) {
                                 model.setFinished(null, 998, "已取消");
                                 int index = saveMessageModel(model);
-//                                requireActivity().runOnUiThread(() -> messageAdapter.notifyItemChanged(index));
                                 setMessageModelState(MessageModelState.changed(index));
                             }
-                        } catch (IOException e) {
-                            log("请求失败: " + e.getMessage(), true);
+                        } catch (Throwable t) {
+                            Log.e(TAG, "“中止”请求失败.", t);
                         }
                         SystemClock.sleep(300);
                         continue;
@@ -366,45 +361,36 @@ public class HttpBaseViewModel extends ViewModel {
                                         Log.i(TAG, model.getPromptId() + " is being processing.");
                                         if (model.setStatus(body.getStatus(), body.getCode(), body.getMessage())) {
                                             int index = saveMessageModel(model);
-//                                            requireActivity().runOnUiThread(() -> messageAdapter.notifyItemChanged(index));
                                             setMessageModelState(MessageModelState.changed(index));
                                         }
                                     } else {
                                         Log.e(TAG, "Failed." + response.code() + ", " + response.message());
                                         model.setFinished(null, body.getCode(), body.getMessage());
                                         int index = saveMessageModel(model);
-//                                        requireActivity().runOnUiThread(() -> messageAdapter.notifyItemChanged(index));
                                         setMessageModelState(MessageModelState.changed(index));
                                     }
                                 } else {
                                     Log.e(TAG, "Failed." + response.code() + ", " + response.message());
-                                    //                                messageAdapter.setFinished(promptIdInner, null, 999, "unknown.");
                                     model.setFinished(null, 999, "unknown.");
                                     int index = saveMessageModel(model);
-//                                    requireActivity().runOnUiThread(() -> messageAdapter.notifyItemChanged(index));
                                     setMessageModelState(MessageModelState.changed(index));
                                 }
                             } else {
                                 Log.e(TAG, "Failed." + response.code() + ", " + response.message());
-                                //                            messageAdapter.setFinished(promptIdInner, null, response.code(), response.message());
                                 model.setFinished(null, response.code(), response.message());
                                 int index = saveMessageModel(model);
-//                                requireActivity().runOnUiThread(() -> messageAdapter.notifyItemChanged(index));
                                 setMessageModelState(MessageModelState.changed(index));
                             }
                         }
                     } catch (Throwable t) {
-                        Log.e(TAG, "failed to execute downloadImage(" + model.getPromptId() + ")", t);
-                        //                        messageAdapter.setFinished(promptIdInner, null, 1000, t.getMessage());
-                        model.setFinished(null, 1000, t.getMessage());
-                        int index = saveMessageModel(model);
-//                        requireActivity().runOnUiThread(() -> messageAdapter.notifyItemChanged(index));
-                        setMessageModelState(MessageModelState.changed(index));
+                        Log.e(TAG, "Failed. ", t);
+//                        model.setFinished(null, 1000, t.getMessage());
+//                        int index = saveMessageModel(model);
+//                        setMessageModelState(MessageModelState.changed(index));
                     }
 
                     SystemClock.sleep(100);
                 }
-                SystemClock.sleep(5000);
             }
         });
     }
@@ -414,7 +400,7 @@ public class HttpBaseViewModel extends ViewModel {
         if (response.isSuccessful()) {
             try (ResponseBody body = response.body()) {
                 File file = saveFile(body, model.isVideo(), (total, progress) -> {
-                    log("下载文件: " + progress + "/" + total, false);
+                    Log.d(TAG, "下载文件: " + progress + "/" + total);
                 });
                 if (file != null) {
                     model.setFinished(file, response.code(), response.message(), endTime);
@@ -439,20 +425,10 @@ public class HttpBaseViewModel extends ViewModel {
             if (retrofitClient.downloadFile(body, file, callback)) {
                 return file;
             }
-        } catch (Exception e) {
-            log("保存文件失败: " + e.getMessage(), true);
+        } catch (Throwable t) {
+            Log.d(TAG, "保存文件失败: ", t);
         }
         return null;
-    }
-
-    private void log(String message, boolean isErr) {
-        String timestamp = new SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(new Date());
-        String newLog = "[" + timestamp + "] " + message;
-        if (isErr) {
-            Log.e(TAG, newLog);
-        } else {
-            Log.i(TAG, newLog);
-        }
     }
 
     public void loadWorkflows() {

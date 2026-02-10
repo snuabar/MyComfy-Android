@@ -105,6 +105,10 @@ public class MainActivity extends AppCompatActivity {
             mViewModel.changeDeletionMode(true);
             return true;
         }
+        if (id == R.id.action_search) {
+            mViewModel.setSearchingMode(true);
+            return true;
+        }
 
         return super.onOptionsItemSelected(item);
     }
@@ -119,6 +123,10 @@ public class MainActivity extends AppCompatActivity {
             if (mViewModel.getSelectedTabLiveData().getValue() != null &&
                     mViewModel.getSelectedTabLiveData().getValue() != 0) {
                 mViewModel.changeSelectedTab(0);
+                return;
+            }
+            if (mViewModel.isSearchingMode()) {
+                mViewModel.setSearchingMode(false);
                 return;
             }
             setEnabled(false);

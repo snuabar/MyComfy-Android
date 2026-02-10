@@ -51,6 +51,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
     private WeakReference<RecyclerView> mRecyclerViewRef = null;
     private final Set<Integer> selections;
     private boolean isEditMode = false;
+    private final Set<String> matchedIDs;
 
     public MessageAdapter(OnElementClickListener listener) {
         this.mHandler = new Handler(Looper.getMainLooper());
@@ -59,6 +60,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
         this.selections = new HashSet<>();
         this.models = new ArrayList<>();
         updateIdToIndexMap();
+        this.matchedIDs = new HashSet<>();
     }
 
     @NonNull
@@ -73,6 +75,12 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
 
     @Override
     public void onBindViewHolder(@NonNull MessageAdapter.ViewHolder holder, int position) {
+        if (!matchedIDs.isEmpty() && !matchedIDs.contains(models.get(position).getId())) {
+            holder.itemView.getLayoutParams().height = 0;
+            return;
+        }
+        holder.itemView.getLayoutParams().height = ViewGroup.LayoutParams.WRAP_CONTENT;
+
         holder.tvDate.setText(Common.formatTimestamp(models.get(position).getUTCTimestamp()));
         if (selections.contains(position)) {
             holder.itemView.setBackgroundColor(holder.itemView.getResources().getColor(R.color.black_overlay, null));
@@ -312,6 +320,22 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
             selections.add(position);
         }
         notifyItemChanged(position);
+    }
+
+    /**
+     * 给搜索用
+     *
+     * @param ids 不在这个列表中的项会被隐藏。
+     */
+    public void setMatchedIDs(Set<String> ids) {
+        if (matchedIDs.isEmpty() && (ids == null || ids.isEmpty())) {
+            return;
+        }
+        matchedIDs.clear();
+        if (ids != null) {
+            matchedIDs.addAll(ids);
+        }
+        notifyDataSetChanged();
     }
 
     public ArrayList<Integer> getSelectedIndices() {

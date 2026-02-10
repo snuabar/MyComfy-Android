@@ -12,11 +12,15 @@ import androidx.fragment.app.Fragment;
 import androidx.viewpager2.adapter.FragmentStateAdapter;
 import androidx.viewpager2.widget.ViewPager2;
 
+import android.os.Handler;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
 import com.google.android.material.tabs.TabLayout;
+import com.snuabar.mycomfy.R;
 import com.snuabar.mycomfy.databinding.FragmentMainBinding;
 import com.snuabar.mycomfy.main.data.MainViewModel;
 
@@ -55,11 +59,46 @@ public class MainFragment extends Fragment {
         binding.viewPager2.setOffscreenPageLimit(1);
         binding.viewPager2.registerOnPageChangeCallback(onPageChangeCallback);
         binding.tabLayout.addOnTabSelectedListener(onTabSelectedListener);
+        Objects.requireNonNull(binding.tabLayout.getTabAt(0)).view.setOnClickListener(v -> mViewModel.notifyTabClicked(0));
+        Objects.requireNonNull(binding.tabLayout.getTabAt(1)).view.setOnClickListener(v -> mViewModel.notifyTabClicked(1));
 
         mViewModel.getSelectedTabLiveData().observe(getViewLifecycleOwner(), tab -> {
             Objects.requireNonNull(binding.tabLayout.getTabAt(tab)).select();
             binding.viewPager2.setCurrentItem(tab, true);
         });
+        mViewModel.getSearchingModeLiveData().observe(getViewLifecycleOwner(), this::setSearingMode);
+    }
+
+    private final TextWatcher searchBoxTextWatcher = new TextWatcher() {
+
+        @Override
+        public void afterTextChanged(Editable s) {
+
+        }
+
+        @Override
+        public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+
+        }
+
+        @Override
+        public void onTextChanged(CharSequence s, int start, int before, int count) {
+            mViewModel.searchData(s.toString());
+        }
+    };
+
+    private void setSearingMode(boolean searchingMode) {
+        binding.etSearchBox.setEnabled(searchingMode);
+        if (searchingMode) {
+            binding.etSearchBox.addTextChangedListener(searchBoxTextWatcher);
+            new Handler().postDelayed(() -> binding.etSearchBox.requestFocus(), 200);
+        } else {
+            binding.etSearchBox.removeTextChangedListener(searchBoxTextWatcher);
+            binding.etSearchBox.setText(null);
+        }
+        binding.btnCloseSearchBox.setOnClickListener(v -> mViewModel.setSearchingMode(false));
+        binding.layoutSearchBox.getLayoutParams().height = searchingMode ? (int) getResources().getDimension(R.dimen.search_box_height) : 0;
+        binding.layoutSearchBox.requestLayout();
     }
 
     private final ViewPager2.OnPageChangeCallback onPageChangeCallback = new ViewPager2.OnPageChangeCallback() {

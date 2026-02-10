@@ -6,6 +6,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -73,7 +76,6 @@ public class HomeFragment extends Fragment {
     private FilePicker filePicker;
     private MessageAdapter messageAdapter = null;
     private ParametersPopup parametersPopup;
-    //    private PromptEditPopup promptEditPopup;
     private PopupWindow messageItemOptionalPopup;
     private final OptionalDialog.ProgressDialog pgsDlg;
     private TwoButtonPopup interruptionConfirmPopup;
@@ -92,7 +94,6 @@ public class HomeFragment extends Fragment {
         mViewModel = new ViewModelProvider(requireActivity()).get(MainViewModel.class);
         filePicker = mViewModel.getFilePicker();
         parametersPopup = new ParametersPopup(requireContext(), parameterPopupDataRequirer);
-//        promptEditPopup = new PromptEditPopup(requireContext(), onPromptChangeListener);
 
         pgsDlg.show(getChildFragmentManager());
         mViewModel.reloadMessageModels();
@@ -153,14 +154,18 @@ public class HomeFragment extends Fragment {
         });
         mViewModel.getWorkflowsLiveData().observe(getViewLifecycleOwner(), parametersPopup::setWorkflows);
         mViewModel.getModelsLiveData().observe(getViewLifecycleOwner(), parametersPopup::setModels);
+        mViewModel.getMatchedIDsLiveData().observe(getViewLifecycleOwner(), messageAdapter::setMatchedIDs);
+        mViewModel.getClickedTabLiveData().observe(getViewLifecycleOwner(), tab -> {
+            if (tab == 0 && Objects.equals(tab, mViewModel.getSelectedTabLiveData().getValue())) {
+                binding.recyclerView.smoothScrollToPosition(messageAdapter.getItemCount() - 1);
+            }
+        });
     }
 
     @Override
     public void onPause() {
         super.onPause();
         mViewModel.changeDeletionMode(false);
-//        // 保存上一次的提示词
-//        Settings.getInstance().edit().putString("prompt", binding.tvPrompt.getText().toString()).apply();
     }
 
     @Override
@@ -212,10 +217,6 @@ public class HomeFragment extends Fragment {
             }
         }
     };
-
-
-//    private final PromptEditPopup.OnPromptChangeListener onPromptChangeListener = prompt ->
-//            binding.tvPrompt.setText(prompt);
 
     private void onMessageElementClick(View view, int position, int ope, float[] downLocation, Object obj) {
         if (position == RecyclerView.NO_POSITION) {

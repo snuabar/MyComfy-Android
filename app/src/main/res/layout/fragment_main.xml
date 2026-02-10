@@ -8,6 +8,34 @@
     android:fitsSystemWindows="true"
     tools:context=".main.MainActivity">
 
+    <LinearLayout
+        android:id="@+id/layoutSearchBox"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:background="@android:color/white"
+        android:elevation="8dp"
+        android:orientation="horizontal"
+        android:padding="10dp">
+
+        <EditText
+            android:id="@+id/etSearchBox"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@drawable/edittext_background"
+            android:paddingHorizontal="10dp"
+            android:textSize="14sp" />
+
+        <ImageButton
+            android:id="@+id/btnCloseSearchBox"
+            style="@style/ButtonBorderless"
+            android:layout_width="36dp"
+            android:layout_height="match_parent"
+            android:layout_marginStart="6dp"
+            android:src="@drawable/ic_close" />
+
+    </LinearLayout>
+
     <androidx.viewpager2.widget.ViewPager2
         android:id="@+id/viewPager2"
         android:layout_width="match_parent"
