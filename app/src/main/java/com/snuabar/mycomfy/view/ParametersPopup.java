@@ -13,19 +13,20 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
 import android.widget.BaseAdapter;
 import android.widget.ImageView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.res.ResourcesCompat;
 
 import com.google.android.material.chip.Chip;
 import com.snuabar.mycomfy.R;
 import com.snuabar.mycomfy.client.Parameters;
 import com.snuabar.mycomfy.client.WorkflowsResponse;
 import com.snuabar.mycomfy.common.Callbacks;
+import com.snuabar.mycomfy.databinding.LayoutModelItemBinding;
 import com.snuabar.mycomfy.databinding.LayoutParametersPopupWindowBinding;
 import com.snuabar.mycomfy.databinding.LayoutWorkflowItemBinding;
 import com.snuabar.mycomfy.main.data.prompt.PromptManager;
@@ -55,7 +56,7 @@ public class ParametersPopup extends GeneralPopup {
     private final Map<String, WorkflowsResponse.Workflow> workflows = new HashMap<>();
     private final List<String> models = new ArrayList<>();
     private WorkflowAdapter workflowAdapter;
-    private ArrayAdapter<String> modelAdapter;
+    private ModelAdapter modelAdapter;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private JSONObject paramJsonObject = null;
     private String paramKey = null;// 使用加密强度的随机数生成器
@@ -289,7 +290,7 @@ public class ParametersPopup extends GeneralPopup {
 
     private void setupAdapters() {
         workflowAdapter = new WorkflowAdapter(getContentView().getContext());
-        modelAdapter = new ArrayAdapter<>(getContentView().getContext(), R.layout.layout_model_item, R.id.text1);
+        modelAdapter = new ModelAdapter(getContentView().getContext());
         binding.spinnerWorkflow.setAdapter(workflowAdapter);
         binding.spinnerModels.setAdapter(modelAdapter);
         binding.spinnerWorkflow.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
@@ -474,6 +475,12 @@ public class ParametersPopup extends GeneralPopup {
             layoutChanged = true;
         }
 
+        visibility = binding.chipGroupScrollView.getVisibility();
+        binding.chipGroupScrollView.setVisibility(isWorkflowInputText() ? View.VISIBLE : View.GONE);
+        if (binding.chipGroupScrollView.getVisibility() != visibility) {
+            layoutChanged = true;
+        }
+
         visibility = binding.layoutImageSize.getVisibility();
         binding.layoutImageSize.setVisibility(isWorkflowInputImage() ? View.GONE : View.VISIBLE);
         if (binding.layoutImageSize.getVisibility() != visibility) {
@@ -576,6 +583,15 @@ public class ParametersPopup extends GeneralPopup {
             return false;
         }
         return WorkflowsResponse.Workflow.INPUT_IMAGE.equals(workflow.getInputType());
+    }
+
+    public boolean isWorkflowInputText() {
+        String selectedWorkflow = Settings.getInstance().getWorkflow("");
+        WorkflowsResponse.Workflow workflow = workflows.get(selectedWorkflow);
+        if (workflow == null) {
+            return false;
+        }
+        return WorkflowsResponse.Workflow.INPUT_TEXT.equals(workflow.getInputType());
     }
 
     @NonNull
@@ -752,12 +768,11 @@ public class ParametersPopup extends GeneralPopup {
         void apply();
     }
 
-    private class WorkflowAdapter extends BaseAdapter {
-
+    private abstract static class SpinnerBaseAdapter extends BaseAdapter {
         private final List<String> items;
-        private final Context context;
+        final Context context;
 
-        public WorkflowAdapter(@NonNull Context context) {
+        public SpinnerBaseAdapter(@NonNull Context context) {
             this.context = context.getApplicationContext();
             items = new ArrayList<>();
         }
@@ -779,8 +794,34 @@ public class ParametersPopup extends GeneralPopup {
         }
 
         @NonNull
+        abstract View getRootView(int position, @Nullable View convertView, @NonNull ViewGroup parent);
+
+        @NonNull
         @Override
         public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
+            return getRootView(position, convertView, parent);
+        }
+
+        public void clear() {
+            items.clear();
+            notifyDataSetChanged();
+        }
+
+        public void addAll(List<String> workflowNames) {
+            items.addAll(workflowNames);
+            notifyDataSetChanged();
+        }
+    }
+
+    private class WorkflowAdapter extends SpinnerBaseAdapter {
+
+        public WorkflowAdapter(@NonNull Context context) {
+            super(context);
+        }
+
+        @NonNull
+        @Override
+        View getRootView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
             LayoutWorkflowItemBinding binding;
             if (convertView == null) {
                 binding = LayoutWorkflowItemBinding.inflate(LayoutInflater.from(context), parent, false);
@@ -794,19 +835,44 @@ public class ParametersPopup extends GeneralPopup {
                 WorkflowsResponse.Workflow workflow = workflows.get(workflowKey);
                 if (workflow != null) {
                     binding.text1.setText(workflow.getDisplayName());
+                    if (workflowKey.equals(getParameter(Settings.KEY_PARAM_WORKFLOW))) {
+                        binding.text1.setBackground(ResourcesCompat.getDrawable(binding.text1.getResources(), R.drawable.spinner_item_selection_background, null));
+                    } else {
+                        binding.text1.setBackground(null);
+                    }
+                }
+            }
+            return binding.getRoot();
+        }
+    }
+
+    private class ModelAdapter extends SpinnerBaseAdapter {
+
+        public ModelAdapter(@NonNull Context context) {
+            super(context);
+        }
+
+        @NonNull
+        @Override
+        public View getRootView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
+            LayoutModelItemBinding binding;
+            if (convertView == null) {
+                binding = LayoutModelItemBinding.inflate(LayoutInflater.from(context), parent, false);
+                convertView = binding.getRoot();
+                convertView.setTag(binding);
+            } else {
+                binding = (LayoutModelItemBinding) convertView.getTag();
+            }
+            String model = getItem(position);
+            binding.text1.setText(model);
+            if (model != null) {
+                if (model.equals(getParameter(Settings.KEY_PARAM_MODEL))) {
+                    binding.text1.setBackground(ResourcesCompat.getDrawable(binding.text1.getResources(), R.drawable.spinner_item_selection_background, null));
+                } else {
+                    binding.text1.setBackground(null);
                 }
             }
             return convertView;
-        }
-
-        public void clear() {
-            items.clear();
-            notifyDataSetChanged();
-        }
-
-        public void addAll(List<String> workflowNames) {
-            items.addAll(workflowNames);
-            notifyDataSetChanged();
         }
     }
 

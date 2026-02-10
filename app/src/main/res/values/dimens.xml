@@ -2,4 +2,6 @@
 <resources>
     <dimen name="thumbnail_width">128dp</dimen>
     <dimen name="thumbnail_height">128dp</dimen>
+    <dimen name="search_box_height">54dp</dimen>
+    <dimen name="gallery_item_size">156dp</dimen>
 </resources>

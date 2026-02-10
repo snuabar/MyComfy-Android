@@ -27,6 +27,7 @@ import com.snuabar.mycomfy.main.data.DataIO;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -92,6 +93,16 @@ public class HistoryFragment extends Fragment {
         mViewModel.getModelListChangeLiveData().observe(getViewLifecycleOwner(), aBoolean -> {
             if (aBoolean) {
                 loadImageContents();
+            }
+        });
+        mViewModel.getClickedTabLiveData().observe(getViewLifecycleOwner(), tab -> {
+            if (tab == 1 && Objects.equals(tab, mViewModel.getSelectedTabLiveData().getValue())) {
+                loadImageContents();
+            }
+        });
+        mViewModel.getMatchedIDsLiveData().observe(getViewLifecycleOwner(), ids -> {
+            if (binding.list.getAdapter() instanceof HistoryAdapter) {
+                ((HistoryAdapter) binding.list.getAdapter()).setMatchedIDs(ids);
             }
         });
     }

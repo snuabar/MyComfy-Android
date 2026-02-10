@@ -25,10 +25,15 @@
         tools:visible="true"/>
 
     <item
+        android:id="@+id/action_search"
+        android:icon="@drawable/ic_search"
+        android:visible="true"
+        app:showAsAction="ifRoom"/>
+
+    <item
         android:id="@+id/action_settings"
-        android:visible="false"
+        android:visible="true"
         android:icon="@drawable/ic_settings"
-        app:showAsAction="ifRoom"
-        tools:visible="true" />
+        app:showAsAction="ifRoom" />
 
 </menu>

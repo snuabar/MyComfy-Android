@@ -13,54 +13,15 @@
         android:background="#EEEEEE"
         app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
 
-    <!--    <LinearLayout-->
-    <!--        android:id="@+id/layoutBottom"-->
-    <!--        android:layout_width="match_parent"-->
-    <!--        android:layout_height="wrap_content"-->
-    <!--        android:gravity="center_vertical"-->
-    <!--        android:padding="10dp"-->
-    <!--        android:orientation="horizontal">-->
-
-    <!--        <ImageButton-->
-    <!--            android:id="@+id/btnParam"-->
-    <!--            style="@style/ButtonBorderless"-->
-    <!--            android:layout_width="44dp"-->
-    <!--            android:layout_height="44dp"-->
-    <!--            android:src="@drawable/ic_change_params" />-->
-
-    <!--        &lt;!&ndash; 提示词输入 &ndash;&gt;-->
-    <!--        <TextView-->
-    <!--            android:id="@+id/tvPrompt"-->
-    <!--            android:layout_width="0dp"-->
-    <!--            android:layout_height="match_parent"-->
-    <!--            android:layout_marginHorizontal="4dp"-->
-    <!--            android:layout_weight="1"-->
-    <!--            android:autoSizeMinTextSize="5sp"-->
-    <!--            android:autoSizeTextType="uniform"-->
-    <!--            android:background="@drawable/ripple_effect"-->
-    <!--            android:hint="请输入图像描述..."-->
-    <!--            android:inputType="textMultiLine"-->
-    <!--            android:text="@string/default_prompt" />-->
-
-    <!--        &lt;!&ndash; 生成按钮 &ndash;&gt;-->
-    <!--        <Button-->
-    <!--            android:id="@+id/btnSubmit"-->
-    <!--            android:layout_width="wrap_content"-->
-    <!--            android:layout_height="wrap_content"-->
-    <!--            android:text="提交" />-->
-
-    <!--    </LinearLayout>-->
-
-
     <com.snuabar.mycomfy.view.AutoHideDraggableFAB
         android:id="@+id/fab"
+        style="@style/Widget.MyApp.AutoHideFAB"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:layout_margin="16dp"
-        style="@style/Widget.MyApp.AutoHideFAB"
-        app:hideAlpha="0.2"
         app:draggable="true"
+        app:hideAlpha="0.2"
         app:idleTimeout="3000"
         app:srcCompat="@drawable/ic_change_params_on_primary"
         app:tint="@null" />
