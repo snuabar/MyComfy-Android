@@ -327,6 +327,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
      *
      * @param ids 不在这个列表中的项会被隐藏。
      */
+    @SuppressLint("NotifyDataSetChanged")
     public void setMatchedIDs(Set<String> ids) {
         if (matchedIDs.isEmpty() && (ids == null || ids.isEmpty())) {
             return;
