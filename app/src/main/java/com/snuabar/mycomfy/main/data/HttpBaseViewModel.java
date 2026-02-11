@@ -21,7 +21,7 @@ import com.snuabar.mycomfy.client.RetrofitClient;
 import com.snuabar.mycomfy.client.UploadResponse;
 import com.snuabar.mycomfy.client.WorkflowsResponse;
 import com.snuabar.mycomfy.common.Callbacks;
-import com.snuabar.mycomfy.main.data.livedata.MessageModelState;
+import com.snuabar.mycomfy.main.data.livedata.MessageState;
 import com.snuabar.mycomfy.main.model.I2IReceivedMessageModel;
 import com.snuabar.mycomfy.main.model.MessageModel;
 import com.snuabar.mycomfy.main.model.ReceivedMessageModel;
@@ -33,15 +33,14 @@ import com.snuabar.mycomfy.utils.ImageHashCalculator;
 import com.snuabar.mycomfy.utils.ThumbnailCacheManager;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
-import java.text.SimpleDateFormat;
+import java.io.InputStream;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -60,7 +59,7 @@ public class HttpBaseViewModel extends ViewModel {
     private Executor promptCheckExecutor, requestExecutor;
     private final DataIO dataIO;
     private boolean isPromptCheckExecutorStop = false;
-    private final MutableLiveData<MessageModelState> messageModelStateLiveData;
+    private final MutableLiveData<MessageState> messageModelStateLiveData;
     private final MutableLiveData<Map<String, WorkflowsResponse.Workflow>> workflowsLiveData;
     private final MutableLiveData<List<String>> modelsLiveData;
 
@@ -88,11 +87,11 @@ public class HttpBaseViewModel extends ViewModel {
         dataIO.close();
     }
 
-    public LiveData<MessageModelState> getMessageModelStateLiveData() {
+    public LiveData<MessageState> getMessageModelStateLiveData() {
         return messageModelStateLiveData;
     }
 
-    private void setMessageModelState(MessageModelState state) {
+    private void setMessageModelState(MessageState state) {
         messageModelStateLiveData.postValue(state);
     }
 
@@ -159,16 +158,16 @@ public class HttpBaseViewModel extends ViewModel {
         return index;
     }
 
-    public int deleteModelFile(String modelId) {
+    public int deleteModel(String modelId) {
         int index = getIndexWithId(modelId);
         if (index >= 0) {
-            return deleteModelFile(messageModels.get(index));
+            return deleteModel(messageModels.get(index));
         }
         return -1;
     }
 
 
-    public int deleteModelFile(AbstractMessageModel model) {
+    public int deleteModel(AbstractMessageModel model) {
         if (dataIO.deleteModel(model) || dataIO.deleteModelFile(model)) {
             int index = getIndexWithId(model.getId());
             if (index >= 0) {
@@ -197,8 +196,8 @@ public class HttpBaseViewModel extends ViewModel {
                 } catch (Exception e) {
                     sentMessageModel.setStatus(MessageModel.STATUS_FAILED, 999, "无法处理图像: " + e.getMessage());
                     int index = saveMessageModel(sentMessageModel);
-                    setMessageModelState(MessageModelState.changed(index));
-                    break;
+                    setMessageModelState(MessageState.changed(index));
+                    return;
                 }
 
                 Response<FileSearchResponse> response;
@@ -207,16 +206,16 @@ public class HttpBaseViewModel extends ViewModel {
                 } catch (IOException e) {
                     sentMessageModel.setStatus(MessageModel.STATUS_FAILED, 999, "图像校验失败: " + e.getMessage());
                     int index = saveMessageModel(sentMessageModel);
-                    setMessageModelState(MessageModelState.changed(index));
-                    break;
+                    setMessageModelState(MessageState.changed(index));
+                    return;
                 }
 
                 int responseCode = response.code();
                 if (!response.isSuccessful() && responseCode != 404) {
                     sentMessageModel.setStatus(MessageModel.STATUS_FAILED, response.code(), response.message());
                     int index = saveMessageModel(sentMessageModel);
-                    setMessageModelState(MessageModelState.changed(index));
-                    break;
+                    setMessageModelState(MessageState.changed(index));
+                    return;
                 }
 
                 if (responseCode == 404) {
@@ -226,8 +225,8 @@ public class HttpBaseViewModel extends ViewModel {
                     } catch (IOException e) {
                         sentMessageModel.setStatus(MessageModel.STATUS_FAILED, 999, "图像上传失败: " + e.getMessage());
                         int index = saveMessageModel(sentMessageModel);
-                        setMessageModelState(MessageModelState.changed(index));
-                        break;
+                        setMessageModelState(MessageState.changed(index));
+                        return;
                     }
 
                     if (images == null) {
@@ -239,8 +238,8 @@ public class HttpBaseViewModel extends ViewModel {
                     if (body == null) {
                         sentMessageModel.setStatus(MessageModel.STATUS_FAILED, 1000, "未知错误");
                         int index = saveMessageModel(sentMessageModel);
-                        setMessageModelState(MessageModelState.changed(index));
-                        break;
+                        setMessageModelState(MessageState.changed(index));
+                        return;
                     }
 
                     if (images == null) {
@@ -258,6 +257,15 @@ public class HttpBaseViewModel extends ViewModel {
         });
     }
 
+    private boolean ignore409(EnqueueResponse enqueueResponse) {
+        if (enqueueResponse.getCode() == 409) { // conflict 服务器端已存在相同任务
+            // 查找本地列表中是否有相同任务
+            return messageModels.stream().noneMatch(
+                    model -> enqueueResponse.getPrompt_id().equals(model.getPromptId()));
+        }
+        return false;
+    }
+
     public void enqueue(QueueRequest request, SentMessageModel sentMessageModel) {
 
         // 图像列表需要更新
@@ -272,7 +280,10 @@ public class HttpBaseViewModel extends ViewModel {
             public void onResponse(@NonNull Call<EnqueueResponse> call, @NonNull Response<EnqueueResponse> response) {
                 if (response.isSuccessful() && response.body() != null) {
                     EnqueueResponse enqueueResponse = response.body();
-                    if (enqueueResponse.getCode() == 200) { // OK
+                    boolean ignore409 = false;
+                    if (enqueueResponse.getCode() == 200 || ignore409(enqueueResponse)) { // OK
+                        enqueueResponse.setCode(200);
+                        enqueueResponse.setMessage("OK");
                         // 时间纠正（服务器时间不正确的情况下）
                         if (enqueueResponse.getUTCTimestamp() <= sentMessageModel.getUTCTimestamp()) {
                             enqueueResponse.setUtc_timestamp(String.valueOf(Clock.systemUTC().millis()));
@@ -284,23 +295,23 @@ public class HttpBaseViewModel extends ViewModel {
                             receivedMessageModel.getParameters().setImageFiles(sentMessageModel.getParameters().getImageFiles());
                         } else if (sentMessageModel.isVideo()) {
                             receivedMessageModel = new ReceivedVideoMessageModel(enqueueResponse);
-                        }else if (sentMessageModel instanceof UpscaleSentMessageModel) {
+                        } else if (sentMessageModel instanceof UpscaleSentMessageModel) {
                             receivedMessageModel = new UpscaleReceivedMessageModel(enqueueResponse);
                         } else {
                             receivedMessageModel = new ReceivedMessageModel(enqueueResponse);
                         }
                         receivedMessageModel.setAssociatedSentModelId(sentMessageModel.getId());
                         int index = saveMessageModel(receivedMessageModel);
-                        setMessageModelState(MessageModelState.added(index));
+                        setMessageModelState(MessageState.added(index));
                         startStatusCheck();
                     } else if (enqueueResponse.getCode() == 409) { // conflict 已存在相同任务
-                        int index = deleteModelFile(sentMessageModel);
-                        setMessageModelState(MessageModelState.deleted(index));
+                        int index = deleteModel(sentMessageModel);
+                        setMessageModelState(MessageState.deleted(index));
                     }
                 } else {
                     sentMessageModel.setStatus(MessageModel.STATUS_FAILED, response.code(), response.message());
                     int index = saveMessageModel(sentMessageModel);
-                    setMessageModelState(MessageModelState.changed(index));
+                    setMessageModelState(MessageState.changed(index));
                 }
             }
 
@@ -308,7 +319,7 @@ public class HttpBaseViewModel extends ViewModel {
             public void onFailure(@NonNull Call<EnqueueResponse> call, @NonNull Throwable t) {
                 sentMessageModel.setStatus(MessageModel.STATUS_FAILED, 999, t.getMessage());
                 int index = saveMessageModel(sentMessageModel);
-                setMessageModelState(MessageModelState.changed(index));
+                setMessageModelState(MessageState.changed(index));
             }
         });
     }
@@ -336,7 +347,7 @@ public class HttpBaseViewModel extends ViewModel {
                             if (response.isSuccessful()) {
                                 model.setFinished(null, 998, "已取消");
                                 int index = saveMessageModel(model);
-                                setMessageModelState(MessageModelState.changed(index));
+                                setMessageModelState(MessageState.changed(index));
                             }
                         } catch (Throwable t) {
                             Log.e(TAG, "“中止”请求失败.", t);
@@ -347,39 +358,39 @@ public class HttpBaseViewModel extends ViewModel {
 
                     try {
                         if (model.isFileExistsOnServer()) {
-                            downloadContentSync(model, null);
+                            streamContentSync(model, null);
                         } else {
                             retrofit2.Response<JobResponse> response = retrofitClient.getApiService().getJobStatus(model.getPromptId()).execute();
                             if (response.isSuccessful()) {
                                 JobResponse body = response.body();
                                 if (body != null) {
                                     if (body.getCode() == 200) {
-                                        downloadContentSync(model, body.getUtc_timestamp());
+                                        streamContentSync(model, body.getUtc_timestamp());
                                     } else if (body.getCode() == 204
                                             || body.getCode() == 202
                                     ) {
                                         Log.i(TAG, model.getPromptId() + " is being processing.");
                                         if (model.setStatus(body.getStatus(), body.getCode(), body.getMessage())) {
                                             int index = saveMessageModel(model);
-                                            setMessageModelState(MessageModelState.changed(index));
+                                            setMessageModelState(MessageState.changed(index));
                                         }
                                     } else {
                                         Log.e(TAG, "Failed." + response.code() + ", " + response.message());
                                         model.setFinished(null, body.getCode(), body.getMessage());
                                         int index = saveMessageModel(model);
-                                        setMessageModelState(MessageModelState.changed(index));
+                                        setMessageModelState(MessageState.changed(index));
                                     }
                                 } else {
                                     Log.e(TAG, "Failed." + response.code() + ", " + response.message());
                                     model.setFinished(null, 999, "unknown.");
                                     int index = saveMessageModel(model);
-                                    setMessageModelState(MessageModelState.changed(index));
+                                    setMessageModelState(MessageState.changed(index));
                                 }
                             } else {
                                 Log.e(TAG, "Failed." + response.code() + ", " + response.message());
                                 model.setFinished(null, response.code(), response.message());
                                 int index = saveMessageModel(model);
-                                setMessageModelState(MessageModelState.changed(index));
+                                setMessageModelState(MessageState.changed(index));
                             }
                         }
                     } catch (Throwable t) {
@@ -399,14 +410,18 @@ public class HttpBaseViewModel extends ViewModel {
         Response<ResponseBody> response = retrofitClient.getApiService().download(model.getPromptId()).execute();
         if (response.isSuccessful()) {
             try (ResponseBody body = response.body()) {
+                int idx = getIndexWithId(model.getId());
+                long[] pgs = new long[2];
                 File file = saveFile(body, model.isVideo(), (total, progress) -> {
                     Log.d(TAG, "下载文件: " + progress + "/" + total);
+                    pgs[0] = total;
+                    pgs[1] = progress;
+                    setMessageModelState(MessageState.progress(idx, total, Math.max(total - 1, progress)));// total - 1 是让进度不走完
                 });
                 if (file != null) {
                     model.setFinished(file, response.code(), response.message(), endTime);
                     int index = saveMessageModel(model);
-//                    requireActivity().runOnUiThread(() -> messageAdapter.notifyItemChanged(index));
-                    setMessageModelState(MessageModelState.changed(index));
+                    setMessageModelState(MessageState.progress(index, pgs[0], pgs[0]));// 走完进度
                 }
             }
         }
@@ -429,6 +444,77 @@ public class HttpBaseViewModel extends ViewModel {
             Log.d(TAG, "保存文件失败: ", t);
         }
         return null;
+    }
+
+    // Android端调用流式接口
+    public void streamContentSync(AbstractMessageModel model, String endTime) throws IOException {
+        Response<ResponseBody> response = retrofitClient.getApiService().stream(model.getPromptId()).execute();
+        if (response.isSuccessful()) {
+            try (ResponseBody body = response.body()) {
+                int idx = getIndexWithId(model.getId());
+                long[] pgs = new long[2];
+                File file = saveStreamingFile(body, model.isVideo(), (total, progress) -> {
+                    Log.d(TAG, "下载文件: " + progress + "/" + total);
+                    pgs[0] = total;
+                    pgs[1] = progress;
+                    setMessageModelState(MessageState.progress(idx, total, Math.min(total - 1, progress)));// total - 1 是让进度不走完
+                });
+                if (file != null) {
+                    if (model.getImageFile() != null && model.getImageFile().exists() && !model.getImageFile().delete()) {
+                        Log.e(TAG, "streamContentSync > 文件删除失败。");
+                    }
+                    if (model.getThumbnailFile() != null && model.getThumbnailFile().exists() && !model.getThumbnailFile().delete()) {
+                        Log.e(TAG, "streamContentSync > 文件（缩略图）删除失败。");
+                    }
+                    model.setFinished(file, response.code(), response.message(), endTime);
+                    int index = saveMessageModel(model);
+                    setMessageModelState(MessageState.progress(index, pgs[0], pgs[0]));// 走完进度
+                }
+            }
+        }
+    }
+
+    private File saveStreamingFile(ResponseBody body, boolean isVideo, Callbacks.Callback2T<Long, Long> callback) {
+        File file;
+        if (isVideo) {
+            file = DataIO.getInstance().newVideoFile();
+        } else {
+            file = DataIO.getInstance().newImageFile();
+        }
+
+        long contentLength = body.contentLength();
+
+        if (callback != null) {
+            callback.apply(contentLength, 0L);
+        }
+
+        try (InputStream inputStream = body.byteStream();
+             FileOutputStream outputStream = new FileOutputStream(file)) {
+
+            byte[] buffer = new byte[8192];
+            int bytesRead;
+            long totalBytes = 0;
+            long lastTotalBytes = 0;
+            while ((bytesRead = inputStream.read(buffer)) != -1) {
+                outputStream.write(buffer, 0, bytesRead);
+                totalBytes += bytesRead;
+
+                if (callback != null && (((float) contentLength / totalBytes) * 100) % 10 == 0) {
+                    callback.apply(contentLength, totalBytes);
+                    lastTotalBytes = totalBytes;
+                }
+            }
+
+            if (callback != null && lastTotalBytes != contentLength) {
+                callback.apply(contentLength, contentLength);
+            }
+            Log.i("Stream", "流式下载完成: " + totalBytes + " bytes");
+
+        } catch (IOException e) {
+            Log.e("Stream", "保存失败", e);
+        }
+
+        return file;
     }
 
     public void loadWorkflows() {

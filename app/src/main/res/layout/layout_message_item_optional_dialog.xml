@@ -26,11 +26,11 @@
         android:text="复制图像"/>
 
     <Button
-        android:id="@+id/btnDeleteAssociated"
+        android:id="@+id/btnDownloadAgain"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         style="@style/ButtonBorderless"
-        android:text="关联删除"/>
+        android:text="重新下载"/>
 
     <Button
         android:id="@+id/btnDelete"
@@ -38,4 +38,11 @@
         android:layout_height="wrap_content"
         style="@style/ButtonBorderless"
         android:text="删除"/>
+
+    <Button
+        android:id="@+id/btnDeleteAssociated"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        style="@style/ButtonBorderless"
+        android:text="关联删除"/>
 </LinearLayout>

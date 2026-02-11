@@ -62,7 +62,11 @@ final class DB {
      */
     DB(Context context, String dbFilePath) {
         this.context = context;
-        DATABASE_NAME = dbFilePath == null ? this.context.getPackageName() + ".db" : dbFilePath;
+        String packageName = this.context.getPackageName();
+        if (packageName.endsWith(".debug")) {
+            packageName = packageName.replace(".debug", "");
+        }
+        DATABASE_NAME = dbFilePath == null ? packageName + ".db" : dbFilePath;
         dbHelper = new DatabaseHelper(context);
         database = dbHelper.getWritableDatabase();
     }

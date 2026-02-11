@@ -15,6 +15,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.progressindicator.LinearProgressIndicator;
 import com.snuabar.mycomfy.R;
 import com.snuabar.mycomfy.client.Parameters;
 import com.snuabar.mycomfy.common.Common;
@@ -52,6 +53,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
     private final Set<Integer> selections;
     private boolean isEditMode = false;
     private final Set<String> matchedIDs;
+    private final Map<Integer, long[]> progressMap;
 
     public MessageAdapter(OnElementClickListener listener) {
         this.mHandler = new Handler(Looper.getMainLooper());
@@ -61,6 +63,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
         this.models = new ArrayList<>();
         updateIdToIndexMap();
         this.matchedIDs = new HashSet<>();
+        this.progressMap = new HashMap<>();
     }
 
     @NonNull
@@ -89,7 +92,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
         }
 
         AbstractMessageModel model = models.get(position);
-        holder.setTip(model.getStatus(), model.getCode(), model.getMessage());
+        holder.setTip(model.getStatusResourceString(holder.itemView.getContext()), model.getCode(), model.getMessage());
 
         if (holder instanceof SentViewHolder) {
             onBindSentViewHolder((SentViewHolder) holder, position);
@@ -183,6 +186,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
         holder.binding.btnSave.setVisibility(isEditMode ? View.INVISIBLE : View.VISIBLE);
         holder.binding.btnShare.setVisibility(isEditMode ? View.INVISIBLE : View.VISIBLE);
         holder.binding.layoutUpscale.setVisibility(canBeUpscaled(model) ? View.VISIBLE : View.GONE);
+        updateProgress(holder.binding.pgsBar, position, model);
     }
 
     private void displayI2ISentImages(SentViewHolder holder, SentMessageModel model) {
@@ -282,7 +286,6 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
         }
     }
 
-
     public void notifyItemAdded(int index) {
         updateIdToIndexMap();
 
@@ -378,6 +381,28 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
         }
     }
 
+    public void notifyItemProgress(int index, long max, long current) {
+        if (max > current) {
+            progressMap.put(index, new long[]{max, current});
+        } else {
+            progressMap.remove(index);
+        }
+        notifyItemChanged(index);
+    }
+
+    private void updateProgress(LinearProgressIndicator pgs, int position, AbstractMessageModel model) {
+        long[] progress = progressMap.get(position);
+        if (progress != null && progress.length == 2) {
+            pgs.setVisibility(View.VISIBLE);
+            pgs.setIndeterminate(false);
+            pgs.setMax((int) progress[0]);
+            pgs.setProgress((int) progress[1], true);
+        } else {
+            pgs.setIndeterminate(true);
+            pgs.setVisibility(model.isFinished() ? View.INVISIBLE : View.VISIBLE);
+        }
+    }
+
     public class ViewHolder extends RecyclerView.ViewHolder {
         public TextView tvTip;
         public TextView tvDate;
@@ -411,8 +436,8 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
 
         void setTip(String status, int code, String message) {
             if (tvTip != null) {
-                boolean isErr = MessageModel.STATUS_FAILED.equals(status) && code != 200;
-                tvTip.setText(message);
+                boolean isErr = MessageModel.STATUS_FAILED.equals(status) || ((code < 200 || code > 299) && code != 0);
+                tvTip.setText(isErr ? message : status);
                 tvTip.setTextColor(isErr ?
                         itemView.getResources().getColor(android.R.color.holo_red_light, null) :
                         itemView.getResources().getColor(R.color.gray_83, null));

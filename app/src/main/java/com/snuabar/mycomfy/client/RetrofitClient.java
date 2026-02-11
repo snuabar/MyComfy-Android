@@ -155,6 +155,9 @@ public class RetrofitClient {
             try {
                 byte[] fileReader = new byte[1024 * 128];
                 long fileLength = body.contentLength();
+                if (callback != null) {
+                    callback.apply(fileLength, 0L);
+                }
                 inputStream = body.byteStream();
                 outputStream = new FileOutputStream(file);
 
@@ -166,7 +169,9 @@ public class RetrofitClient {
                     }
                     outputStream.write(fileReader, 0, read);
                     readLength += read;
-                    callback.apply(fileLength, readLength);
+                    if (callback != null) {
+                        callback.apply(fileLength, readLength);
+                    }
                 }
 
                 outputStream.flush();

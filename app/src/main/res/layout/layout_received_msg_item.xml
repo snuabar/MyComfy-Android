@@ -132,6 +132,18 @@
             app:layout_constraintWidth_default="percent"
             app:layout_constraintWidth_percent="0.3" />
 
+        <com.google.android.material.progressindicator.LinearProgressIndicator
+            android:id="@+id/pgsBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:trackThickness="4dp"
+            app:indeterminateAnimationType="disjoint"
+            android:max="100"
+            android:progress="50"
+            android:min="0"
+            app:trackCornerRadius="4dp"
+            app:layout_constraintBottom_toBottomOf="parent"/>
+
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <TextView

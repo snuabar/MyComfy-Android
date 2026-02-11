@@ -6,9 +6,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Handler;
-import android.text.Editable;
-import android.text.TextWatcher;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -38,7 +35,7 @@ import com.snuabar.mycomfy.databinding.LayoutMessageItemOptionalDialogBinding;
 import com.snuabar.mycomfy.main.data.AbstractMessageModel;
 import com.snuabar.mycomfy.main.data.MainViewModel;
 import com.snuabar.mycomfy.main.data.livedata.DeletionData;
-import com.snuabar.mycomfy.main.data.livedata.MessageModelState;
+import com.snuabar.mycomfy.main.data.livedata.MessageState;
 import com.snuabar.mycomfy.main.model.I2ISentMessageModel;
 import com.snuabar.mycomfy.main.model.MessageModel;
 import com.snuabar.mycomfy.main.model.ReceivedMessageModel;
@@ -140,16 +137,20 @@ public class HomeFragment extends Fragment {
             pgsDlg.dismiss();
         });
         mViewModel.getMessageModelStateLiveData().observe(getViewLifecycleOwner(), state -> {
-            if (state == null || state.state == MessageModelState.STATE_NONE) {
+            if (state == null || state.state == MessageState.STATE_NONE) {
                 return;
             }
 
-            if (state.state == MessageModelState.STATE_ADDED) {
+            if (state.state == MessageState.STATE_ADDED) {
                 messageAdapter.notifyItemAdded(state.index);
-            } else if (state.state == MessageModelState.STATE_DELETED) {
+            } else if (state.state == MessageState.STATE_DELETED) {
                 messageAdapter.notifyItemDeleted(state.index);
-            } else if (state.state == MessageModelState.STATE_CHANGED) {
-                messageAdapter.notifyItemChanged(state.index);
+            } else if (state.state == MessageState.STATE_CHANGED) {
+                if (state.progress != null) {
+                    messageAdapter.notifyItemProgress(state.index, state.progress.max, state.progress.current);
+                } else {
+                    messageAdapter.notifyItemChanged(state.index);
+                }
             }
         });
         mViewModel.getWorkflowsLiveData().observe(getViewLifecycleOwner(), parametersPopup::setWorkflows);
@@ -387,7 +388,7 @@ public class HomeFragment extends Fragment {
                     .setType(OptionalDialog.Type.Alert)
                     .setMessage("删除？")
                     .setPositive(() -> {
-                        int index = mViewModel.deleteModelFile(model);
+                        int index = mViewModel.deleteModel(model);
                         messageAdapter.notifyItemDeleted(index);
                     })
                     .setNegative(null)
@@ -403,11 +404,11 @@ public class HomeFragment extends Fragment {
                     .setMessage("删除本条及其关联？")
                     .setPositive(() -> {
                         String associatedId = model.getAssociatedSentModelId();
-                        int index = mViewModel.deleteModelFile(associatedId);
+                        int index = mViewModel.deleteModel(associatedId);
                         if (index != -1) {
                             messageAdapter.notifyItemDeleted(index);
                         }
-                        index = mViewModel.deleteModelFile(model);
+                        index = mViewModel.deleteModel(model);
                         messageAdapter.notifyItemDeleted(index);
                     })
                     .setNegative(null)
@@ -422,6 +423,17 @@ public class HomeFragment extends Fragment {
         } else {
             binding.btnCopyImage.setVisibility(View.GONE);
         }
+
+        binding.btnDownloadAgain.setVisibility(model instanceof ReceivedMessageModel && model.isFinished() ? View.VISIBLE : View.GONE);
+        binding.btnDownloadAgain.setOnClickListener(v -> {
+            if (model instanceof ReceivedMessageModel) {
+                ((ReceivedMessageModel) model).setUnfinished();
+                int index = mViewModel.saveMessageModel(model);
+                messageAdapter.notifyItemChanged(index);
+            }
+
+            messageItemOptionalPopup.dismiss();
+        });
 
         // 手动测量和布局
         ViewUtils.measure(messageItemOptionalPopup.getContentView());
@@ -511,8 +523,10 @@ public class HomeFragment extends Fragment {
                 messageAdapter.notifyItemAdded(index);
             } else {
                 model.setStatus(MessageModel.STATUS_PENDING, 0, null);
-                int index = mViewModel.saveMessageModel(model);
-                messageAdapter.notifyItemChanged(index);
+                int index = mViewModel.deleteModel(model);
+                messageAdapter.notifyItemDeleted(index);
+                index = mViewModel.saveMessageModel(model);
+                messageAdapter.notifyItemAdded(index);
                 request = new QueueRequest(model.getParameters().setResent());
                 sentMessageModel = (SentMessageModel) model;
             }
@@ -568,7 +582,7 @@ public class HomeFragment extends Fragment {
                 .setPositive(() -> {
                     for (int i : indices) {
                         AbstractMessageModel model = mViewModel.getMessageModels().get(i);
-                        int index = mViewModel.deleteModelFile(model);
+                        int index = mViewModel.deleteModel(model);
                         messageAdapter.notifyItemDeleted(index);
                     }
                     mViewModel.changeDeletionMode(false);

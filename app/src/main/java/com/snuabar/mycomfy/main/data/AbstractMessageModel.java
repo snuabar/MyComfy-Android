@@ -1,5 +1,6 @@
 package com.snuabar.mycomfy.main.data;
 
+import android.content.Context;
 import android.util.Log;
 
 import androidx.annotation.CallSuper;
@@ -61,6 +62,8 @@ public abstract class AbstractMessageModel {
     public abstract boolean setStatus(String status, int code, String message);
 
     public abstract String getStatus();
+
+    public abstract String getStatusResourceString(Context context);
 
     public abstract void setFinished(File imageFile, int code, String message);
 

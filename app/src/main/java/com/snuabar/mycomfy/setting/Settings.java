@@ -97,7 +97,11 @@ public class Settings {
 
     private Settings(Context context) {
         this.context = context;
-        this.prefsName = context.getPackageName() + ".main.settings";
+        String packageName = context.getPackageName();
+        if (packageName.endsWith(".debug")) {
+            packageName = packageName.replace(".debug", "");
+        }
+        this.prefsName = packageName + ".main.settings";
         preferences = context.getSharedPreferences(prefsName, Context.MODE_PRIVATE);
     }
 

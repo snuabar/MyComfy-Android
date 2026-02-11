@@ -118,13 +118,17 @@ public class ReceivedMessageModel extends MessageModel {
         }
         utcTimestamp = timestamp;
         this.imageFile = imageFile;
-        setCode(code);
-        setMessage(message);
+        setStatus(STATUS_COMPLETED, code, message);
     }
 
     @Override
     public boolean isFinished() {
         return utcTimestamp != 0;
+    }
+
+    public void setUnfinished() {
+        response.setFile_exists(true);
+        utcTimestamp = 0;
     }
 
     @Override
