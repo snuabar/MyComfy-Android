@@ -341,11 +341,11 @@ public class HttpBaseViewModel extends ViewModel {
                         continue;
                     }
 
-                    if (model.getInterruptionFlag()) {
+                    if (model.getInterruptionFlag() && model.getCode() != MessageModel.CODE_CANCELED) {
                         try {
                             Response<ResponseBody> response = retrofitClient.getApiService().interrupt(new InterruptRequest(model.getPromptId())).execute();
                             if (response.isSuccessful()) {
-                                model.setFinished(null, 998, "已取消");
+                                model.setFinished(null, MessageModel.CODE_CANCELED, "已取消");
                                 int index = saveMessageModel(model);
                                 setMessageModelState(MessageState.changed(index));
                             }
@@ -446,8 +446,26 @@ public class HttpBaseViewModel extends ViewModel {
         return null;
     }
 
+    public void streamContent(AbstractMessageModel model) {
+        Executor executor = getRequestExecutor();
+        executor.execute(() -> {
+            try {
+                streamContentSync(model, null);
+            } catch (IOException e) {
+                model.setStatus(MessageModel.STATUS_FAILED, MessageModel.CODE_DOWNLOADING_FAILED, "下载失败");
+                int index = saveMessageModel(model);
+                setMessageModelState(MessageState.changed(index));
+            }
+        });
+    }
+
     // Android端调用流式接口
     public void streamContentSync(AbstractMessageModel model, String endTime) throws IOException {
+
+        model.setStatus(MessageModel.STATUS_DOWNLOADING, 0, "");
+        int index = saveMessageModel(model);
+        setMessageModelState(MessageState.changed(index));
+
         Response<ResponseBody> response = retrofitClient.getApiService().stream(model.getPromptId()).execute();
         if (response.isSuccessful()) {
             try (ResponseBody body = response.body()) {
@@ -467,10 +485,14 @@ public class HttpBaseViewModel extends ViewModel {
                         Log.e(TAG, "streamContentSync > 文件（缩略图）删除失败。");
                     }
                     model.setFinished(file, response.code(), response.message(), endTime);
-                    int index = saveMessageModel(model);
+                    index = saveMessageModel(model);
                     setMessageModelState(MessageState.progress(index, pgs[0], pgs[0]));// 走完进度
                 }
             }
+        } else {
+            model.setStatus(MessageModel.STATUS_FAILED, response.code(), response.message());
+            index = saveMessageModel(model);
+            setMessageModelState(MessageState.changed(index));
         }
     }
 

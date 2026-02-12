@@ -427,9 +427,7 @@ public class HomeFragment extends Fragment {
         binding.btnDownloadAgain.setVisibility(model instanceof ReceivedMessageModel && model.isFinished() ? View.VISIBLE : View.GONE);
         binding.btnDownloadAgain.setOnClickListener(v -> {
             if (model instanceof ReceivedMessageModel) {
-                ((ReceivedMessageModel) model).setUnfinished();
-                int index = mViewModel.saveMessageModel(model);
-                messageAdapter.notifyItemChanged(index);
+                mViewModel.streamContent(model);
             }
 
             messageItemOptionalPopup.dismiss();

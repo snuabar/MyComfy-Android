@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.Objects;
 
 public class MessageModel extends AbstractMessageModel {
+
     private final static String TAG = MessageModel.class.getName();
 
     //region 来至服务器的状态
@@ -22,6 +23,15 @@ public class MessageModel extends AbstractMessageModel {
     public final static String STATUS_IN_PROGRESS = "in_progress";
     public final static String STATUS_COMPLETED = "completed";
     public final static String STATUS_FAILED = "failed";
+    //endregion
+
+    //region app定义状态
+    public static final String STATUS_DOWNLOADING = "downloading";
+    //endregion
+
+    //region app定义code
+    public static final int CODE_CANCELED = 0x1000;
+    public static final int CODE_DOWNLOADING_FAILED = 0x1001;
     //endregion
 
     public static final Map<String, Integer> STATUS_RES_MAP = Map.of(

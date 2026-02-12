@@ -4,6 +4,7 @@ import android.text.TextUtils;
 import android.util.Log;
 
 import com.snuabar.mycomfy.client.Parameters;
+import com.snuabar.mycomfy.common.Common;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -66,11 +67,11 @@ public class UpscaleSentMessageModel extends SentMessageModel {
         super.fromJson(jsonObject);
         String imageFilePath = jsonObject.optString("imageFile", null);
         if (!TextUtils.isEmpty(imageFilePath)) {
-            imageFile = new File(imageFilePath);
+            imageFile = new File(Common.correctPackageLikeStringsForDebug(imageFilePath));
         }
         String thumbnailFilePath = jsonObject.optString("thumbnailFile", null);
         if (!TextUtils.isEmpty(thumbnailFilePath)) {
-            thumbnailFile = new File(thumbnailFilePath);
+            thumbnailFile = new File(Common.correctPackageLikeStringsForDebug(imageFilePath));
         }
     }
 

@@ -1,3 +1,5 @@
+import com.android.tools.build.jetifier.core.type.PackageName
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -26,6 +28,14 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            val defaultPackageName: String? = android.defaultConfig.applicationId
+            buildConfigField("String", "defaultPackageName", "\"$defaultPackageName\"")
+        }
+        debug {
+            applicationIdSuffix = ".debug"
+            // 获取特定 BuildType 的包名
+            val defaultPackageName: String? = android.defaultConfig.applicationId
+            buildConfigField("String", "defaultPackageName", "\"$defaultPackageName\"")
         }
     }
     compileOptions {
@@ -34,6 +44,7 @@ android {
     }
     buildFeatures {
         viewBinding = true
+        buildConfig = true
     }
     kotlinOptions {
         jvmTarget = "11"

@@ -10,6 +10,8 @@ import android.view.Window;
 
 import androidx.annotation.NonNull;
 
+import com.snuabar.mycomfy.BuildConfig;
+
 import java.lang.reflect.Method;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
@@ -221,5 +223,15 @@ public final class Common {
         }
 
         return new float[]{maxScale, midScale};
+    }
+
+    public static String correctPackageLikeStringsForDebug(String str) {
+        if (BuildConfig.DEBUG) {
+            if (str.contains(BuildConfig.defaultPackageName) &&
+                    !str.contains(BuildConfig.defaultPackageName + ".debug")) {
+                str = str.replaceAll(BuildConfig.defaultPackageName, BuildConfig.defaultPackageName + ".debug");
+            }
+        }
+        return str;
     }
 }

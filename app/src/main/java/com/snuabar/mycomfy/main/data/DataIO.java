@@ -71,11 +71,7 @@ public class DataIO {
     @NonNull
     private DB getDB() {
         if (__db == null || !((DB) __db).isOpened()) {
-            String packageName = context.getPackageName();
-            if (packageName.endsWith(".debug")) {
-                packageName = packageName.replace(".debug", "");
-            }
-            String dbFilePath = new File(getDBDir(context), packageName + ".db").getAbsolutePath();
+            String dbFilePath = new File(getDBDir(context), context.getPackageName() + ".db").getAbsolutePath();
             __db = new DB(context, dbFilePath);
         }
         return (DB) __db;

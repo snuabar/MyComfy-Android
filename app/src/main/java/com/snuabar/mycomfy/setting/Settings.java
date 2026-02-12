@@ -7,6 +7,7 @@ import android.util.Log;
 import androidx.annotation.StringDef;
 
 import com.snuabar.mycomfy.client.WorkflowsResponse;
+import com.snuabar.mycomfy.common.Common;
 import com.snuabar.mycomfy.utils.TextCompressor;
 
 import org.json.JSONArray;
@@ -97,11 +98,7 @@ public class Settings {
 
     private Settings(Context context) {
         this.context = context;
-        String packageName = context.getPackageName();
-        if (packageName.endsWith(".debug")) {
-            packageName = packageName.replace(".debug", "");
-        }
-        this.prefsName = packageName + ".main.settings";
+        this.prefsName = context.getPackageName() + ".main.settings";
         preferences = context.getSharedPreferences(prefsName, Context.MODE_PRIVATE);
     }
 
@@ -165,12 +162,12 @@ public class Settings {
                 } else if (object instanceof Long) {
                     editor.putLong(key, (long) object);
                 } else if (object instanceof String) {
-                    editor.putString(key, (String) object);
+                    editor.putString(key, Common.correctPackageLikeStringsForDebug((String) object));
                 } else if (object instanceof JSONArray){
                     Set<String> stringSet = new HashSet<>();
                     JSONArray jsonArray = (JSONArray) object;
                     for (int i = 0; i < jsonArray.length(); i++) {
-                        stringSet.add(jsonArray.getString(i));
+                        stringSet.add(Common.correctPackageLikeStringsForDebug(jsonArray.getString(i)));
                     }
                     editor.putStringSet(key, stringSet);
                 }
