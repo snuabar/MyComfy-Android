@@ -45,4 +45,11 @@
         android:layout_height="wrap_content"
         style="@style/ButtonBorderless"
         android:text="关联删除"/>
+
+    <Button
+        android:id="@+id/btnContinueWithLastFrame"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        style="@style/ButtonBorderless"
+        android:text="尾帧继续生成"/>
 </LinearLayout>

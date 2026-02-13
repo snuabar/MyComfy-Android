@@ -37,6 +37,8 @@ import com.snuabar.mycomfy.main.data.MainViewModel;
 import com.snuabar.mycomfy.main.data.livedata.DeletionData;
 import com.snuabar.mycomfy.main.data.livedata.MessageState;
 import com.snuabar.mycomfy.main.model.I2ISentMessageModel;
+import com.snuabar.mycomfy.main.model.I2VReceivedMessageModel;
+import com.snuabar.mycomfy.main.model.I2VSentMessageModel;
 import com.snuabar.mycomfy.main.model.MessageModel;
 import com.snuabar.mycomfy.main.model.ReceivedMessageModel;
 import com.snuabar.mycomfy.main.model.SentMessageModel;
@@ -62,6 +64,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 public class HomeFragment extends Fragment {
 
@@ -126,7 +129,7 @@ public class HomeFragment extends Fragment {
                 }
             }
         });
-        mViewModel.getDeletionModeLiveData().observe(getViewLifecycleOwner(), aBoolean -> {
+        mViewModel.getSelectionModeLiveData().observe(getViewLifecycleOwner(), aBoolean -> {
             if (getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.RESUMED)) {
                 messageAdapter.setEditMode(aBoolean);
             }
@@ -161,12 +164,23 @@ public class HomeFragment extends Fragment {
                 binding.recyclerView.smoothScrollToPosition(messageAdapter.getItemCount() - 1);
             }
         });
+        mViewModel.getSelectionDataLiveData().observe(getViewLifecycleOwner(), selectionData -> {
+            if (getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.RESUMED)) {
+                if (selectionData != null) {
+                    List<Integer> indices = messageAdapter.getSelectedIndices();
+                    List<AbstractMessageModel> models = mViewModel.getMessageModels();
+                    List<String> ids = indices.stream().map(integer -> models.get(integer).getId()).collect(Collectors.toList());
+                    selectionData.modelIdSet.clear();
+                    selectionData.modelIdSet.addAll(ids);
+                }
+            }
+        });
     }
 
     @Override
     public void onPause() {
         super.onPause();
-        mViewModel.changeDeletionMode(false);
+        mViewModel.changeSelectionMode(false);
     }
 
     @Override
@@ -231,7 +245,7 @@ public class HomeFragment extends Fragment {
 
         File imageFile = model.getImageFile();
         if (ope == MessageAdapter.OnElementClickListener.OPE_NONE) {
-            if (Boolean.TRUE.equals(mViewModel.getDeletionModeLiveData().getValue())) {
+            if (Boolean.TRUE.equals(mViewModel.getSelectionModeLiveData().getValue())) {
                 messageAdapter.toggleSelection(position);
             } else {
                 if (imageFile != null && imageFile.exists()) {
@@ -269,14 +283,14 @@ public class HomeFragment extends Fragment {
             enqueue(model, 4.f);
         } else if (ope == MessageAdapter.OnElementClickListener.OPE_XN) {
             showUpscaleAdjustmentDialog(model);
-        } else if (ope == MessageAdapter.OnElementClickListener.OPE_I2I_IMAGES) {
-            if (model.isI2I()) {
+        } else if (ope == MessageAdapter.OnElementClickListener.OPE_THREE_IMAGES) {
+            if (model.isI2I() || model.isI2V()) {
                 File[] imageFiles = model.getParameters().getImageFiles();
                 File clickedImageFile = imageFiles[(int) obj];
                 if (clickedImageFile != null && clickedImageFile.exists()) {
                     Intent intent = new Intent(requireActivity(), FullScreenImageActivity.class);
                     intent.putExtra(FullScreenImageActivity.EXTRA_ID_LIST, new ArrayList<>(Collections.singletonList(model.getId())));
-                    intent.putExtra(FullScreenImageActivity.EXTRA_I2I_IMAGE_INDEX, (int) obj);
+                    intent.putExtra(FullScreenImageActivity.EXTRA_IMAGE_INDEX, (int) obj);
                     startActivity(intent);
                 }
             }
@@ -350,7 +364,7 @@ public class HomeFragment extends Fragment {
             PopupWindow popupWindow = new PopupWindow(requireContext());
             popupWindow.setContentView(binding.getRoot());
             popupWindow.setOutsideTouchable(true);
-            popupWindow.setFocusable(false);
+            popupWindow.setFocusable(true);
             popupWindow.setElevation(8);
             popupWindow.setBackgroundDrawable(AppCompatResources.getDrawable(requireContext(), R.drawable.message_item_optional_popup_bg));
             popupWindow.getContentView().setTag(binding);
@@ -378,10 +392,11 @@ public class HomeFragment extends Fragment {
         });
 
         binding.btnCopyImage.setOnClickListener(v -> {
-            ImageUtils.copyImageUsingContentUri(requireContext(), model.getImageFile());
+            ImageUtils.copyImageUsingContentUri(requireContext(), model.getImageFile(), model.isVideo());
 
             messageItemOptionalPopup.dismiss();
         });
+        binding.btnCopyImage.setText(model.isVideo() ? "复制视频" : "复制图像");
 
         binding.btnDelete.setOnClickListener(v -> {
             new OptionalDialog()
@@ -431,6 +446,14 @@ public class HomeFragment extends Fragment {
             }
 
             messageItemOptionalPopup.dismiss();
+        });
+
+        binding.btnContinueWithLastFrame.setVisibility(model instanceof I2VReceivedMessageModel ? View.VISIBLE : View.GONE);
+        binding.btnContinueWithLastFrame.setOnClickListener(v -> {
+            if (model instanceof I2VReceivedMessageModel) {
+//                AbstractMessageModel sentModel = mViewModel.getMessageModel(model.getAssociatedSentModelId());
+//                enqueue();
+            }
         });
 
         // 手动测量和布局
@@ -499,7 +522,9 @@ public class HomeFragment extends Fragment {
             // 创建请求对象
             request = new QueueRequest(parameters);
 
-            if (parametersPopup.isWorkflowInputImage()) {
+            if (parametersPopup.isWorkflowImageToVideo()) {
+                sentMessageModel = new I2VSentMessageModel(parameters);
+            } else if (parametersPopup.isWorkflowInputImage()) {
                 sentMessageModel = new I2ISentMessageModel(parameters);
             } else if (parametersPopup.isVideoWorkflow()) {
                 sentMessageModel = new SentVideoMessageModel(parameters);
@@ -583,7 +608,7 @@ public class HomeFragment extends Fragment {
                         int index = mViewModel.deleteModel(model);
                         messageAdapter.notifyItemDeleted(index);
                     }
-                    mViewModel.changeDeletionMode(false);
+                    mViewModel.changeSelectionMode(false);
                     mViewModel.setModelListChange(true);
                     mViewModel.setModelListChange(false);
                 })

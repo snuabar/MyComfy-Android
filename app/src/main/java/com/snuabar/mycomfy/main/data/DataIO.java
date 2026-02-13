@@ -8,6 +8,8 @@ import androidx.annotation.Nullable;
 
 import com.snuabar.mycomfy.main.model.I2IReceivedMessageModel;
 import com.snuabar.mycomfy.main.model.I2ISentMessageModel;
+import com.snuabar.mycomfy.main.model.I2VReceivedMessageModel;
+import com.snuabar.mycomfy.main.model.I2VSentMessageModel;
 import com.snuabar.mycomfy.main.model.ReceivedMessageModel;
 import com.snuabar.mycomfy.main.model.ReceivedVideoMessageModel;
 import com.snuabar.mycomfy.main.model.SentMessageModel;
@@ -276,6 +278,9 @@ public class DataIO {
             if (I2IReceivedMessageModel.class.getName().equals(className)) {
                 return new I2IReceivedMessageModel(jsonObject);
             }
+            if (I2VReceivedMessageModel.class.getName().equals(className)) {
+                return new I2VReceivedMessageModel(jsonObject);
+            }
             // Sent
             if (SentMessageModel.class.getName().equals(className)) {
                 return new SentMessageModel(jsonObject);
@@ -288,6 +293,9 @@ public class DataIO {
             }
             if (I2ISentMessageModel.class.getName().equals(className)) {
                 return new I2ISentMessageModel(jsonObject);
+            }
+            if (I2VSentMessageModel.class.getName().equals(className)) {
+                return new I2VSentMessageModel(jsonObject);
             }
         }
         return null;

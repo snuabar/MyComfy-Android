@@ -2,12 +2,11 @@ package com.snuabar.mycomfy.main.data.livedata;
 
 import java.util.Set;
 
-public class DeletionData {
-    public final Set<String> modelIdSet;
+public class DeletionData extends SelectionData {
     public final boolean includeAssociated;
 
     public DeletionData(Set<String> modelIdSet, boolean includeAssociated) {
-        this.modelIdSet = modelIdSet;
+        super(modelIdSet);
         this.includeAssociated = includeAssociated;
     }
 }

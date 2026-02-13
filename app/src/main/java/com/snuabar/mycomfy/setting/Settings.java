@@ -2,8 +2,10 @@ package com.snuabar.mycomfy.setting;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.text.TextUtils;
 import android.util.Log;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.StringDef;
 
 import com.snuabar.mycomfy.client.WorkflowsResponse;
@@ -78,6 +80,7 @@ public class Settings {
 
     public static final String KEY_DATA_IMPORTED = "data_imported";
     public static final String KEY_PROMPT = "prompt";
+    public static final String KEY_WORKFLOW_DISPLAY_NAMES = "workflow_display_names";
 
     private final SharedPreferences preferences;
 
@@ -239,5 +242,26 @@ public class Settings {
 
     public String getModelName(String defValue) {
         return getString(KEY_PARAM_MODEL, defValue);
+    }
+
+    public Settings setWorkflowDisplayNames(Map<String, String> displayNames) {
+        JSONObject jsonObject = new JSONObject(displayNames);
+        String jsonString = jsonObject.toString();
+        editor.putString(KEY_WORKFLOW_DISPLAY_NAMES, jsonString);
+        return this;
+    }
+
+    @NonNull
+    public String getWorkflowDisplayName(String workflow) {
+        String jsonString = getString(KEY_WORKFLOW_DISPLAY_NAMES, workflow);
+        if (!TextUtils.isEmpty(jsonString)) {
+            try {
+                JSONObject jsonObject = new JSONObject(jsonString);
+                return jsonObject.optString(workflow, workflow);
+            } catch (JSONException e) {
+                Log.e(TAG, "getWorkflowDisplayName: failed to execute optString()");
+            }
+        }
+        return workflow;
     }
 }

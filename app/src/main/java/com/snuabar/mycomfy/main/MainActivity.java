@@ -13,15 +13,25 @@ import android.view.MenuItem;
 
 import com.snuabar.mycomfy.R;
 import com.snuabar.mycomfy.client.RetrofitClient;
+import com.snuabar.mycomfy.main.data.AbstractMessageModel;
 import com.snuabar.mycomfy.main.data.DataIO;
 import com.snuabar.mycomfy.main.data.MainViewModel;
+import com.snuabar.mycomfy.main.data.livedata.SelectionData;
 import com.snuabar.mycomfy.main.data.prompt.AdvancedTranslator;
 import com.snuabar.mycomfy.main.data.prompt.PromptManager;
 import com.snuabar.mycomfy.setting.Settings;
 import com.snuabar.mycomfy.setting.SettingsActivity;
+import com.snuabar.mycomfy.utils.FileOperator;
 import com.snuabar.mycomfy.utils.FilePicker;
 import com.snuabar.mycomfy.utils.ImageTools;
 import com.snuabar.mycomfy.utils.ThumbnailCacheManager;
+
+import java.io.File;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -50,7 +60,7 @@ public class MainActivity extends AppCompatActivity {
                     .commitNow();
         }
 
-        mViewModel.getDeletionModeLiveData().observe(this, aBoolean -> invalidateOptionsMenu());
+        mViewModel.getSelectionModeLiveData().observe(this, aBoolean -> invalidateOptionsMenu());
 
         getOnBackPressedDispatcher().addCallback(this, onBackPressedCallback);
     }
@@ -66,11 +76,12 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public boolean onPrepareOptionsMenu(Menu menu) {
-        boolean deletionMode = Boolean.TRUE.equals(mViewModel.getDeletionModeLiveData().getValue());
-        menu.findItem(R.id.action_settings).setVisible(!deletionMode);
-        menu.findItem(R.id.action_multi_select).setVisible(!deletionMode);
-        menu.findItem(R.id.action_delete).setVisible(deletionMode);
-        menu.findItem(R.id.action_delete_associated).setVisible(deletionMode);
+        boolean selectionMode = Boolean.TRUE.equals(mViewModel.getSelectionModeLiveData().getValue());
+        menu.findItem(R.id.action_settings).setVisible(!selectionMode);
+        menu.findItem(R.id.action_multi_select).setVisible(!selectionMode);
+        menu.findItem(R.id.action_delete).setVisible(selectionMode);
+        menu.findItem(R.id.action_delete_associated).setVisible(selectionMode);
+        menu.findItem(R.id.action_share).setVisible(selectionMode);
         return super.onPrepareOptionsMenu(menu);
     }
 
@@ -102,11 +113,15 @@ public class MainActivity extends AppCompatActivity {
             return true;
         }
         if (id == R.id.action_multi_select) {
-            mViewModel.changeDeletionMode(true);
+            mViewModel.changeSelectionMode(true);
             return true;
         }
         if (id == R.id.action_search) {
             mViewModel.setSearchingMode(true);
+            return true;
+        }
+        if (id == R.id.action_share) {
+            shareSelected();
             return true;
         }
 
@@ -116,8 +131,8 @@ public class MainActivity extends AppCompatActivity {
     private final OnBackPressedCallback onBackPressedCallback = new OnBackPressedCallback(true) {
         @Override
         public void handleOnBackPressed() {
-            if (Boolean.TRUE.equals(mViewModel.getDeletionModeLiveData().getValue())) {
-                mViewModel.changeDeletionMode(false);
+            if (Boolean.TRUE.equals(mViewModel.getSelectionModeLiveData().getValue())) {
+                mViewModel.changeSelectionMode(false);
                 return;
             }
             if (mViewModel.getSelectedTabLiveData().getValue() != null &&
@@ -133,4 +148,21 @@ public class MainActivity extends AppCompatActivity {
             getOnBackPressedDispatcher().onBackPressed();
         }
     };
+
+    private void shareSelected() {
+        SelectionData selectionData = new SelectionData(new HashSet<>());
+        mViewModel.fetchSelectionData(selectionData);
+        if (selectionData.modelIdSet.isEmpty()) {
+            return;
+        }
+        mViewModel.changeSelectionMode(false);
+
+        List<AbstractMessageModel> models = new ArrayList<>(mViewModel.getMessageModels());
+        models.removeIf(m -> !selectionData.modelIdSet.contains(m.getId()));
+        List<File> selectedImageFile = models.stream().map(AbstractMessageModel::getImageFile).collect(Collectors.toList());
+        selectedImageFile.removeIf(file -> file == null || !file.exists());
+        selectedImageFile.sort(Comparator.comparingLong(File::lastModified));
+
+        FileOperator.shareImagesFromLocal(this, selectedImageFile);
+    }
 }

@@ -16,7 +16,7 @@ android {
         minSdk = 28
         targetSdk = 36
         versionCode = 1
-        versionName = "1.1"
+        versionName = "1.1.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -32,6 +32,7 @@ android {
             buildConfigField("String", "defaultPackageName", "\"$defaultPackageName\"")
         }
         debug {
+            resValue("string", "app_name", "MyComfy\n(DEBUG)")
             applicationIdSuffix = ".debug"
             // 获取特定 BuildType 的包名
             val defaultPackageName: String? = android.defaultConfig.applicationId

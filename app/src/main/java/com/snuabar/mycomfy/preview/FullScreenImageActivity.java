@@ -10,6 +10,7 @@ import android.graphics.RectF;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.text.TextUtils;
 import android.util.DisplayMetrics;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -22,6 +23,7 @@ import android.widget.Toast;
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.IdRes;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.documentfile.provider.DocumentFile;
 import androidx.recyclerview.widget.RecyclerView;
@@ -37,7 +39,11 @@ import com.snuabar.mycomfy.main.data.AbstractMessageModel;
 import com.snuabar.mycomfy.main.data.DataIO;
 import com.snuabar.mycomfy.main.model.I2IReceivedMessageModel;
 import com.snuabar.mycomfy.main.model.I2ISentMessageModel;
+import com.snuabar.mycomfy.main.model.I2VReceivedMessageModel;
+import com.snuabar.mycomfy.main.model.I2VSentMessageModel;
 import com.snuabar.mycomfy.main.model.ReceivedMessageModel;
+import com.snuabar.mycomfy.main.model.ReceivedVideoMessageModel;
+import com.snuabar.mycomfy.setting.Settings;
 import com.snuabar.mycomfy.utils.FileOperator;
 import com.snuabar.mycomfy.utils.FilePicker;
 import com.snuabar.mycomfy.utils.ImageUtils;
@@ -61,7 +67,7 @@ public class FullScreenImageActivity extends AppCompatActivity {
 
     public static final String EXTRA_ID_LIST = "extra_id_list";
     public static final String EXTRA_CURRENT_ID = "extra_current_id";
-    public static final String EXTRA_I2I_IMAGE_INDEX = "extra_i2i_image_index";
+    public static final String EXTRA_IMAGE_INDEX = "extra_image_index";
     public static final String TAG = FullScreenImageActivity.class.getName();
 
     private ActivityFullScreenImageBinding binding;
@@ -95,7 +101,7 @@ public class FullScreenImageActivity extends AppCompatActivity {
         List<String> messageIds = Collections.unmodifiableList(Objects.requireNonNull(getIntent().getStringArrayListExtra(EXTRA_ID_LIST)));
         String currentId = getIntent().getStringExtra(EXTRA_CURRENT_ID);
         currentIndex = messageIds.indexOf(currentId);
-        i2iImageIndex = getIntent().getIntExtra(EXTRA_I2I_IMAGE_INDEX, 0);
+        i2iImageIndex = getIntent().getIntExtra(EXTRA_IMAGE_INDEX, 0);
 
         List<AbstractMessageModel> models = DataIO.getInstance().copyMessageModels();
         models.removeIf(m -> !messageIds.contains(m.getId()));
@@ -172,11 +178,12 @@ public class FullScreenImageActivity extends AppCompatActivity {
                 binding.tvDate.setText(Common.formatTimestamp(model.getUTCTimestampCompletion()));
                 binding.tvFileSize.setText(Common.formatFileSize(model.getImageFile().length()));
                 binding.tvPrompt.setText(model.getParameters().getPrompt());
+                String modelName = TextUtils.isEmpty(model.getParameters().getModel()) ? "<none>" : model.getParameters().getModel();
                 if (model.isI2I()) {
                     binding.tvParams.setText(String.format(Locale.getDefault(),
                             "%s\n%s\n%s %d %.01f %.01f",
                             model.getParameters().getWorkflow(),
-                            model.getParameters().getModel(),
+                            modelName,
                             model.getParameters().getSeed(),
                             model.getParameters().getStep(),
                             model.getParameters().getCfg(),
@@ -186,7 +193,7 @@ public class FullScreenImageActivity extends AppCompatActivity {
                     binding.tvParams.setText(String.format(Locale.getDefault(),
                             "%s\n%s\n%dx%d %s %d %.01f",
                             model.getParameters().getWorkflow(),
-                            model.getParameters().getModel(),
+                            modelName,
                             model.getParameters().getImg_width(), model.getParameters().getImg_height(),
                             model.getParameters().getSeed(),
                             model.getParameters().getStep(),
@@ -202,13 +209,7 @@ public class FullScreenImageActivity extends AppCompatActivity {
                 } else {
                     binding.tvScaleFactor.setVisibility(View.GONE);
                 }
-                int[] size;
-                if (model.isVideo()) {
-                    VideoUtils.VideoSize videoSize = VideoUtils.INSTANCE.getVideoSize(model.getImageFile());
-                    size = new int[]{videoSize.getWidth(), videoSize.getHeight()};
-                } else {
-                    size = ImageUtils.getImageSize(model.getImageFile());
-                }
+                int[] size = model.getImageSize();
                 binding.tvResolution.setText(String.format(Locale.getDefault(), "%d x %d", size[0], size[1]));
             }
         } else {
@@ -471,7 +472,7 @@ public class FullScreenImageActivity extends AppCompatActivity {
         @Override
         public void onBindViewHolder(@NonNull BaseHolder holder, int position) {
             AbstractMessageModel model = messageModels.get(position);
-            if (model.isVideo()) {
+            if (model.isVideo() && model instanceof ReceivedVideoMessageModel) {
                 VideoHolder videoHolder = (VideoHolder) holder;
                 videoHolder.binding.videoView.setVideoSource(model.getImageFile().getAbsolutePath());
                 videoHolders.add(videoHolder);
@@ -479,11 +480,14 @@ public class FullScreenImageActivity extends AppCompatActivity {
                 ImageHolder imageHolder = (ImageHolder) holder;
                 Bitmap bitmap = getBitmap(position);
                 imageHolder.binding.photoView.setImageBitmap(bitmap);
-                float[] scales = Common.getPhotoViewScales(holder.itemView.getContext(), bitmap.getWidth(), bitmap.getHeight());
-                imageHolder.binding.photoView.setMaximumScale(scales[0]);
-                imageHolder.binding.photoView.setMediumScale(scales[1]);
+                if (bitmap != null) {
+                    float[] scales = Common.getPhotoViewScales(holder.itemView.getContext(), bitmap.getWidth(), bitmap.getHeight());
+                    imageHolder.binding.photoView.setMaximumScale(scales[0]);
+                    imageHolder.binding.photoView.setMediumScale(scales[1]);
+                }
                 imageHolder.binding.photoView.setZoomTransitionDuration(holder.itemView.getResources().getInteger(android.R.integer.config_longAnimTime));
-                if (model.isI2I() && model instanceof I2IReceivedMessageModel) {
+                if ((model.isI2I() && model instanceof I2IReceivedMessageModel) ||
+                        (model.isI2V() && model instanceof I2VReceivedMessageModel)) {
                     imageHolder.binding.photoView.setImagePaths(
                             model.getImageFile().getAbsolutePath(),
                             model.getParameters().getImageFiles()[0].getAbsolutePath()
@@ -503,12 +507,13 @@ public class FullScreenImageActivity extends AppCompatActivity {
 
         @Override
         public int getItemViewType(int position) {
-            if (messageModels.get(position).isVideo()) {
+            if (messageModels.get(position).isVideo() && messageModels.get(position) instanceof ReceivedVideoMessageModel) {
                 return 1;
             }
             return super.getItemViewType(position);
         }
 
+        @Nullable
         private Bitmap getBitmap(int position) {
             AbstractMessageModel model = messageModels.get(position);
             WeakReference<Bitmap> bitmapRef = bitmapRefs.get(position);
@@ -516,7 +521,8 @@ public class FullScreenImageActivity extends AppCompatActivity {
             if (bitmapRef != null && bitmapRef.get() != null) {
                 bitmap = bitmapRef.get();
             } else {
-                if (model.isI2I() && model instanceof I2ISentMessageModel) {
+                if ((model.isI2I() && model instanceof I2ISentMessageModel) ||
+                        (model.isI2V() && model instanceof I2VSentMessageModel)) {
                     bitmap = BitmapFactory.decodeFile(model.getParameters().getImageFiles()[i2iImageIndex].getAbsolutePath());
                 } else {
                     bitmap = BitmapFactory.decodeFile(model.getImageFile().getAbsolutePath());

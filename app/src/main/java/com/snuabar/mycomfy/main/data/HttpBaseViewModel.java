@@ -23,12 +23,14 @@ import com.snuabar.mycomfy.client.WorkflowsResponse;
 import com.snuabar.mycomfy.common.Callbacks;
 import com.snuabar.mycomfy.main.data.livedata.MessageState;
 import com.snuabar.mycomfy.main.model.I2IReceivedMessageModel;
+import com.snuabar.mycomfy.main.model.I2VReceivedMessageModel;
 import com.snuabar.mycomfy.main.model.MessageModel;
 import com.snuabar.mycomfy.main.model.ReceivedMessageModel;
 import com.snuabar.mycomfy.main.model.ReceivedVideoMessageModel;
 import com.snuabar.mycomfy.main.model.SentMessageModel;
 import com.snuabar.mycomfy.main.model.UpscaleReceivedMessageModel;
 import com.snuabar.mycomfy.main.model.UpscaleSentMessageModel;
+import com.snuabar.mycomfy.setting.Settings;
 import com.snuabar.mycomfy.utils.ImageHashCalculator;
 import com.snuabar.mycomfy.utils.ThumbnailCacheManager;
 
@@ -290,7 +292,10 @@ public class HttpBaseViewModel extends ViewModel {
                         }
                         // 保存响应对应，更新列表
                         ReceivedMessageModel receivedMessageModel;
-                        if (sentMessageModel.isI2I()) {
+                        if (sentMessageModel.isI2V()) {
+                            receivedMessageModel = new I2VReceivedMessageModel(enqueueResponse);
+                            receivedMessageModel.getParameters().setImageFiles(sentMessageModel.getParameters().getImageFiles());
+                        } else if (sentMessageModel.isI2I()) {
                             receivedMessageModel = new I2IReceivedMessageModel(enqueueResponse);
                             receivedMessageModel.getParameters().setImageFiles(sentMessageModel.getParameters().getImageFiles());
                         } else if (sentMessageModel.isVideo()) {
@@ -551,6 +556,14 @@ public class HttpBaseViewModel extends ViewModel {
                 isWorkflowLoading = false;
                 if (response.isSuccessful() && response.body() != null) {
                     WorkflowsResponse workflowsResponse = response.body();
+                    Map<String, String> workflowDisplayNames = new HashMap<>();
+                    for (String key : workflowsResponse.getWorkflows().keySet()) {
+                        WorkflowsResponse.Workflow workflow = workflowsResponse.getWorkflows().get(key);
+                        if (workflow != null) {
+                            workflowDisplayNames.put(key, workflow.getDisplayName());
+                        }
+                    }
+                    Settings.getInstance().edit().setWorkflowDisplayNames(workflowDisplayNames).apply();
                     workflowsLiveData.postValue(workflowsResponse.getWorkflows());
                 } else {
                     Log.e(TAG, "请求失败，状态码: " + response.code());

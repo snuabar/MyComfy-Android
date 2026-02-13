@@ -1,6 +1,9 @@
 package com.snuabar.mycomfy.client;
 
+import android.text.TextUtils;
 import android.util.Log;
+
+import com.snuabar.mycomfy.common.Common;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -31,7 +34,7 @@ public class QueueRequest {
     // 构造函数
     public QueueRequest(String workflow, String model, String prompt, String seed, int img_width, int img_height, int step, double cfg, double upscale_factor) {
         this.workflow = workflow;
-        this.model = model;
+        this.model = TextUtils.isEmpty(model) ? null : model;
         this.prompt = prompt;
         this.seed = seed;
         this.img_width = img_width;
@@ -265,13 +268,13 @@ public class QueueRequest {
         setImages(images);
         File[] imageFiles = new File[3];
         if (jsonObject.has("imageFile1")) {
-            imageFiles[0] = new File(jsonObject.optString("imageFile1"));
+            imageFiles[0] = new File(Common.correctPackageLikeStringsForDebug(jsonObject.optString("imageFile1")));
         }
         if (jsonObject.has("imageFile2")) {
-            imageFiles[1] = new File(jsonObject.optString("imageFile2"));
+            imageFiles[1] = new File(Common.correctPackageLikeStringsForDebug(jsonObject.optString("imageFile2")));
         }
         if (jsonObject.has("imageFile3")) {
-            imageFiles[2] = new File(jsonObject.optString("imageFile3"));
+            imageFiles[2] = new File(Common.correctPackageLikeStringsForDebug(jsonObject.optString("imageFile3")));
         }
         setImageFiles(imageFiles);
     }

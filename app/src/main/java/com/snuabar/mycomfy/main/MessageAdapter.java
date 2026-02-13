@@ -5,6 +5,7 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
@@ -137,9 +138,9 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
             } else {
                 holder.binding.layoutImageView.setVisibility(View.GONE);
                 holder.binding.textView.setText(param.getPrompt());
-                if (model.isI2I()) {
+                if (model.isI2I() || model.isI2V()) {
                     holder.binding.layoutImages.setVisibility(View.VISIBLE);
-                    displayI2ISentImages(holder, model);
+                    displayThreeImages(holder, model);
                 } else {
                     holder.binding.layoutImages.setVisibility(View.GONE);
                 }
@@ -189,7 +190,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
         updateProgress(holder.binding.pgsBar, position, model);
     }
 
-    private void displayI2ISentImages(SentViewHolder holder, SentMessageModel model) {
+    private void displayThreeImages(SentViewHolder holder, SentMessageModel model) {
         File[] imageFiles = model.getParameters().getImageFiles();
         if (imageFiles != null) {
             Context context = holder.itemView.getContext();
@@ -209,13 +210,14 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
                 } else {
                     imageViews[i].setImageBitmap(null);
                 }
+                imageViews[i].setVisibility(imageFile != null ? View.VISIBLE : View.GONE);
             }
         }
     }
 
     private boolean canBeUpscaled(ReceivedMessageModel model) {
         boolean upscaled = model.getParameters().getUpscale_factor() > 1.0;
-        return !model.isI2I() && !model.isVideo() && model.getCode() == 200 && !model.getInterruptionFlag() && !upscaled && !isEditMode;
+        return !model.isI2I() && !model.isI2V() && !model.isVideo() && model.getCode() == 200 && !model.getInterruptionFlag() && !upscaled && !isEditMode;
     }
 
     private void onThumbnailMake(AbstractMessageModel model) {
@@ -348,11 +350,12 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
 
     private void displayDetailedParams(SentViewHolder holder, AbstractMessageModel model) {
         Parameters param = model.getParameters();
+        String modelName = TextUtils.isEmpty(param.getModel()) ? "<none>" : param.getModel();
         if (model.isI2I()) {
             holder.binding.textView0.setText(String.format(Locale.getDefault(),
                     "%s\n%s\n%s %d %.01f %.01f",
                     param.getWorkflow(),
-                    param.getModel(),
+                    modelName,
                     param.getSeed(),
                     param.getStep(), param.getCfg(),
                     param.getMegapixels()
@@ -361,7 +364,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
             holder.binding.textView0.setText(String.format(Locale.getDefault(),
                     "%s\n%s\n%dx%d %s %d %.01f %.01f %s",
                     param.getWorkflow(),
-                    param.getModel(),
+                    modelName,
                     param.getImg_width(), param.getImg_height(),
                     param.getSeed(),
                     param.getStep(), param.getCfg(),
@@ -372,7 +375,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
             holder.binding.textView0.setText(String.format(Locale.getDefault(),
                     "%s\n%s\n%dx%d %s %d %.01f %.01f",
                     param.getWorkflow(),
-                    param.getModel(),
+                    modelName,
                     param.getImg_width(), param.getImg_height(),
                     param.getSeed(),
                     param.getStep(), param.getCfg(),
@@ -462,19 +465,19 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
 
             binding.imageView1.setOnClickListener(v -> {
                 if (listener != null) {
-                    listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_I2I_IMAGES, null, 0);
+                    listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_THREE_IMAGES, null, 0);
                 }
             });
 
             binding.imageView2.setOnClickListener(v -> {
                 if (listener != null) {
-                    listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_I2I_IMAGES, null, 1);
+                    listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_THREE_IMAGES, null, 1);
                 }
             });
 
             binding.imageView3.setOnClickListener(v -> {
                 if (listener != null) {
-                    listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_I2I_IMAGES, null, 2);
+                    listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_THREE_IMAGES, null, 2);
                 }
             });
         }
@@ -531,7 +534,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
         int OPE_X2 = 5;
         int OPE_X4 = 6;
         int OPE_XN = 7;
-        int OPE_I2I_IMAGES = 8;
+        int OPE_THREE_IMAGES = 8;
         void onClick(View view, int index, int ope, float[] downLocation, Object obj);
     }
 }

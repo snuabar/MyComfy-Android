@@ -12,6 +12,7 @@ import androidx.lifecycle.MutableLiveData;
 
 import com.snuabar.mycomfy.client.Parameters;
 import com.snuabar.mycomfy.main.data.livedata.DeletionData;
+import com.snuabar.mycomfy.main.data.livedata.SelectionData;
 import com.snuabar.mycomfy.utils.FilePicker;
 
 import java.util.HashSet;
@@ -29,24 +30,26 @@ public class MainViewModel extends HttpBaseViewModel {
     private String matchingKeywords;
     private final MutableLiveData<Boolean> deletionHasPressed;
     private final MutableLiveData<Boolean> associatedDeletionHasPressed;
-    private final MutableLiveData<Boolean> deletionModeLiveData;
+    private final MutableLiveData<Boolean> selectionModeLiveData;
     private final MutableLiveData<Integer> selectedTabLiveData;
     private final MutableLiveData<Integer> clickedTabLiveData;
     private final MutableLiveData<DeletionData> deletionDataLiveData;
     private final MutableLiveData<Boolean> modelListChangeLiveData;
     private final MutableLiveData<Boolean> searchingModeLiveData;
     private final MutableLiveData<Set<String>> matchedIDsLiveData;
+    private final MutableLiveData<SelectionData> selectionDataLiveData;
 
     public MainViewModel() {
         deletionHasPressed = new MutableLiveData<>();
         associatedDeletionHasPressed = new MutableLiveData<>();
-        deletionModeLiveData = new MutableLiveData<>();
+        selectionModeLiveData = new MutableLiveData<>();
         selectedTabLiveData = new MutableLiveData<>();
         clickedTabLiveData = new MutableLiveData<>();
         deletionDataLiveData = new MutableLiveData<>();
         modelListChangeLiveData = new MutableLiveData<>();
         searchingModeLiveData = new MutableLiveData<>();
         matchedIDsLiveData = new MutableLiveData<>();
+        selectionDataLiveData = new MutableLiveData<>();
     }
 
     @Override
@@ -130,7 +133,7 @@ public class MainViewModel extends HttpBaseViewModel {
                             ids.add(model.getId());
                             break;
                         }
-                        if (!model.isI2I()) {
+                        if (!model.isI2I() && !model.isI2V()) {
                             String upscale = "x" + p.getUpscale_factor();
                             if (upscale.contains(k)) {
                                 ids.add(model.getId());
@@ -167,12 +170,12 @@ public class MainViewModel extends HttpBaseViewModel {
         });
     }
 
-    public LiveData<Boolean> getDeletionModeLiveData() {
-        return deletionModeLiveData;
+    public LiveData<Boolean> getSelectionModeLiveData() {
+        return selectionModeLiveData;
     }
 
-    public void changeDeletionMode(boolean deletionMode) {
-        deletionModeLiveData.postValue(deletionMode);
+    public void changeSelectionMode(boolean selectionMode) {
+        selectionModeLiveData.postValue(selectionMode);
     }
 
     public LiveData<Integer> getSelectedTabLiveData() {
@@ -216,7 +219,6 @@ public class MainViewModel extends HttpBaseViewModel {
         deletionDataLiveData.postValue(deletionData);
     }
 
-
     public LiveData<Boolean> getModelListChangeLiveData() {
         return modelListChangeLiveData;
     }
@@ -242,5 +244,21 @@ public class MainViewModel extends HttpBaseViewModel {
 
     public LiveData<Set<String>> getMatchedIDsLiveData() {
         return matchedIDsLiveData;
+    }
+
+    public LiveData<SelectionData> getSelectionDataLiveData() {
+        return selectionDataLiveData;
+    }
+
+    public void fetchSelectionData(SelectionData selectionData) {
+        selectionDataLiveData.setValue(selectionData);
+    }
+
+    public AbstractMessageModel getMessageModel(String modelId) {
+        int index = getIndexWithId(modelId);
+        if (index >= 0 && index < messageModels.size()) {
+            return messageModels.get(index);
+        }
+        return null;
     }
 }

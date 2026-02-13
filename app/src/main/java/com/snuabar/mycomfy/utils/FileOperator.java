@@ -13,6 +13,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.channels.FileChannel;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 import android.content.Intent;
 import android.net.Uri;
@@ -188,5 +191,87 @@ public class FileOperator {
 
         // 6. 启动分享选择器
         context.startActivity(Intent.createChooser(shareIntent, "分享到"));
+    }
+
+    /**
+     * 分享多个图像文件
+     * @param context 上下文
+     * @param imageFiles 图像文件列表
+     * @param subject 分享主题（可选）
+     * @param text 分享文本（可选）
+     */
+    public static void shareImagesFromLocal(Context context, List<File> imageFiles,
+                                            String subject, String text) {
+        // 1. 检查文件列表是否为空
+        if (imageFiles == null || imageFiles.isEmpty()) {
+            Log.e("ShareImage", "Image file list is empty");
+            return;
+        }
+
+        // 2. 过滤出存在的文件
+        List<File> validFiles = new ArrayList<>();
+        for (File file : imageFiles) {
+            if (file.exists()) {
+                validFiles.add(file);
+            } else {
+                Log.e("ShareImage", "Image file does not exist: " + file.getName());
+            }
+        }
+
+        // 3. 检查是否有有效文件
+        if (validFiles.isEmpty()) {
+            Log.e("ShareImage", "No valid image files to share");
+            return;
+        }
+
+        // 4. 获取所有文件的Uri
+        ArrayList<Uri> imageUris = new ArrayList<>();
+        for (File file : validFiles) {
+            Uri imageUri = FileProvider.getUriForFile(context,
+                    context.getPackageName() + ".provider",
+                    file);
+            imageUris.add(imageUri);
+        }
+
+        // 5. 创建分享Intent
+        Intent shareIntent = new Intent();
+
+        if (validFiles.size() == 1) {
+            // 单个文件使用 ACTION_SEND
+            shareIntent.setAction(Intent.ACTION_SEND);
+            shareIntent.putExtra(Intent.EXTRA_STREAM, imageUris.get(0));
+        } else {
+            // 多个文件使用 ACTION_SEND_MULTIPLE
+            shareIntent.setAction(Intent.ACTION_SEND_MULTIPLE);
+            shareIntent.putParcelableArrayListExtra(Intent.EXTRA_STREAM, imageUris);
+        }
+
+        shareIntent.setType("image/*");
+        shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+
+        // 6. 添加可选参数
+        if (subject != null && !subject.isEmpty()) {
+            shareIntent.putExtra(Intent.EXTRA_SUBJECT, subject);
+        }
+
+        if (text != null && !text.isEmpty()) {
+            shareIntent.putExtra(Intent.EXTRA_TEXT, text);
+        }
+
+        // 7. 授予所有Uri的读取权限
+        shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+
+        // 8. 启动分享选择器
+        String chooserTitle = text != null ? text : "分享到";
+        context.startActivity(Intent.createChooser(shareIntent, chooserTitle));
+    }
+
+    // 重载方法 - 简化调用
+    public static void shareImagesFromLocal(Context context, List<File> imageFiles) {
+        shareImagesFromLocal(context, imageFiles, "分享图片", "看看这些有趣的图片！");
+    }
+
+    public static void shareImagesFromLocal(Context context, File... imageFiles) {
+        shareImagesFromLocal(context, Arrays.asList(imageFiles));
     }
 }

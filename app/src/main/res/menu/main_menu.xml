@@ -6,32 +6,43 @@
     <item
         android:id="@+id/action_multi_select"
         android:icon="@drawable/ic_multi_select"
-        android:visible="false"
-        app:showAsAction="ifRoom"
+        android:title="多选"
+        android:visible="true"
+        app:showAsAction="always"
+        tools:visible="true"/>
+
+    <item
+        android:id="@+id/action_share"
+        android:icon="@drawable/ic_share_on_primary"
+        android:title="分享"
+        android:visible="true"
+        app:showAsAction="always"
         tools:visible="true"/>
 
     <item
         android:id="@+id/action_delete"
         android:icon="@drawable/ic_delete"
-        android:visible="false"
-        app:showAsAction="ifRoom"
-        tools:visible="true"/>
+        android:title="删除"
+        android:visible="true"
+        app:showAsAction="always"/>
 
     <item
         android:id="@+id/action_delete_associated"
         android:icon="@drawable/ic_delete_linked"
-        android:visible="false"
-        app:showAsAction="ifRoom"
-        tools:visible="true"/>
+        android:title="关联删除"
+        android:visible="true"
+        app:showAsAction="always"/>
 
     <item
         android:id="@+id/action_search"
         android:icon="@drawable/ic_search"
+        android:title="搜索"
         android:visible="true"
         app:showAsAction="ifRoom"/>
 
     <item
         android:id="@+id/action_settings"
+        android:title="设定"
         android:visible="true"
         android:icon="@drawable/ic_settings"
         app:showAsAction="ifRoom" />

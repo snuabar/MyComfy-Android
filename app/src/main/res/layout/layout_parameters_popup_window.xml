@@ -186,265 +186,10 @@
         android:layout_marginTop="4dp"
         android:orientation="vertical">
 
-        <LinearLayout
-            android:id="@+id/layoutImageSize"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="尺寸:" />
-
-            <EditText
-                android:id="@+id/etWidth"
-                style="@style/ParameterEditTextStyle"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
-                android:layout_weight="1"
-                android:inputType="number"
-                android:maxLength="4"
-                android:text="512" />
-
-            <ImageButton
-                android:id="@+id/btnSwitchWH"
-                style="@style/ButtonBorderless"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_gravity="center"
-                android:layout_weight="0.4"
-                android:src="@drawable/ic_switch_wh" />
-
-            <EditText
-                android:id="@+id/etHeight"
-                style="@style/ParameterEditTextStyle"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_span="1"
-                android:layout_weight="1"
-                android:inputType="number"
-                android:maxLength="4"
-                android:text="512" />
-
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:orientation="horizontal">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="种子:" />
-
-            <EditText
-                android:id="@+id/etSeed"
-                style="@style/ParameterEditTextStyle"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginHorizontal="6dp"
-                android:layout_weight="1"
-                android:hint="可选"
-                android:inputType="numberSigned"
-                android:text="216" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="控制:" />
-
-            <com.google.android.material.chip.ChipGroup
-                android:id="@+id/chipGroupSeed"
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                app:checkedChip="@id/chipSeedRandom"
-                app:chipSpacingHorizontal="2dp"
-                app:singleSelection="true">
-
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/chipSeedRandom"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:checkable="true"
-                    android:text="随机"
-                    android:textSize="11sp" />
-
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/chipSeedIncrease"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:checkable="true"
-                    android:text="增加"
-                    android:textSize="11sp" />
-
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/chipSeedDecrease"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:checkable="true"
-                    android:text="减少"
-                    android:textSize="11sp" />
-
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/chipSeedFixed"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:checkable="true"
-                    android:text="固定"
-                    android:textSize="11sp" />
-
-            </com.google.android.material.chip.ChipGroup>
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:orientation="horizontal">
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:gravity="center|end"
-                android:layout_marginEnd="6dp"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="步数:" />
-
-                <EditText
-                    android:id="@+id/etStep"
-                    style="@style/ParameterEditTextStyle"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="6dp"
-                    android:layout_weight="1"
-                    android:inputType="number"
-                    android:text="20" />
-
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginEnd="6dp"
-                android:gravity="center|end"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:gravity="center|end"
-                    android:text="CFG:" />
-
-                <EditText
-                    android:id="@+id/etCFG"
-                    style="@style/ParameterEditTextStyle"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="6dp"
-                    android:inputType="numberDecimal"
-                    android:text="8.0" />
-
-            </LinearLayout>
-
-            <LinearLayout
-                android:id="@+id/layoutUpscale"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:gravity="center|end"
-                android:orientation="horizontal"
-                android:visibility="gone"
-                tools:visibility="visible">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:gravity="center|end"
-                    android:text="放大:" />
-
-                <EditText
-                    android:id="@+id/etUpscaleFactor"
-                    style="@style/ParameterEditTextStyle"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="6dp"
-                    android:inputType="numberDecimal"
-                    android:text="1.0" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:orientation="horizontal">
-
-            <LinearLayout
-                android:id="@+id/layoutSeconds"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginEnd="6dp"
-                android:gravity="center|end"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="时长:" />
-
-                <EditText
-                    android:id="@+id/etSeconds"
-                    style="@style/ParameterEditTextStyle"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="6dp"
-                    android:layout_weight="1"
-                    android:inputType="number"
-                    android:text="5" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:id="@+id/layoutMegapixels"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:gravity="center|end"
-                android:orientation="horizontal"
-                android:visibility="gone"
-                tools:visibility="visible">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:gravity="center|end"
-                    android:text="像素（百万）:" />
-
-                <EditText
-                    android:id="@+id/etMegapixels"
-                    style="@style/ParameterEditTextStyle"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="6dp"
-                    android:inputType="numberDecimal"
-                    android:text="1.0" />
-            </LinearLayout>
-        </LinearLayout>
-
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/layoutImages"
             android:layout_width="match_parent"
-            android:layout_height="200dp"
+            android:layout_height="180dp"
             android:layout_marginTop="4dp"
             android:orientation="horizontal">
 
@@ -516,6 +261,273 @@
                 app:layout_constraintStart_toStartOf="@id/imageView3" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="种子:" />
+
+            <EditText
+                android:id="@+id/etSeed"
+                style="@style/ParameterEditTextStyle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="6dp"
+                android:layout_weight="1.4"
+                android:hint="可选"
+                android:inputType="numberSigned"
+                android:text="216" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp"
+                android:layout_weight="1"
+                android:gravity="center|end"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="步数:" />
+
+                <EditText
+                    android:id="@+id/etStep"
+                    style="@style/ParameterEditTextStyle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:layout_weight="1"
+                    android:inputType="number"
+                    android:text="20" />
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp"
+                android:layout_weight="1"
+                android:gravity="center|end"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center|end"
+                    android:text="CFG:" />
+
+                <EditText
+                    android:id="@+id/etCFG"
+                    style="@style/ParameterEditTextStyle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:inputType="numberDecimal"
+                    android:text="8.0" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="种子控制:" />
+
+            <com.google.android.material.chip.ChipGroup
+                android:id="@+id/chipGroupSeed"
+                android:layout_width="0dp"
+                android:layout_height="34dp"
+                android:layout_weight="1"
+                android:layout_marginStart="4dp"
+                app:checkedChip="@id/chipSeedRandom"
+                app:chipSpacingHorizontal="6dp"
+                app:singleSelection="true">
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chipSeedRandom"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:checkable="true"
+                    android:text="随机"
+                    android:textSize="12sp"
+                    app:checkedIconEnabled="false" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chipSeedIncrease"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:checkable="true"
+                    android:text="增加"
+                    android:textSize="12sp"
+                    app:checkedIconEnabled="false" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chipSeedDecrease"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:checkable="true"
+                    android:text="减少"
+                    android:textSize="12sp"
+                    app:checkedIconEnabled="false" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chipSeedFixed"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:checkable="true"
+                    android:text="固定"
+                    android:textSize="12sp"
+                    app:checkedIconEnabled="false" />
+
+            </com.google.android.material.chip.ChipGroup>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/layoutImageSize"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="尺寸:" />
+
+            <EditText
+                android:id="@+id/etWidth"
+                style="@style/ParameterEditTextStyle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:layout_weight="1"
+                android:inputType="number"
+                android:maxLength="4"
+                android:text="512" />
+
+            <ImageButton
+                android:id="@+id/btnSwitchWH"
+                style="@style/ButtonBorderless"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_gravity="center"
+                android:layout_weight="0.3"
+                android:src="@drawable/ic_switch_wh" />
+
+            <EditText
+                android:id="@+id/etHeight"
+                style="@style/ParameterEditTextStyle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_span="1"
+                android:layout_weight="1"
+                android:inputType="number"
+                android:maxLength="4"
+                android:text="512" />
+
+        </LinearLayout>
+
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:id="@+id/layoutSeconds"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp"
+                android:layout_weight="1"
+                android:gravity="center|end"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="时长:" />
+
+                <EditText
+                    android:id="@+id/etSeconds"
+                    style="@style/ParameterEditTextStyle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:layout_weight="1"
+                    android:inputType="number"
+                    android:text="5" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/layoutMegapixels"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center|end"
+                android:orientation="horizontal"
+                android:layout_marginEnd="6dp"
+                android:visibility="gone"
+                tools:visibility="visible">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center|end"
+                    android:text="像素（百万）:" />
+
+                <EditText
+                    android:id="@+id/etMegapixels"
+                    style="@style/ParameterEditTextStyle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:inputType="numberDecimal"
+                    android:text="1.0" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/layoutUpscale"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center|end"
+                android:orientation="horizontal"
+                android:visibility="gone"
+                tools:visibility="visible">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center|end"
+                    android:text="放大:" />
+
+                <EditText
+                    android:id="@+id/etUpscaleFactor"
+                    style="@style/ParameterEditTextStyle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:inputType="numberDecimal"
+                    android:text="1.0" />
+            </LinearLayout>
+        </LinearLayout>
+
     </LinearLayout>
 
     <LinearLayout

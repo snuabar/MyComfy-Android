@@ -83,6 +83,8 @@ public abstract class AbstractMessageModel {
 
     public abstract String getAssociatedSentModelId();
 
+    public abstract boolean isI2V();
+
     @CallSuper
     public JSONObject toJson() {
         try {

@@ -406,7 +406,7 @@ public class ImageUtils {
     /**
      * 使用 ContentProvider 的 URI（更安全，支持 Android 10+）
      */
-    public static void copyImageUsingContentUri(Context context, File imageFile) {
+    public static void copyImageUsingContentUri(Context context, File imageFile, boolean isVideo) {
         try {
             ClipboardManager clipboard = (ClipboardManager)
                     context.getSystemService(Context.CLIPBOARD_SERVICE);
@@ -428,20 +428,20 @@ public class ImageUtils {
             // 创建 ClipData
             ClipData clipData = ClipData.newUri(
                     context.getContentResolver(),
-                    "Image",
+                    isVideo ? "Video" : "Image",
                     imageUri
             );
 
             // 添加 Intent 用于分享（可选，增强兼容性）
             Intent shareIntent = new Intent(Intent.ACTION_SEND);
-            shareIntent.setType("image/*");
+            shareIntent.setType(isVideo ? "video/*": "image/*");
             shareIntent.putExtra(Intent.EXTRA_STREAM, imageUri);
 
             clipData.addItem(new ClipData.Item(shareIntent));
 
             clipboard.setPrimaryClip(clipData);
 
-            Toast.makeText(context, "图片已复制到剪贴板", Toast.LENGTH_SHORT).show();
+            Toast.makeText(context, (isVideo ? "视频" : "图像") + "已复制到剪贴板", Toast.LENGTH_SHORT).show();
 
         } catch (Exception e) {
             Toast.makeText(context, "复制失败", Toast.LENGTH_SHORT).show();

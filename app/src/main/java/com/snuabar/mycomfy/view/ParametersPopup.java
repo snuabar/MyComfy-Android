@@ -482,13 +482,13 @@ public class ParametersPopup extends GeneralPopup {
         }
 
         visibility = binding.layoutImageSize.getVisibility();
-        binding.layoutImageSize.setVisibility(isWorkflowInputImage() ? View.GONE : View.VISIBLE);
+        binding.layoutImageSize.setVisibility(isWorkflowImageToImage() ? View.GONE : View.VISIBLE);
         if (binding.layoutImageSize.getVisibility() != visibility) {
             layoutChanged = true;
         }
 
         visibility = binding.layoutMegapixels.getVisibility();
-        binding.layoutMegapixels.setVisibility(isWorkflowInputImage() ? View.VISIBLE : View.GONE);
+        binding.layoutMegapixels.setVisibility(isWorkflowImageToImage() ? View.VISIBLE : View.GONE);
         if (binding.layoutMegapixels.getVisibility() != visibility) {
             layoutChanged = true;
         }
@@ -592,6 +592,26 @@ public class ParametersPopup extends GeneralPopup {
             return false;
         }
         return WorkflowsResponse.Workflow.INPUT_TEXT.equals(workflow.getInputType());
+    }
+
+    public boolean isWorkflowImageToVideo() {
+        String selectedWorkflow = Settings.getInstance().getWorkflow("");
+        WorkflowsResponse.Workflow workflow = workflows.get(selectedWorkflow);
+        if (workflow == null) {
+            return false;
+        }
+        return WorkflowsResponse.Workflow.INPUT_IMAGE.equals(workflow.getInputType()) &&
+                WorkflowsResponse.Workflow.OUTPUT_VIDEO.equals(workflow.getOutputType());
+    }
+
+    public boolean isWorkflowImageToImage() {
+        String selectedWorkflow = Settings.getInstance().getWorkflow("");
+        WorkflowsResponse.Workflow workflow = workflows.get(selectedWorkflow);
+        if (workflow == null) {
+            return false;
+        }
+        return WorkflowsResponse.Workflow.INPUT_IMAGE.equals(workflow.getInputType()) &&
+                WorkflowsResponse.Workflow.OUTPUT_IMAGE.equals(workflow.getOutputType());
     }
 
     @NonNull
@@ -813,7 +833,7 @@ public class ParametersPopup extends GeneralPopup {
         }
     }
 
-    private class WorkflowAdapter extends SpinnerBaseAdapter {
+    private static class WorkflowAdapter extends SpinnerBaseAdapter {
 
         public WorkflowAdapter(@NonNull Context context) {
             super(context);
@@ -832,21 +852,19 @@ public class ParametersPopup extends GeneralPopup {
             }
             String workflowKey = getItem(position);
             if (workflowKey != null) {
-                WorkflowsResponse.Workflow workflow = workflows.get(workflowKey);
-                if (workflow != null) {
-                    binding.text1.setText(workflow.getDisplayName());
-                    if (workflowKey.equals(getParameter(Settings.KEY_PARAM_WORKFLOW))) {
-                        binding.text1.setBackground(ResourcesCompat.getDrawable(binding.text1.getResources(), R.drawable.spinner_item_selection_background, null));
-                    } else {
-                        binding.text1.setBackground(null);
-                    }
+                String displayName = Settings.getInstance().getWorkflowDisplayName(workflowKey);
+                binding.text1.setText(displayName);
+                if (workflowKey.equals(Settings.getInstance().getWorkflow(""))) {
+                    binding.text1.setBackground(ResourcesCompat.getDrawable(binding.text1.getResources(), R.drawable.spinner_item_selection_background, null));
+                } else {
+                    binding.text1.setBackground(null);
                 }
             }
             return binding.getRoot();
         }
     }
 
-    private class ModelAdapter extends SpinnerBaseAdapter {
+    private static class ModelAdapter extends SpinnerBaseAdapter {
 
         public ModelAdapter(@NonNull Context context) {
             super(context);
@@ -866,7 +884,7 @@ public class ParametersPopup extends GeneralPopup {
             String model = getItem(position);
             binding.text1.setText(model);
             if (model != null) {
-                if (model.equals(getParameter(Settings.KEY_PARAM_MODEL))) {
+                if (model.equals(Settings.getInstance().getModelName(""))) {
                     binding.text1.setBackground(ResourcesCompat.getDrawable(binding.text1.getResources(), R.drawable.spinner_item_selection_background, null));
                 } else {
                     binding.text1.setBackground(null);
