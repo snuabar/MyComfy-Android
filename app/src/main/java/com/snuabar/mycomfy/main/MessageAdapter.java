@@ -23,10 +23,12 @@ import com.snuabar.mycomfy.common.Common;
 import com.snuabar.mycomfy.databinding.LayoutReceivedMsgItemBinding;
 import com.snuabar.mycomfy.databinding.LayoutSentMsgItemBinding;
 import com.snuabar.mycomfy.main.data.AbstractMessageModel;
+import com.snuabar.mycomfy.main.model.I2VReceivedMessageModel;
 import com.snuabar.mycomfy.main.model.MessageModel;
 import com.snuabar.mycomfy.main.model.ReceivedMessageModel;
 import com.snuabar.mycomfy.main.model.SentMessageModel;
 import com.snuabar.mycomfy.main.model.UpscaleSentMessageModel;
+import com.snuabar.mycomfy.main.model.VideoConcatSentMessageModel;
 import com.snuabar.mycomfy.utils.ImageUtils;
 import com.snuabar.mycomfy.utils.ThumbnailCacheManager;
 
@@ -187,7 +189,17 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
         holder.binding.btnSave.setVisibility(isEditMode ? View.INVISIBLE : View.VISIBLE);
         holder.binding.btnShare.setVisibility(isEditMode ? View.INVISIBLE : View.VISIBLE);
         holder.binding.layoutUpscale.setVisibility(canBeUpscaled(model) ? View.VISIBLE : View.GONE);
+        updateVisibilityOfOptionalButtons(holder, model);
         updateProgress(holder.binding.pgsBar, position, model);
+    }
+
+    private void updateVisibilityOfOptionalButtons(ReceivedViewHolder holder, ReceivedMessageModel model) {
+        Integer index = idToIndexMap.get(model.getId());
+        if (index != null && index == models.size() - 1 && model instanceof I2VReceivedMessageModel && model.isFinished()) {
+            holder.binding.layoutOptionalButtons.setVisibility(View.VISIBLE);
+        } else {
+            holder.binding.layoutOptionalButtons.setVisibility(View.GONE);
+        }
     }
 
     private void displayThreeImages(SentViewHolder holder, SentMessageModel model) {
@@ -289,20 +301,27 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
     }
 
     public void notifyItemAdded(int index) {
+        int beforeIndex = index - 1;
+        if (beforeIndex >= 0 && beforeIndex < getItemCount()) {
+            notifyItemRangeChanged(beforeIndex, 2);
+        } else {
+            // 插入项
+            notifyItemInserted(index);
+        }
         updateIdToIndexMap();
 
         mHandler.post(() -> {
-            // 插入项
-            notifyItemInserted(index);
-
             if (getRecyclerView() != null) {
                 getRecyclerView().scrollToPosition(getItemCount() - 1);
             }
         });
-
     }
 
     public void notifyItemDeleted(int index) {
+        int beforeIndex = index - 1;
+        if (beforeIndex >= 0 && beforeIndex < getItemCount()) {
+            notifyItemChanged(index - 1);
+        }
         notifyItemRemoved(index);
         updateIdToIndexMap();
     }
@@ -351,7 +370,16 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
     private void displayDetailedParams(SentViewHolder holder, AbstractMessageModel model) {
         Parameters param = model.getParameters();
         String modelName = TextUtils.isEmpty(param.getModel()) ? "<none>" : param.getModel();
-        if (model.isI2I()) {
+        if (model instanceof VideoConcatSentMessageModel) {
+            StringBuilder stringBuilder = new StringBuilder();
+            for (int i = 0; i < model.getParameters().getVideos().length; i++) {
+                stringBuilder.append(model.getParameters().getVideos()[i]);
+                if (i < model.getParameters().getVideos().length - 1) {
+                    stringBuilder.append("\n");
+                }
+            }
+            holder.binding.textView0.setText(stringBuilder.toString());
+        } else if (model.isI2I()) {
             holder.binding.textView0.setText(String.format(Locale.getDefault(),
                     "%s\n%s\n%s %d %.01f %.01f",
                     param.getWorkflow(),
@@ -521,6 +549,11 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
                     listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_XN, null, null);
                 }
             });
+            binding.btnContinueWithLastFrame.setOnClickListener(v -> {
+                if (listener != null) {
+                    listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_CONTINUE_WITH_LAST_FRAME, null, null);
+                }
+            });
         }
     }
 
@@ -535,6 +568,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
         int OPE_X4 = 6;
         int OPE_XN = 7;
         int OPE_THREE_IMAGES = 8;
+        int OPE_CONTINUE_WITH_LAST_FRAME = 9;
         void onClick(View view, int index, int ope, float[] downLocation, Object obj);
     }
 }

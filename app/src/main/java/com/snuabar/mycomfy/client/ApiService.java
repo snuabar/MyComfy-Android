@@ -58,15 +58,21 @@ public interface ApiService {
     /**
      * 流式下载（适用于大文件）
      */
-    @GET("/api/download/{prompt_id}/stream")
+    @GET("/api/download/{file_id}/stream")
     @Streaming
-    Call<ResponseBody> stream(@Path("prompt_id") String promptId);
+    Call<ResponseBody> stream(@Path("file_id") String fileId);
 
     /**
      * 获取服务器统计信息
      */
     @GET("/api/stats")
     Call<ServerStats> getServerStats();
+
+    /**
+     * 同步客户信息
+     */
+    @POST("/api/client")
+    Call<ClientResponse> syncClient(@Body ClientRequest request);
 
     @POST("/api/interrupt")
     Call<ResponseBody> interrupt(@Body InterruptRequest request);

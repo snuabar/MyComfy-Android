@@ -1,5 +1,6 @@
 package com.snuabar.mycomfy.main.data;
 
+import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
@@ -13,13 +14,20 @@ import androidx.lifecycle.MutableLiveData;
 import com.snuabar.mycomfy.client.Parameters;
 import com.snuabar.mycomfy.main.data.livedata.DeletionData;
 import com.snuabar.mycomfy.main.data.livedata.SelectionData;
+import com.snuabar.mycomfy.main.model.VideoConcatSentMessageModel;
+import com.snuabar.mycomfy.utils.FileOperator;
 import com.snuabar.mycomfy.utils.FilePicker;
 
+import java.io.File;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 public class MainViewModel extends HttpBaseViewModel {
 
@@ -170,6 +178,49 @@ public class MainViewModel extends HttpBaseViewModel {
         });
     }
 
+    public void shareSelected(Context context) {
+        SelectionData selectionData = new SelectionData(new HashSet<>());
+        fetchSelectionData(selectionData);
+        if (selectionData.modelIdSet.isEmpty()) {
+            return;
+        }
+        changeSelectionMode(false);
+
+        List<AbstractMessageModel> models = new ArrayList<>(getMessageModels());
+        models.removeIf(m -> !selectionData.modelIdSet.contains(m.getId()));
+        List<File> selectedImageFile = models.stream().map(AbstractMessageModel::getImageFile).collect(Collectors.toList());
+        selectedImageFile.removeIf(file -> file == null || !file.exists());
+        selectedImageFile.sort(Comparator.comparingLong(File::lastModified));
+
+        FileOperator.shareImagesFromLocal(context, selectedImageFile);
+    }
+
+    public void combineVideos() {
+        SelectionData selectionData = new SelectionData(new HashSet<>());
+        fetchSelectionData(selectionData);
+        if (selectionData.modelIdSet.isEmpty()) {
+            return;
+        }
+        changeSelectionMode(false);
+
+        // 需要按主列表顺序排序
+        List<AbstractMessageModel> models = new ArrayList<>(getMessageModels());
+        models.removeIf(m -> !selectionData.modelIdSet.contains(m.getId()));
+
+        Parameters parameters = new Parameters();
+        parameters.setWorkflow("video_concat");
+        parameters.setPrompt("视频合并");
+        parameters.setVideos(models.stream().map(AbstractMessageModel::getPromptId).toArray(String[]::new));
+        VideoConcatSentMessageModel model = new VideoConcatSentMessageModel(parameters);
+
+        enqueue(model);
+    }
+
+    public boolean isLastMessage(AbstractMessageModel model) {
+        int index = getIndexWithId(model.getId());
+        return index == messageModels.size() - 1;
+    }
+
     public LiveData<Boolean> getSelectionModeLiveData() {
         return selectionModeLiveData;
     }
@@ -252,13 +303,5 @@ public class MainViewModel extends HttpBaseViewModel {
 
     public void fetchSelectionData(SelectionData selectionData) {
         selectionDataLiveData.setValue(selectionData);
-    }
-
-    public AbstractMessageModel getMessageModel(String modelId) {
-        int index = getIndexWithId(modelId);
-        if (index >= 0 && index < messageModels.size()) {
-            return messageModels.get(index);
-        }
-        return null;
     }
 }

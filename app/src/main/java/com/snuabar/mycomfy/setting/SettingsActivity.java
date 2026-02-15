@@ -204,7 +204,7 @@ public class SettingsActivity extends AppCompatActivity {
                     public void onResponse(@NonNull Call<ServerStats> call, @NonNull Response<ServerStats> response) {
                         if (response.isSuccessful() && response.body() != null) {
                             ServerStats stats = response.body();
-                            runOnUiThread(() -> binding.tvStatus.setText("连接成功。\n服务器状态:\n" + "总图像数: " + stats.getTotal_images() + "\n" + "存储使用: " + stats.getStorage_used_mb() + " MB"));
+                            runOnUiThread(() -> binding.tvStatus.setText("服务器状态:\n" + "总文件数: " + stats.getTotal_files() + "\n" + "存储使用: " + stats.getStorage_used_mb() + " MB"));
                         } else {
                             runOnUiThread(() -> binding.tvStatus.setText("连接失败，状态码: " + response.code()));
                         }

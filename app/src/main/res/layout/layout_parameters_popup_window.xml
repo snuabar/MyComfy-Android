@@ -72,6 +72,7 @@
 
     <!-- 提示词设置 -->
     <TextView
+        android:id="@+id/tvPromptTitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
@@ -80,6 +81,7 @@
         android:textStyle="bold" />
 
     <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layoutPromptAssistant"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginStart="6dp">
@@ -531,6 +533,7 @@
     </LinearLayout>
 
     <LinearLayout
+        android:id="@+id/layoutCommitment"
         style="?android:attr/buttonBarStyle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

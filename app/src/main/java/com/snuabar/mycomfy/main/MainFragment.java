@@ -67,6 +67,18 @@ public class MainFragment extends Fragment {
             binding.viewPager2.setCurrentItem(tab, true);
         });
         mViewModel.getSearchingModeLiveData().observe(getViewLifecycleOwner(), this::setSearingMode);
+        mViewModel.getSelectionModeLiveData().observe(getViewLifecycleOwner(), this::setBottomBarVisible);
+
+        binding.btnDelete.setOnClickListener(v -> {
+            mViewModel.changeDeletionHasPressed(true);
+            mViewModel.changeDeletionHasPressed(false);
+        });
+        binding.btnDeleteLinked.setOnClickListener(v -> {
+            mViewModel.changeAssociatedDeletionHasPressed(true);
+            mViewModel.changeAssociatedDeletionHasPressed(false);
+        });
+        binding.btnShare.setOnClickListener(v -> mViewModel.shareSelected(requireContext()));
+        binding.btnVideoConcat.setOnClickListener(v -> mViewModel.combineVideos());
     }
 
     private final TextWatcher searchBoxTextWatcher = new TextWatcher() {
@@ -99,6 +111,20 @@ public class MainFragment extends Fragment {
         binding.btnCloseSearchBox.setOnClickListener(v -> mViewModel.setSearchingMode(false));
         binding.layoutSearchBox.getLayoutParams().height = searchingMode ? (int) getResources().getDimension(R.dimen.search_box_height) : 0;
         binding.layoutSearchBox.requestLayout();
+    }
+
+    private void setBottomBarVisible(boolean visible) {
+        if (visible) {
+            binding.layoutBottomBar.animate().alpha(1.f).withStartAction(() ->
+                    binding.layoutBottomBar.setVisibility(View.VISIBLE));
+            binding.tabLayout.animate().alpha(0.f).withEndAction(() ->
+                    binding.tabLayout.setVisibility(View.INVISIBLE));
+        } else {
+            binding.layoutBottomBar.animate().alpha(0.f).withEndAction(() ->
+                    binding.layoutBottomBar.setVisibility(View.INVISIBLE));
+            binding.tabLayout.animate().alpha(1.f).withStartAction(() ->
+                    binding.tabLayout.setVisibility(View.VISIBLE));
+        }
     }
 
     private final ViewPager2.OnPageChangeCallback onPageChangeCallback = new ViewPager2.OnPageChangeCallback() {

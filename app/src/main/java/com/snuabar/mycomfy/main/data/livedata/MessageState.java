@@ -8,16 +8,26 @@ public class MessageState {
 
     public final int state;
     public final int index;
+    public final int count;
     public final Progress progress;
 
     public MessageState(int index, int state) {
         this.index = index;
+        this.count = 1;
+        this.state = state;
+        this.progress = null;
+    }
+
+    public MessageState(int index, int count, int state) {
+        this.index = index;
+        this.count = count;
         this.state = state;
         this.progress = null;
     }
 
     public MessageState(int index, int state, Progress progress) {
         this.index = index;
+        this.count = 1;
         this.state = state;
         this.progress = progress;
     }
@@ -28,6 +38,10 @@ public class MessageState {
 
     public static MessageState changed(int index) {
         return new MessageState(index, STATE_CHANGED);
+    }
+
+    public static MessageState changed(int index, int count) {
+        return new MessageState(index, count, STATE_CHANGED);
     }
 
     public static MessageState deleted(int index) {

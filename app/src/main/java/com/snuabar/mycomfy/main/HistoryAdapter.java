@@ -17,6 +17,7 @@ import com.snuabar.mycomfy.common.Callbacks;
 import com.snuabar.mycomfy.common.Common;
 import com.snuabar.mycomfy.databinding.LayoutHistoryItemBinding;
 import com.snuabar.mycomfy.main.data.AbstractMessageModel;
+import com.snuabar.mycomfy.main.model.VideoConcatReceivedMessageModel;
 import com.snuabar.mycomfy.utils.ImageUtils;
 import com.snuabar.mycomfy.utils.ThumbnailCacheManager;
 
@@ -94,6 +95,7 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
             holder.binding.tvScaleFactor.setVisibility(View.GONE);
         }
         holder.binding.ivPlay.setVisibility(model.isVideo() ? View.VISIBLE : View.GONE);
+        holder.binding.ivConcatVideo.setVisibility(model instanceof VideoConcatReceivedMessageModel ? View.VISIBLE : View.GONE);
     }
 
     private void onThumbnailMake(AbstractMessageModel content) {

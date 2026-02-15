@@ -95,6 +95,11 @@ public class ImageUtils {
 
         return new int[]{0, 0};
     }
+
+    public static boolean validImage(File imageFile) {
+        int[] size = getImageSize(imageFile);
+        return size[0] > 0 && size[1] > 0;
+    }
     /**
      * 等比缩放Bitmap生成缩略图
      *

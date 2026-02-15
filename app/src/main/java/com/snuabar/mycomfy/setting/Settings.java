@@ -81,6 +81,7 @@ public class Settings {
     public static final String KEY_DATA_IMPORTED = "data_imported";
     public static final String KEY_PROMPT = "prompt";
     public static final String KEY_WORKFLOW_DISPLAY_NAMES = "workflow_display_names";
+    public static final String KEY_CLIENT_ID = "client_id";
 
     private final SharedPreferences preferences;
 
@@ -263,5 +264,13 @@ public class Settings {
             }
         }
         return workflow;
+    }
+
+    public Settings setClientID(String clientID) {
+        return putString(KEY_CLIENT_ID, clientID);
+    }
+
+    public String getClientID(String defVal) {
+        return getString(KEY_CLIENT_ID, defVal);
     }
 }

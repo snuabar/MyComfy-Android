@@ -122,6 +122,16 @@
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
+                <ImageView
+                    android:id="@+id/ivConcatVideo"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="?attr/colorPrimaryVariant"
+                    android:padding="4dp"
+                    android:scaleType="fitCenter"
+                    android:visibility="gone"
+                    android:src="@drawable/ic_concat_on_primary" />
+
                 <TextView
                     android:id="@+id/tvScaleFactor"
                     android:layout_width="wrap_content"

@@ -1,0 +1,293 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="10dp">
+
+    <!-- 提示词设置 -->
+    <TextView
+        android:id="@+id/tvPromptTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="提示词"
+        android:textSize="11sp"
+        android:textStyle="bold" />
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/layoutPromptAssistant"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="6dp">
+
+        <HorizontalScrollView
+            android:id="@+id/chipGroupScrollView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <com.google.android.material.chip.ChipGroup
+                android:id="@+id/chipGroup"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:chipSpacingHorizontal="2dp"
+                app:singleLine="true">
+
+            </com.google.android.material.chip.ChipGroup>
+        </HorizontalScrollView>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="翻译："
+            android:textSize="12sp"
+            app:layout_constraintBottom_toBottomOf="@id/chipGroupTranslation"
+            app:layout_constraintEnd_toStartOf="@id/chipGroupTranslation"
+            app:layout_constraintTop_toTopOf="@id/chipGroupTranslation" />
+
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/chipGroupTranslation"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:chipSpacing="0dp"
+            app:chipSpacingHorizontal="4dp"
+            app:horizontalItemSpacing="0dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/chipGroupScrollView"
+            app:singleSelection="true">
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipEnZh"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:checkable="true"
+                android:text="中文"
+                android:textSize="12sp" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipZhEn"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:checkable="true"
+                android:text="英文"
+                android:textSize="12sp" />
+
+        </com.google.android.material.chip.ChipGroup>
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:id="@+id/switchPromptsPopup"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="提示"
+            android:textSize="12sp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/chipGroupScrollView" />
+
+        <com.snuabar.mycomfy.view.PromptEditText
+            android:id="@+id/promptEditText"
+            style="@style/PromptEditTextStyle"
+            android:layout_width="0dp"
+            android:layout_height="200dp"
+            android:gravity="top"
+            android:hint="输入AI提示词..."
+            app:layout_constraintWidth_default="percent"
+            app:layout_constraintWidth_percent="0.7"
+            app:layout_constrainedHeight="true"
+            app:layout_constraintEnd_toStartOf="@id/imageView1"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/switchPromptsPopup">
+
+            <requestFocus />
+        </com.snuabar.mycomfy.view.PromptEditText>
+
+        <View
+            android:id="@+id/viewPromptAlert"
+            android:background="@drawable/edittext_background_alert"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:alpha="0"
+            android:clickable="false"
+            android:focusable="false"
+            app:layout_constraintWidth_default="percent"
+            app:layout_constraintWidth_percent="0.7"
+            app:layout_constrainedHeight="true"
+            app:layout_constraintEnd_toStartOf="@id/imageView1"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/switchPromptsPopup"/>
+
+        <ImageView
+            android:id="@+id/imageView1"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:background="@drawable/image_input_background"
+            android:padding="1dp"
+            android:scaleType="center"
+            android:src="@drawable/ic_add"
+            app:layout_constraintWidth_default="percent"
+            app:layout_constraintWidth_percent="0.3"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@id/promptEditText"
+            app:layout_constraintTop_toBottomOf="@id/switchPromptsPopup" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+
+    <!-- 参数设置 -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:text="参数设置"
+        android:textSize="11sp"
+        android:textStyle="bold" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="6dp"
+        android:layout_marginTop="4dp"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="种子:" />
+
+            <EditText
+                android:id="@+id/etSeed"
+                style="@style/ParameterEditTextStyle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="6dp"
+                android:layout_weight="1.4"
+                android:hint="可选"
+                android:inputType="numberSigned"
+                android:text="216" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp"
+                android:layout_weight="1"
+                android:gravity="center|end"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="步数:" />
+
+                <EditText
+                    android:id="@+id/etStep"
+                    style="@style/ParameterEditTextStyle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:layout_weight="1"
+                    android:inputType="number"
+                    android:text="20" />
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp"
+                android:layout_weight="1"
+                android:gravity="center|end"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center|end"
+                    android:text="CFG:" />
+
+                <EditText
+                    android:id="@+id/etCFG"
+                    style="@style/ParameterEditTextStyle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:inputType="numberDecimal"
+                    android:text="8.0" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:id="@+id/layoutSeconds"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp"
+                android:layout_weight="1"
+                android:gravity="center|end"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="时长:" />
+
+                <EditText
+                    android:id="@+id/etSeconds"
+                    style="@style/ParameterEditTextStyle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:layout_weight="1"
+                    android:inputType="number"
+                    android:text="5" />
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/layoutCommitment"
+        style="?android:attr/buttonBarStyle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:gravity="center_vertical|end"
+        android:orientation="horizontal"
+        android:padding="10dp">
+
+        <Button
+            android:id="@+id/btnClose"
+            style="?android:attr/buttonBarButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="6dp"
+            android:text="关闭" />
+
+        <!-- 生成按钮 -->
+        <Button
+            android:id="@+id/btnSubmit"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="提交" />
+    </LinearLayout>
+
+</LinearLayout>

@@ -43,11 +43,9 @@ import com.snuabar.mycomfy.main.model.I2VReceivedMessageModel;
 import com.snuabar.mycomfy.main.model.I2VSentMessageModel;
 import com.snuabar.mycomfy.main.model.ReceivedMessageModel;
 import com.snuabar.mycomfy.main.model.ReceivedVideoMessageModel;
-import com.snuabar.mycomfy.setting.Settings;
+import com.snuabar.mycomfy.main.model.VideoConcatReceivedMessageModel;
 import com.snuabar.mycomfy.utils.FileOperator;
 import com.snuabar.mycomfy.utils.FilePicker;
-import com.snuabar.mycomfy.utils.ImageUtils;
-import com.snuabar.mycomfy.utils.VideoUtils;
 
 import java.io.File;
 import java.lang.ref.WeakReference;
@@ -179,26 +177,33 @@ public class FullScreenImageActivity extends AppCompatActivity {
                 binding.tvFileSize.setText(Common.formatFileSize(model.getImageFile().length()));
                 binding.tvPrompt.setText(model.getParameters().getPrompt());
                 String modelName = TextUtils.isEmpty(model.getParameters().getModel()) ? "<none>" : model.getParameters().getModel();
-                if (model.isI2I()) {
-                    binding.tvParams.setText(String.format(Locale.getDefault(),
-                            "%s\n%s\n%s %d %.01f %.01f",
-                            model.getParameters().getWorkflow(),
-                            modelName,
-                            model.getParameters().getSeed(),
-                            model.getParameters().getStep(),
-                            model.getParameters().getCfg(),
-                            model.getParameters().getMegapixels()
-                    ));
+                if (model instanceof VideoConcatReceivedMessageModel) {
+                    binding.ivConcatVideo.setVisibility(View.VISIBLE);
+                    binding.tvParams.setVisibility(View.GONE);
                 } else {
-                    binding.tvParams.setText(String.format(Locale.getDefault(),
-                            "%s\n%s\n%dx%d %s %d %.01f",
-                            model.getParameters().getWorkflow(),
-                            modelName,
-                            model.getParameters().getImg_width(), model.getParameters().getImg_height(),
-                            model.getParameters().getSeed(),
-                            model.getParameters().getStep(),
-                            model.getParameters().getCfg()
-                    ));
+                    binding.ivConcatVideo.setVisibility(View.GONE);
+                    binding.tvParams.setVisibility(View.VISIBLE);
+                    if (model.isI2I()) {
+                        binding.tvParams.setText(String.format(Locale.getDefault(),
+                                "%s\n%s\n%s %d %.01f %.01f",
+                                model.getParameters().getWorkflow(),
+                                modelName,
+                                model.getParameters().getSeed(),
+                                model.getParameters().getStep(),
+                                model.getParameters().getCfg(),
+                                model.getParameters().getMegapixels()
+                        ));
+                    } else {
+                        binding.tvParams.setText(String.format(Locale.getDefault(),
+                                "%s\n%s\n%dx%d %s %d %.01f",
+                                model.getParameters().getWorkflow(),
+                                modelName,
+                                model.getParameters().getImg_width(), model.getParameters().getImg_height(),
+                                model.getParameters().getSeed(),
+                                model.getParameters().getStep(),
+                                model.getParameters().getCfg()
+                        ));
+                    }
                 }
                 if (model.getParameters().getUpscale_factor() > 1.0) {
                     binding.tvScaleFactor.setVisibility(View.VISIBLE);

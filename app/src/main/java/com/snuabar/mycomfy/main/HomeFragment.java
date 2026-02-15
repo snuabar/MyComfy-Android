@@ -31,28 +31,28 @@ import com.snuabar.mycomfy.client.RetrofitClient;
 import com.snuabar.mycomfy.common.Callbacks;
 import com.snuabar.mycomfy.common.Common;
 import com.snuabar.mycomfy.databinding.FragmentHomeBinding;
-import com.snuabar.mycomfy.databinding.LayoutMessageItemOptionalDialogBinding;
+import com.snuabar.mycomfy.databinding.LayoutMessageItemOptionalPopupBinding;
 import com.snuabar.mycomfy.main.data.AbstractMessageModel;
 import com.snuabar.mycomfy.main.data.MainViewModel;
 import com.snuabar.mycomfy.main.data.livedata.DeletionData;
 import com.snuabar.mycomfy.main.data.livedata.MessageState;
+import com.snuabar.mycomfy.main.model.ContinuedI2VSentMessageModel;
 import com.snuabar.mycomfy.main.model.I2ISentMessageModel;
 import com.snuabar.mycomfy.main.model.I2VReceivedMessageModel;
 import com.snuabar.mycomfy.main.model.I2VSentMessageModel;
-import com.snuabar.mycomfy.main.model.MessageModel;
 import com.snuabar.mycomfy.main.model.ReceivedMessageModel;
 import com.snuabar.mycomfy.main.model.SentMessageModel;
 import com.snuabar.mycomfy.main.model.SentVideoMessageModel;
-import com.snuabar.mycomfy.main.model.UpscaleSentMessageModel;
 import com.snuabar.mycomfy.preview.FullScreenImageActivity;
 import com.snuabar.mycomfy.setting.Settings;
 import com.snuabar.mycomfy.utils.FileOperator;
 import com.snuabar.mycomfy.utils.FilePicker;
-import com.snuabar.mycomfy.main.data.DataIO;
 import com.snuabar.mycomfy.utils.ImageTools;
 import com.snuabar.mycomfy.utils.ImageUtils;
 import com.snuabar.mycomfy.utils.ViewUtils;
+import com.snuabar.mycomfy.view.GeneralPopup;
 import com.snuabar.mycomfy.view.ParametersPopup;
+import com.snuabar.mycomfy.view.PromptOnlyPopup;
 import com.snuabar.mycomfy.view.TwoButtonPopup;
 import com.snuabar.mycomfy.view.dialog.OptionalDialog;
 
@@ -76,6 +76,7 @@ public class HomeFragment extends Fragment {
     private FilePicker filePicker;
     private MessageAdapter messageAdapter = null;
     private ParametersPopup parametersPopup;
+    private PromptOnlyPopup promptOnlyPopup;
     private PopupWindow messageItemOptionalPopup;
     private final OptionalDialog.ProgressDialog pgsDlg;
     private TwoButtonPopup interruptionConfirmPopup;
@@ -151,6 +152,8 @@ public class HomeFragment extends Fragment {
             } else if (state.state == MessageState.STATE_CHANGED) {
                 if (state.progress != null) {
                     messageAdapter.notifyItemProgress(state.index, state.progress.max, state.progress.current);
+                } else if (state.count > 1) {
+                    messageAdapter.notifyItemRangeChanged(state.index, state.count);
                 } else {
                     messageAdapter.notifyItemChanged(state.index);
                 }
@@ -275,7 +278,7 @@ public class HomeFragment extends Fragment {
             }
         } else if (ope == MessageAdapter.OnElementClickListener.OPE_RESENT) {
             if (model instanceof SentMessageModel) {
-                enqueue(model);
+                enqueue(model, true);
             }
         } else if (ope == MessageAdapter.OnElementClickListener.OPE_X2) {
             enqueue(model, 2.f);
@@ -293,6 +296,12 @@ public class HomeFragment extends Fragment {
                     intent.putExtra(FullScreenImageActivity.EXTRA_IMAGE_INDEX, (int) obj);
                     startActivity(intent);
                 }
+            }
+        } else if (ope == MessageAdapter.OnElementClickListener.OPE_CONTINUE_WITH_LAST_FRAME) {
+            if (model instanceof I2VReceivedMessageModel) {
+                continueWithLastFrame(view, (I2VReceivedMessageModel) model);
+            } else {
+                Toast.makeText(requireContext(), "无法继续！", Toast.LENGTH_SHORT).show();
             }
         }
     }
@@ -358,9 +367,9 @@ public class HomeFragment extends Fragment {
     }
 
     private void showMessageItemOptionalPopup(View anchor, float[] downLocation, AbstractMessageModel model) {
-        LayoutMessageItemOptionalDialogBinding binding;
+        LayoutMessageItemOptionalPopupBinding binding;
         if (messageItemOptionalPopup == null) {
-            binding = LayoutMessageItemOptionalDialogBinding.inflate(LayoutInflater.from(requireContext()));
+            binding = LayoutMessageItemOptionalPopupBinding.inflate(LayoutInflater.from(requireContext()));
             PopupWindow popupWindow = new PopupWindow(requireContext());
             popupWindow.setContentView(binding.getRoot());
             popupWindow.setOutsideTouchable(true);
@@ -370,7 +379,7 @@ public class HomeFragment extends Fragment {
             popupWindow.getContentView().setTag(binding);
             messageItemOptionalPopup = popupWindow;
         } else {
-            binding = (LayoutMessageItemOptionalDialogBinding) messageItemOptionalPopup.getContentView().getTag();
+            binding = (LayoutMessageItemOptionalPopupBinding) messageItemOptionalPopup.getContentView().getTag();
         }
 
         binding.btnCopyPrompt.setOnClickListener(v -> {
@@ -448,14 +457,6 @@ public class HomeFragment extends Fragment {
             messageItemOptionalPopup.dismiss();
         });
 
-        binding.btnContinueWithLastFrame.setVisibility(model instanceof I2VReceivedMessageModel ? View.VISIBLE : View.GONE);
-        binding.btnContinueWithLastFrame.setOnClickListener(v -> {
-            if (model instanceof I2VReceivedMessageModel) {
-//                AbstractMessageModel sentModel = mViewModel.getMessageModel(model.getAssociatedSentModelId());
-//                enqueue();
-            }
-        });
-
         // 手动测量和布局
         ViewUtils.measure(messageItemOptionalPopup.getContentView());
 
@@ -464,6 +465,57 @@ public class HomeFragment extends Fragment {
 
         // 显示 PopupWindow
         messageItemOptionalPopup.showAsDropDown(anchor, x, y, Gravity.NO_GRAVITY);
+    }
+
+    private void continueWithLastFrame(View anchor, I2VReceivedMessageModel model) {
+        if (model.getContinuedI2VSentMessageModel() == null) {
+            Parameters parameters = new Parameters(model.getParameters());
+            parameters.setImages(new String[]{
+                    QueueRequest.REQUEST_ID_SUFFIX_LAST_FRAME_OF + model.getPromptId(),
+                    null,
+                    null
+            });
+            parameters.setImageFiles(new File[]{
+                    new File(requireContext().getCacheDir(), model.getPromptId() + "_0"),
+                    null,
+                    null
+            });
+            parameters.setPrompt("");// 清空提示词
+            model.setContinuedI2VSentMessageModel(new ContinuedI2VSentMessageModel(parameters));
+            mViewModel.saveMessageModel(model);
+        }
+
+        ContinuedI2VSentMessageModel continuedI2VSentMessageModel = model.getContinuedI2VSentMessageModel();
+        String[] images = continuedI2VSentMessageModel.getParameters().getImages();
+        File[] imageFiles = continuedI2VSentMessageModel.getParameters().getImageFiles();
+
+        pgsDlg.setText("准备中...").show(getChildFragmentManager());
+
+        mViewModel.downloadFilesFromServerAsync(images, imageFiles, false, (code, msg) -> {
+            pgsDlg.dismiss();
+            if (code != 200) {
+                Toast.makeText(requireContext(), "无法继续！\n" + msg, Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            showPromptOnlyPopup(anchor, model);
+        });
+    }
+
+    private void showPromptOnlyPopup(View anchor, I2VReceivedMessageModel model) {
+        if (promptOnlyPopup == null) {
+            promptOnlyPopup = new PromptOnlyPopup(requireContext());
+        }
+        ContinuedI2VSentMessageModel continuedI2VSentMessageModel = model.getContinuedI2VSentMessageModel();
+        promptOnlyPopup.setOnDismissListener((submit, p) -> {
+            continuedI2VSentMessageModel.getParameters().loadJson(p.toJson());
+            model.setContinuedI2VSentMessageModel(continuedI2VSentMessageModel);
+            mViewModel.saveMessageModel(model);
+            if (submit) {
+                enqueue(continuedI2VSentMessageModel);
+            }
+        });
+        promptOnlyPopup.show(anchor, GeneralPopup.Edge.Top, continuedI2VSentMessageModel.getParameters());
     }
 
     private void onDirectoryPickerWithFileCallback(Uri[] uris, File file) {
@@ -510,6 +562,10 @@ public class HomeFragment extends Fragment {
     }
 
     private void enqueue(AbstractMessageModel model, double... upscale) {
+        enqueue(model, false, upscale);
+    }
+
+    private void enqueue(AbstractMessageModel model, boolean resent, double... upscale) {
         final SentMessageModel sentMessageModel;
         final QueueRequest request;
         if (model == null) {
@@ -535,28 +591,12 @@ public class HomeFragment extends Fragment {
             int index = mViewModel.saveMessageModel(sentMessageModel);
             // 界面显示
             messageAdapter.notifyItemAdded(index);
+            // 发送请求
+            mViewModel.enqueue(request, sentMessageModel);
         } else {
-            if (upscale.length > 0 && model instanceof ReceivedMessageModel) {
-                Parameters parameters = new Parameters(model.getParameters());
-                parameters.setUpscale_factor(upscale[0]);
-                sentMessageModel = new UpscaleSentMessageModel(parameters);
-                sentMessageModel.setImageFile(DataIO.getInstance().copyImageFile(model.getImageFile()));
-                request = new QueueRequest(sentMessageModel.getParameters());
-                int index = mViewModel.saveMessageModel(sentMessageModel);
-                messageAdapter.notifyItemAdded(index);
-            } else {
-                model.setStatus(MessageModel.STATUS_PENDING, 0, null);
-                int index = mViewModel.deleteModel(model);
-                messageAdapter.notifyItemDeleted(index);
-                index = mViewModel.saveMessageModel(model);
-                messageAdapter.notifyItemAdded(index);
-                request = new QueueRequest(model.getParameters().setResent());
-                sentMessageModel = (SentMessageModel) model;
-            }
+            // 发送请求
+            mViewModel.enqueue(model, resent, upscale);
         }
-
-        // 发送请求
-        mViewModel.enqueue(request, sentMessageModel);
     }
 
     private void updateBaseUrl() {
@@ -565,6 +605,13 @@ public class HomeFragment extends Fragment {
         // 更新Base URL
         if (RetrofitClient.getInstance().setBaseUrl(ip, port)) {
             mViewModel.loadWorkflows();
+            mViewModel.syncClient((clientId, code, msg) -> {
+                if (code == 200) {
+                    Toast.makeText(getContext(), clientId, Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(getContext(), code + " - " +msg, Toast.LENGTH_SHORT).show();
+                }
+            });
         }
     }
 

@@ -6,6 +6,7 @@ import android.util.Log;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.snuabar.mycomfy.main.model.ContinuedI2VSentMessageModel;
 import com.snuabar.mycomfy.main.model.I2IReceivedMessageModel;
 import com.snuabar.mycomfy.main.model.I2ISentMessageModel;
 import com.snuabar.mycomfy.main.model.I2VReceivedMessageModel;
@@ -16,17 +17,15 @@ import com.snuabar.mycomfy.main.model.SentMessageModel;
 import com.snuabar.mycomfy.main.model.SentVideoMessageModel;
 import com.snuabar.mycomfy.main.model.UpscaleReceivedMessageModel;
 import com.snuabar.mycomfy.main.model.UpscaleSentMessageModel;
+import com.snuabar.mycomfy.main.model.VideoConcatReceivedMessageModel;
+import com.snuabar.mycomfy.main.model.VideoConcatSentMessageModel;
 import com.snuabar.mycomfy.utils.FileOperator;
 import com.snuabar.mycomfy.utils.ImageUtils;
-import com.snuabar.mycomfy.utils.TextCompressor;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.nio.file.Files;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -120,32 +119,32 @@ public class DataIO {
         ArrayList<AbstractMessageModel> models = new ArrayList<>();
         List<String> messageJsonList = getDB().getAllMessages();
 
-        if (messageJsonList.isEmpty()) {
-            File msgDir = getMsgDir();
-
-            File[] files = msgDir.listFiles((dir, name) -> name.startsWith(PREFIX) && name.endsWith(MSG_EXT));
-            if (files != null) {
-                for (File file : files) {
-                    AbstractMessageModel model = readModelFile(file);
-                    if (model != null) {
-                        AbstractMessageModel modelFromDB = writeModel(model);
-                        if (modelFromDB != null) {
-                            models.add(modelFromDB);
-                            deleteModelFile(model);
-                        } else {
-                            models.add(model);
-                        }
-                    }
-                }
-            }
-        } else {
-            for (String jsonStr : messageJsonList) {
-                AbstractMessageModel model = readModel(jsonStr);
-                if (model != null) {
-                    models.add(model);
-                }
+//        if (messageJsonList.isEmpty()) {
+//            File msgDir = getMsgDir();
+//
+//            File[] files = msgDir.listFiles((dir, name) -> name.startsWith(PREFIX) && name.endsWith(MSG_EXT));
+//            if (files != null) {
+//                for (File file : files) {
+//                    AbstractMessageModel model = readModelFile(file);
+//                    if (model != null) {
+//                        AbstractMessageModel modelFromDB = writeModel(model);
+//                        if (modelFromDB != null) {
+//                            models.add(modelFromDB);
+//                            deleteModelFile(model);
+//                        } else {
+//                            models.add(model);
+//                        }
+//                    }
+//                }
+//            }
+//        } else {
+        for (String jsonStr : messageJsonList) {
+            AbstractMessageModel model = readModel(jsonStr);
+            if (model != null) {
+                models.add(model);
             }
         }
+//        }
         models.sort(Comparator.comparingLong(AbstractMessageModel::getUTCTimestamp));
         return models;
     }
@@ -211,45 +210,45 @@ public class DataIO {
         return model;
     }
 
-    AbstractMessageModel writeModelFile(AbstractMessageModel model) {
-        File msgDir = getMsgDir();
-        String fileName = PREFIX + model.getId() + MSG_EXT;
-        File modelFile = new File(msgDir, fileName);
+//    AbstractMessageModel writeModelFile(AbstractMessageModel model) {
+//        File msgDir = getMsgDir();
+//        String fileName = PREFIX + model.getId() + MSG_EXT;
+//        File modelFile = new File(msgDir, fileName);
+//
+//        JSONObject jsonObject = model.toJson();
+//        if (jsonObject != null) {
+//            try {
+//                jsonObject.putOpt(CLASS_IDENTITY_KEY, model.getClass().getName());
+//            } catch (JSONException e) {
+//                Log.e(TAG, "writeModelFile: failed to execute putOpt.");
+//            }
+//            String jsonStr = jsonObject.toString();
+//            byte[] bytes = TextCompressor.INSTANCE.compress(jsonStr);
+//            try (FileOutputStream fos = new FileOutputStream(modelFile)) {
+//                fos.write(bytes);
+//                fos.flush();
+//            } catch (IOException e) {
+//                Log.e(TAG, "writeModelFile: failed to output model.");
+//                return model;
+//            }
+//        }
+//
+//        return readModelFile(modelFile);
+//    }
 
-        JSONObject jsonObject = model.toJson();
-        if (jsonObject != null) {
-            try {
-                jsonObject.putOpt(CLASS_IDENTITY_KEY, model.getClass().getName());
-            } catch (JSONException e) {
-                Log.e(TAG, "writeModelFile: failed to execute putOpt.");
-            }
-            String jsonStr = jsonObject.toString();
-            byte[] bytes = TextCompressor.INSTANCE.compress(jsonStr);
-            try (FileOutputStream fos = new FileOutputStream(modelFile)) {
-                fos.write(bytes);
-                fos.flush();
-            } catch (IOException e) {
-                Log.e(TAG, "writeModelFile: failed to output model.");
-                return model;
-            }
-        }
-
-            return readModelFile(modelFile);
-        }
-
-    private AbstractMessageModel readModelFile(File modelFile) {
-        if (modelFile.exists() && modelFile.isFile()) {
-            try {
-                byte[] bytes = Files.readAllBytes(modelFile.toPath());
-                String jsonStr = TextCompressor.INSTANCE.decompress(bytes);
-                JSONObject jsonObject = new JSONObject(jsonStr);
-                return createModel(jsonObject);
-            } catch (IOException | JSONException e) {
-                Log.e(TAG, "readModelFile: failed to read model.");
-            }
-        }
-        return null;
-    }
+//    private AbstractMessageModel readModelFile(File modelFile) {
+//        if (modelFile.exists() && modelFile.isFile()) {
+//            try {
+//                byte[] bytes = Files.readAllBytes(modelFile.toPath());
+//                String jsonStr = TextCompressor.INSTANCE.decompress(bytes);
+//                JSONObject jsonObject = new JSONObject(jsonStr);
+//                return createModel(jsonObject);
+//            } catch (IOException | JSONException e) {
+//                Log.e(TAG, "readModelFile: failed to read model.");
+//            }
+//        }
+//        return null;
+//    }
 
     private AbstractMessageModel readModel(String jsonStr) {
         JSONObject jsonObject = null;
@@ -281,6 +280,9 @@ public class DataIO {
             if (I2VReceivedMessageModel.class.getName().equals(className)) {
                 return new I2VReceivedMessageModel(jsonObject);
             }
+            if (VideoConcatReceivedMessageModel.class.getName().equals(className)) {
+                return new VideoConcatReceivedMessageModel(jsonObject);
+            }
             // Sent
             if (SentMessageModel.class.getName().equals(className)) {
                 return new SentMessageModel(jsonObject);
@@ -296,6 +298,12 @@ public class DataIO {
             }
             if (I2VSentMessageModel.class.getName().equals(className)) {
                 return new I2VSentMessageModel(jsonObject);
+            }
+            if (ContinuedI2VSentMessageModel.class.getName().equals(className)) {
+                return new ContinuedI2VSentMessageModel(jsonObject);
+            }
+            if (VideoConcatSentMessageModel.class.getName().equals(className)) {
+                return new VideoConcatSentMessageModel(jsonObject);
             }
         }
         return null;
@@ -320,29 +328,29 @@ public class DataIO {
         return false;
     }
 
-    boolean deleteModelFile(AbstractMessageModel model) {
-
-        File msgDir = getMsgDir();
-        String fileName = PREFIX + model.getId() + MSG_EXT;
-        File modelFile = new File(msgDir, fileName);
-
-        if (modelFile.delete()) {
-            try {
-                // 删除图像和缩略图
-                if (model.getImageFile() != null && model.getImageFile().exists()) {
-                    File thumbFile = ImageUtils.getThumbnailFile(model.getImageFile());
-                    model.getImageFile().delete();
-                    if (thumbFile.exists()) {
-                        thumbFile.delete();
-                    }
-                }
-            } catch (Throwable e) {
-                Log.e(TAG, "deleteModelFile: failed to read model.");
-            }
-            return true;
-        }
-        return false;
-    }
+//    boolean deleteModelFile(AbstractMessageModel model) {
+//
+//        File msgDir = getMsgDir();
+//        String fileName = PREFIX + model.getId() + MSG_EXT;
+//        File modelFile = new File(msgDir, fileName);
+//
+//        if (modelFile.delete()) {
+//            try {
+//                // 删除图像和缩略图
+//                if (model.getImageFile() != null && model.getImageFile().exists()) {
+//                    File thumbFile = ImageUtils.getThumbnailFile(model.getImageFile());
+//                    model.getImageFile().delete();
+//                    if (thumbFile.exists()) {
+//                        thumbFile.delete();
+//                    }
+//                }
+//            } catch (Throwable e) {
+//                Log.e(TAG, "deleteModelFile: failed to read model.");
+//            }
+//            return true;
+//        }
+//        return false;
+//    }
 
     public void close() {
         if (__db != null) {
