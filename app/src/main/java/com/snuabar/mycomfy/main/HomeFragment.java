@@ -140,7 +140,7 @@ public class HomeFragment extends Fragment {
             messageAdapter.setData(abstractMessageModels);
             pgsDlg.dismiss();
         });
-        mViewModel.getMessageModelStateLiveData().observe(getViewLifecycleOwner(), state -> {
+        mViewModel.getMessageStateLiveData().observe(getViewLifecycleOwner(), state -> {
             if (state == null || state.state == MessageState.STATE_NONE) {
                 return;
             }
@@ -164,7 +164,7 @@ public class HomeFragment extends Fragment {
         mViewModel.getMatchedIDsLiveData().observe(getViewLifecycleOwner(), messageAdapter::setMatchedIDs);
         mViewModel.getClickedTabLiveData().observe(getViewLifecycleOwner(), tab -> {
             if (tab == 0 && Objects.equals(tab, mViewModel.getSelectedTabLiveData().getValue())) {
-                binding.recyclerView.smoothScrollToPosition(messageAdapter.getItemCount() - 1);
+                binding.recyclerView.scrollToPosition(messageAdapter.getItemCount() - 1);
             }
         });
         mViewModel.getSelectionDataLiveData().observe(getViewLifecycleOwner(), selectionData -> {
@@ -480,7 +480,7 @@ public class HomeFragment extends Fragment {
                     null,
                     null
             });
-            parameters.setPrompt("");// 清空提示词
+//            parameters.setPrompt("");// 清空提示词
             model.setContinuedI2VSentMessageModel(new ContinuedI2VSentMessageModel(parameters));
             mViewModel.saveMessageModel(model);
         }

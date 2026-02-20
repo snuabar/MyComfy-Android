@@ -83,8 +83,9 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/layoutPromptAssistant"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="6dp">
+        android:layout_height="0dp"
+        android:layout_marginStart="6dp"
+        android:layout_weight="1">
 
         <HorizontalScrollView
             android:id="@+id/chipGroupScrollView"
@@ -116,7 +117,7 @@
         <com.google.android.material.chip.ChipGroup
             android:id="@+id/chipGroupTranslation"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_height="34dp"
             app:chipSpacing="0dp"
             app:chipSpacingHorizontal="4dp"
             app:horizontalItemSpacing="0dp"
@@ -130,7 +131,7 @@
                 android:layout_height="wrap_content"
                 android:checkable="true"
                 android:text="中文"
-                android:textSize="12sp" />
+                android:textSize="11sp" />
 
             <com.google.android.material.chip.Chip
                 android:id="@+id/chipZhEn"
@@ -138,38 +139,57 @@
                 android:layout_height="wrap_content"
                 android:checkable="true"
                 android:text="英文"
-                android:textSize="12sp" />
+                android:textSize="11sp" />
 
         </com.google.android.material.chip.ChipGroup>
 
         <androidx.appcompat.widget.SwitchCompat
             android:id="@+id/switchPromptsPopup"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_height="34dp"
             android:text="提示"
             android:textSize="12sp"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/chipGroupScrollView" />
 
+        <com.snuabar.mycomfy.view.PromptEditText
+            android:id="@+id/promptEditText"
+            style="@style/PromptEditTextStyle"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="top"
+            android:hint="输入AI提示词..."
+            app:layout_constrainedHeight="true"
+            app:layout_constraintBottom_toTopOf="@id/layoutPromptBottomBar"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/switchPromptsPopup">
+
+            <requestFocus />
+        </com.snuabar.mycomfy.view.PromptEditText>
+
+        <LinearLayout
+            android:id="@+id/layoutPromptBottomBar"
+            android:layout_width="match_parent"
+            android:layout_height="24dp"
+            android:orientation="horizontal"
+            app:layout_constraintBottom_toBottomOf="parent">
+
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"/>
+
+            <ImageButton
+                android:id="@+id/btnClearPrompts"
+                style="@style/ButtonBorderless"
+                android:layout_width="24dp"
+                android:layout_height="match_parent"
+                android:importantForAccessibility="no"
+                android:padding="4dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_delete_gray" />
+        </LinearLayout>
     </androidx.constraintlayout.widget.ConstraintLayout>
-
-    <com.snuabar.mycomfy.view.PromptEditText
-        android:id="@+id/promptEditText"
-        style="@style/PromptEditTextStyle"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_marginStart="6dp"
-        android:layout_weight="1"
-        android:gravity="top"
-        android:hint="输入AI提示词..."
-        app:layout_constrainedHeight="true"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/switchTranslateZH">
-
-        <requestFocus />
-    </com.snuabar.mycomfy.view.PromptEditText>
 
 
     <!-- 参数设置 -->
@@ -191,7 +211,7 @@
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/layoutImages"
             android:layout_width="match_parent"
-            android:layout_height="180dp"
+            android:layout_height="140dp"
             android:layout_marginTop="4dp"
             android:orientation="horizontal">
 
@@ -200,10 +220,11 @@
                 android:layout_width="0dp"
                 android:layout_height="0dp"
                 android:background="@drawable/image_input_background"
-                android:padding="4dp"
+                android:padding="2dp"
                 android:scaleType="center"
                 android:src="@drawable/ic_add"
                 app:layout_constraintBottom_toTopOf="@id/tvImage1"
+                app:layout_constraintDimensionRatio="1,1"
                 app:layout_constraintEnd_toStartOf="@id/imageView2"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
@@ -213,6 +234,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="图1（必需）"
+                android:textSize="11sp"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="@id/imageView1"
                 app:layout_constraintStart_toStartOf="@id/imageView1" />
@@ -223,10 +245,11 @@
                 android:layout_height="0dp"
                 android:layout_marginHorizontal="2dp"
                 android:background="@drawable/image_input_background"
-                android:padding="4dp"
+                android:padding="2dp"
                 android:scaleType="center"
                 android:src="@drawable/ic_add"
                 app:layout_constraintBottom_toTopOf="@id/tvImage2"
+                app:layout_constraintDimensionRatio="1,1"
                 app:layout_constraintEnd_toStartOf="@id/imageView3"
                 app:layout_constraintStart_toEndOf="@id/imageView1"
                 app:layout_constraintTop_toTopOf="parent" />
@@ -236,6 +259,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="图2"
+                android:textSize="11sp"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="@id/imageView2"
                 app:layout_constraintStart_toStartOf="@id/imageView2" />
@@ -245,10 +269,11 @@
                 android:layout_width="0dp"
                 android:layout_height="0dp"
                 android:background="@drawable/image_input_background"
-                android:padding="4dp"
+                android:padding="2dp"
                 android:scaleType="center"
                 android:src="@drawable/ic_add"
                 app:layout_constraintBottom_toTopOf="@id/tvImage3"
+                app:layout_constraintDimensionRatio="1,1"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toEndOf="@id/imageView2"
                 app:layout_constraintTop_toTopOf="parent" />
@@ -258,6 +283,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="图3"
+                android:textSize="11sp"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="@id/imageView3"
                 app:layout_constraintStart_toStartOf="@id/imageView3" />
@@ -281,9 +307,10 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginHorizontal="6dp"
-                android:layout_weight="1.4"
+                android:layout_weight="1.8"
                 android:hint="可选"
-                android:inputType="numberSigned"
+                android:inputType="number"
+                android:lines="1"
                 android:text="216" />
 
             <LinearLayout
@@ -307,6 +334,7 @@
                     android:layout_marginStart="6dp"
                     android:layout_weight="1"
                     android:inputType="number"
+                    android:lines="1"
                     android:text="20" />
 
             </LinearLayout>
@@ -332,6 +360,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="6dp"
                     android:inputType="numberDecimal"
+                    android:lines="1"
                     android:text="8.0" />
 
             </LinearLayout>
@@ -354,8 +383,8 @@
                 android:id="@+id/chipGroupSeed"
                 android:layout_width="0dp"
                 android:layout_height="34dp"
-                android:layout_weight="1"
                 android:layout_marginStart="4dp"
+                android:layout_weight="1"
                 app:checkedChip="@id/chipSeedRandom"
                 app:chipSpacingHorizontal="6dp"
                 app:singleSelection="true">
@@ -397,6 +426,14 @@
                     app:checkedIconEnabled="false" />
 
             </com.google.android.material.chip.ChipGroup>
+
+            <ImageButton
+                android:id="@+id/btnGenerateSeed"
+                style="@style/ButtonBorderless"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_refresh" />
         </LinearLayout>
 
         <LinearLayout
@@ -419,6 +456,7 @@
                 android:layout_marginStart="6dp"
                 android:layout_weight="1"
                 android:inputType="number"
+                android:lines="1"
                 android:maxLength="4"
                 android:text="512" />
 
@@ -439,6 +477,7 @@
                 android:layout_span="1"
                 android:layout_weight="1"
                 android:inputType="number"
+                android:lines="1"
                 android:maxLength="4"
                 android:text="512" />
 
@@ -473,6 +512,7 @@
                     android:layout_marginStart="6dp"
                     android:layout_weight="1"
                     android:inputType="number"
+                    android:lines="1"
                     android:text="5" />
             </LinearLayout>
 
@@ -480,10 +520,10 @@
                 android:id="@+id/layoutMegapixels"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp"
                 android:layout_weight="1"
                 android:gravity="center|end"
                 android:orientation="horizontal"
-                android:layout_marginEnd="6dp"
                 android:visibility="gone"
                 tools:visibility="visible">
 
@@ -500,6 +540,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="6dp"
                     android:inputType="numberDecimal"
+                    android:lines="1"
                     android:text="1.0" />
             </LinearLayout>
 
@@ -526,6 +567,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="6dp"
                     android:inputType="numberDecimal"
+                    android:lines="1"
                     android:text="1.0" />
             </LinearLayout>
         </LinearLayout>

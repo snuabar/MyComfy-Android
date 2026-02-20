@@ -195,7 +195,11 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
 
     private void updateVisibilityOfOptionalButtons(ReceivedViewHolder holder, ReceivedMessageModel model) {
         Integer index = idToIndexMap.get(model.getId());
-        if (index != null && index == models.size() - 1 && model instanceof I2VReceivedMessageModel && model.isFinished()) {
+        if (index != null && index == models.size() - 1 &&
+                model instanceof I2VReceivedMessageModel &&
+                model.isFinished() && model.getImageFile() != null &&
+                !isEditMode
+        ) {
             holder.binding.layoutOptionalButtons.setVisibility(View.VISIBLE);
         } else {
             holder.binding.layoutOptionalButtons.setVisibility(View.GONE);
@@ -486,25 +490,25 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
             this.tvTip = binding.tvTip;
 
             binding.btnResent.setOnClickListener(v -> {
-                if (listener != null) {
+                if (listener != null && !isEditMode) {
                     listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_RESENT, null, null);
                 }
             });
 
             binding.imageView1.setOnClickListener(v -> {
-                if (listener != null) {
+                if (listener != null && !isEditMode) {
                     listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_THREE_IMAGES, null, 0);
                 }
             });
 
             binding.imageView2.setOnClickListener(v -> {
-                if (listener != null) {
+                if (listener != null && !isEditMode) {
                     listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_THREE_IMAGES, null, 1);
                 }
             });
 
             binding.imageView3.setOnClickListener(v -> {
-                if (listener != null) {
+                if (listener != null && !isEditMode) {
                     listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_THREE_IMAGES, null, 2);
                 }
             });
@@ -520,37 +524,37 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
             this.tvDate = binding.tvDate;
             this.tvTip = binding.tvTip;
             binding.btnInterrupt.setOnClickListener(v -> {
-                if (listener != null) {
+                if (listener != null && !isEditMode) {
                     listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_INTERRUPT, null, null);
                 }
             });
             binding.btnSave.setOnClickListener(v -> {
-                if (listener != null) {
+                if (listener != null && !isEditMode) {
                     listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_SAVE, null, null);
                 }
             });
             binding.btnShare.setOnClickListener(v -> {
-                if (listener != null) {
+                if (listener != null && !isEditMode) {
                     listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_SHARE, null, null);
                 }
             });
             binding.btnX2.setOnClickListener(v -> {
-                if (listener != null) {
+                if (listener != null && !isEditMode) {
                     listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_X2, null, null);
                 }
             });
             binding.btnX4.setOnClickListener(v -> {
-                if (listener != null) {
+                if (listener != null && !isEditMode) {
                     listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_X4, null, null);
                 }
             });
             binding.btnXN.setOnClickListener(v -> {
-                if (listener != null) {
+                if (listener != null && !isEditMode) {
                     listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_XN, null, null);
                 }
             });
             binding.btnContinueWithLastFrame.setOnClickListener(v -> {
-                if (listener != null) {
+                if (listener != null && !isEditMode) {
                     listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_CONTINUE_WITH_LAST_FRAME, null, null);
                 }
             });

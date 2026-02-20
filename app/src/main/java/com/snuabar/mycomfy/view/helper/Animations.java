@@ -1,4 +1,4 @@
-package com.snuabar.mycomfy.utils;
+package com.snuabar.mycomfy.view.helper;
 
 import android.animation.ObjectAnimator;
 import android.view.View;

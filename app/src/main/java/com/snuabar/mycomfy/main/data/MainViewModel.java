@@ -14,6 +14,9 @@ import androidx.lifecycle.MutableLiveData;
 import com.snuabar.mycomfy.client.Parameters;
 import com.snuabar.mycomfy.main.data.livedata.DeletionData;
 import com.snuabar.mycomfy.main.data.livedata.SelectionData;
+import com.snuabar.mycomfy.main.model.ContinuedI2VSentMessageModel;
+import com.snuabar.mycomfy.main.model.I2VReceivedMessageModel;
+import com.snuabar.mycomfy.main.model.I2VSentMessageModel;
 import com.snuabar.mycomfy.main.model.VideoConcatSentMessageModel;
 import com.snuabar.mycomfy.utils.FileOperator;
 import com.snuabar.mycomfy.utils.FilePicker;
@@ -195,11 +198,58 @@ public class MainViewModel extends HttpBaseViewModel {
         FileOperator.shareImagesFromLocal(context, selectedImageFile);
     }
 
+    private Set<String> searchConnectedVideosFromBottom() {
+        Set<String> ids = new HashSet<>();
+        for (int i = messageModels.size() - 1; i >= 0;) {
+            AbstractMessageModel receivedModel0 = messageModels.get(i);
+            if (!(receivedModel0 instanceof I2VReceivedMessageModel)) {
+                break;
+            }
+            // 看是否有关联Sent项
+            int sentId = getIndexWithId(receivedModel0.getAssociatedSentModelId());
+            if (sentId == -1) {
+                break;
+            }
+            AbstractMessageModel sentModel = getMessageModel(receivedModel0.getAssociatedSentModelId());
+            if (!(sentModel instanceof I2VSentMessageModel)) {
+                // 不是
+                break;
+            }
+            //看这个Sent项的上一项是否有关联
+            int beforeIdx = sentId - 1;
+            if (beforeIdx < 0) {
+                // 没有其它项
+                break;
+            }
+            AbstractMessageModel beforeModel = messageModels.get(beforeIdx);
+            if (beforeModel instanceof I2VReceivedMessageModel) {
+                ContinuedI2VSentMessageModel continuedI2VSentMessageModel = ((I2VReceivedMessageModel) beforeModel).getContinuedI2VSentMessageModel();
+                if (continuedI2VSentMessageModel == null) {
+                    break;
+                }
+                if (!continuedI2VSentMessageModel.getId().equals(sentModel.getId())) {
+                    break;
+                }
+
+                ids.add(receivedModel0.getId());
+                ids.add(beforeModel.getId());
+                i -= 2;
+            } else {
+                break;
+            }
+        }
+        return ids;
+    }
+
     public void combineVideos() {
         SelectionData selectionData = new SelectionData(new HashSet<>());
         fetchSelectionData(selectionData);
         if (selectionData.modelIdSet.isEmpty()) {
-            return;
+            Set<String> videoList = searchConnectedVideosFromBottom();
+            if (videoList.isEmpty()) {
+                return;
+            }
+            selectionData.modelIdSet.addAll(videoList);
         }
         changeSelectionMode(false);
 

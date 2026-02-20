@@ -4,14 +4,16 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.text.Editable;
+import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.WindowManager;
 
 import com.snuabar.mycomfy.R;
 import com.snuabar.mycomfy.client.Parameters;
+import com.snuabar.mycomfy.common.Common;
 import com.snuabar.mycomfy.databinding.LayoutPromptOnlyPopupWindowBinding;
-import com.snuabar.mycomfy.utils.Animations;
+import com.snuabar.mycomfy.view.helper.Animations;
 import com.snuabar.mycomfy.utils.ImageUtils;
 
 import java.io.File;
@@ -48,11 +50,51 @@ public class PromptOnlyPopup extends GeneralPopup {
                 binding.promptEditText.translateNone();
             }
         });
+        binding.btnGenerateSeed.setOnClickListener(v -> generateSeed());
         binding.btnClose.setOnClickListener(v -> dismiss());
         binding.btnSubmit.setOnClickListener(v -> {
             clickedButton = 1;
             dismiss();
         });
+        binding.btnClearPrompts.setOnClickListener(v -> binding.promptEditText.setText(""));
+    }
+
+    private int getSeedCtl() {
+        if (binding.chipSeedRandom.isChecked()) {
+            return 0;
+        } else if (binding.chipSeedIncrease.isChecked()) {
+            return 1;
+        } else if (binding.chipSeedDecrease.isChecked()) {
+            return 2;
+        }
+        return 3;
+    }
+
+    private void generateSeed() {
+        int seedCtl = getSeedCtl();
+        if (seedCtl == 3) {
+            return;
+        }
+
+        long seed = 0;
+        if (seedCtl == 0) {
+            seed = Common.generateSeed(seed, Common.SeedCtl.Random);
+        } else if (seedCtl == 1) {
+            String text = binding.etSeed.getText().toString();
+            if (TextUtils.isEmpty(text)) {
+                text = "0";
+            }
+            seed = Long.parseLong(text);
+            seed = Common.generateSeed(seed, Common.SeedCtl.Increase);
+        } else if (seedCtl == 2) {
+            String text = binding.etSeed.getText().toString();
+            if (TextUtils.isEmpty(text)) {
+                text = "0";
+            }
+            seed = Long.parseLong(text);
+            seed = Common.generateSeed(seed, Common.SeedCtl.Decrease);
+        }
+        binding.etSeed.setText(String.valueOf(seed));
     }
 
     private void displayPicture() {

@@ -52,7 +52,7 @@
         <com.google.android.material.chip.ChipGroup
             android:id="@+id/chipGroupTranslation"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_height="34dp"
             app:chipSpacing="0dp"
             app:chipSpacingHorizontal="4dp"
             app:horizontalItemSpacing="0dp"
@@ -81,7 +81,7 @@
         <androidx.appcompat.widget.SwitchCompat
             android:id="@+id/switchPromptsPopup"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_height="34dp"
             android:text="提示"
             android:textSize="12sp"
             app:layout_constraintStart_toStartOf="parent"
@@ -94,12 +94,10 @@
             android:layout_height="200dp"
             android:gravity="top"
             android:hint="输入AI提示词..."
-            app:layout_constraintWidth_default="percent"
-            app:layout_constraintWidth_percent="0.7"
             app:layout_constrainedHeight="true"
-            app:layout_constraintEnd_toStartOf="@id/imageView1"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintBottom_toTopOf="@id/layoutPromptBottomBar"
+            app:layout_constraintStart_toEndOf="@id/imageView1"
             app:layout_constraintTop_toBottomOf="@id/switchPromptsPopup">
 
             <requestFocus />
@@ -113,13 +111,11 @@
             android:alpha="0"
             android:clickable="false"
             android:focusable="false"
-            app:layout_constraintWidth_default="percent"
-            app:layout_constraintWidth_percent="0.7"
             app:layout_constrainedHeight="true"
-            app:layout_constraintEnd_toStartOf="@id/imageView1"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/switchPromptsPopup"/>
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@id/imageView1"
+            app:layout_constraintTop_toBottomOf="@id/switchPromptsPopup"
+            app:layout_constraintBottom_toTopOf="@id/layoutPromptBottomBar"/>
 
         <ImageView
             android:id="@+id/imageView1"
@@ -127,15 +123,37 @@
             android:layout_height="0dp"
             android:background="@drawable/image_input_background"
             android:padding="1dp"
-            android:scaleType="center"
-            android:src="@drawable/ic_add"
+            android:scaleType="fitCenter"
             app:layout_constraintWidth_default="percent"
-            app:layout_constraintWidth_percent="0.3"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toEndOf="@id/promptEditText"
+            app:layout_constraintWidth_percent="0.4"
+            app:layout_constraintBottom_toTopOf="@id/layoutPromptBottomBar"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/promptEditText"
             app:layout_constraintTop_toBottomOf="@id/switchPromptsPopup" />
 
+        <LinearLayout
+            android:id="@+id/layoutPromptBottomBar"
+            android:layout_width="match_parent"
+            android:layout_height="24dp"
+            android:orientation="horizontal"
+            app:layout_constrainedHeight="true"
+            app:layout_constraintBottom_toBottomOf="parent">
+
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"/>
+
+            <ImageButton
+                android:id="@+id/btnClearPrompts"
+                style="@style/ButtonBorderless"
+                android:layout_width="24dp"
+                android:layout_height="match_parent"
+                android:importantForAccessibility="no"
+                android:padding="4dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_delete_gray" />
+        </LinearLayout>
     </androidx.constraintlayout.widget.ConstraintLayout>
 
 
@@ -172,7 +190,8 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginHorizontal="6dp"
-                android:layout_weight="1.4"
+                android:layout_weight="1.8"
+                android:lines="1"
                 android:hint="可选"
                 android:inputType="numberSigned"
                 android:text="216" />
@@ -197,6 +216,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="6dp"
                     android:layout_weight="1"
+                    android:lines="1"
                     android:inputType="number"
                     android:text="20" />
 
@@ -223,12 +243,72 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="6dp"
                     android:inputType="numberDecimal"
+                    android:lines="1"
                     android:text="8.0" />
 
             </LinearLayout>
 
         </LinearLayout>
 
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="种子生成:" />
+
+            <com.google.android.material.chip.ChipGroup
+                android:id="@+id/chipGroupSeed"
+                android:layout_width="0dp"
+                android:layout_height="34dp"
+                android:layout_marginStart="4dp"
+                android:layout_weight="1"
+                app:checkedChip="@id/chipSeedRandom"
+                app:chipSpacingHorizontal="6dp"
+                app:singleSelection="true">
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chipSeedRandom"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:checkable="true"
+                    android:text="随机"
+                    android:textSize="12sp"
+                    app:checkedIconEnabled="false" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chipSeedIncrease"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:checkable="true"
+                    android:text="增加"
+                    android:textSize="12sp"
+                    app:checkedIconEnabled="false" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chipSeedDecrease"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:checkable="true"
+                    android:text="减少"
+                    android:textSize="12sp"
+                    app:checkedIconEnabled="false" />
+
+            </com.google.android.material.chip.ChipGroup>
+
+            <ImageButton
+                android:id="@+id/btnGenerateSeed"
+                style="@style/ButtonBorderless"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_refresh" />
+        </LinearLayout>
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -257,6 +337,7 @@
                     android:layout_marginStart="6dp"
                     android:layout_weight="1"
                     android:inputType="number"
+                    android:lines="1"
                     android:text="5" />
             </LinearLayout>
 
