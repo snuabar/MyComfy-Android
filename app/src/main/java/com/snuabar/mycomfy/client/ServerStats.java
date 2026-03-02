@@ -1,15 +1,15 @@
 package com.snuabar.mycomfy.client;
 
 public class ServerStats {
-    private int total_images;
+    private int total_files;
     private int total_requests;
     private float storage_used_mb;
     private String server_uptime;
     private String image_directory;
 
     // Getters and Setters
-    public int getTotal_images() { return total_images; }
-    public void setTotal_images(int total_images) { this.total_images = total_images; }
+    public int getTotal_files() { return total_files; }
+    public void setTotal_files(int total_files) { this.total_files = total_files; }
 
     public int getTotal_requests() { return total_requests; }
     public void setTotal_requests(int total_requests) { this.total_requests = total_requests; }

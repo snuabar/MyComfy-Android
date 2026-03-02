@@ -13,6 +13,7 @@ import android.util.Log;
 import androidx.documentfile.provider.DocumentFile;
 
 import com.snuabar.mycomfy.common.Callbacks;
+import com.snuabar.mycomfy.common.Common;
 import com.snuabar.mycomfy.common.FileType;
 
 import java.io.BufferedInputStream;
@@ -259,6 +260,7 @@ public final class DataHelper {
                     continue;
                 }
 
+                entryName = Common.correctPackageLikeStringsForDebug(entryName);
                 File outputFile = new File(destinationDir, entryName);
 
                 if (entry.isDirectory()) {

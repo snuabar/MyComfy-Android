@@ -1,7 +1,9 @@
 package com.snuabar.mycomfy.main.model;
 
+import android.content.Context;
 import android.util.Log;
 
+import com.snuabar.mycomfy.R;
 import com.snuabar.mycomfy.client.Parameters;
 import com.snuabar.mycomfy.main.data.AbstractMessageModel;
 
@@ -9,15 +11,35 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.File;
+import java.util.Map;
 import java.util.Objects;
 
 public class MessageModel extends AbstractMessageModel {
+
     private final static String TAG = MessageModel.class.getName();
 
+    //region 来至服务器的状态
     public final static String STATUS_PENDING = "pending";
     public final static String STATUS_IN_PROGRESS = "in_progress";
     public final static String STATUS_COMPLETED = "completed";
     public final static String STATUS_FAILED = "failed";
+    //endregion
+
+    //region app定义状态
+    public static final String STATUS_DOWNLOADING = "downloading";
+    //endregion
+
+    //region app定义code
+    public static final int CODE_CANCELED = 0x1000;
+    public static final int CODE_DOWNLOADING_FAILED = 0x1001;
+    //endregion
+
+    public static final Map<String, Integer> STATUS_RES_MAP = Map.of(
+            STATUS_PENDING, R.string.status_pending,
+            STATUS_IN_PROGRESS, R.string.status_in_progress,
+            STATUS_COMPLETED, R.string.status_completed,
+            STATUS_FAILED, R.string.status_failed
+    );
 
     protected Parameters parameters;
     protected String status;
@@ -107,6 +129,15 @@ public class MessageModel extends AbstractMessageModel {
     }
 
     @Override
+    public String getStatusResourceString(Context context) {
+        int res = Objects.requireNonNullElse(STATUS_RES_MAP.getOrDefault(status, 0), 0);
+        if (res == 0) {
+            return "";
+        }
+        return context.getString(res);
+    }
+
+    @Override
     public void setFinished(File imageFile, int code, String message) {
 
     }
@@ -148,6 +179,11 @@ public class MessageModel extends AbstractMessageModel {
     @Override
     public String getAssociatedSentModelId() {
         return "";
+    }
+
+    @Override
+    public boolean isI2V() {
+        return false;
     }
 
     @Override

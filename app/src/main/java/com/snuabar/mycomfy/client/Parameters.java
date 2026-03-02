@@ -12,7 +12,7 @@ public class Parameters extends QueueRequest {
     private long timestamp;
 
     public Parameters() {
-        this(null, null, null, "0", 0, 0, 0, 0.0, 0.0);
+        this("None", "None", "None", "0", 64, 64, 0, 0.0, 0.0);
     }
 
     public Parameters(Parameters other) {

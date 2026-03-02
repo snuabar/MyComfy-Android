@@ -1,7 +1,13 @@
 package com.snuabar.mycomfy.client;
 
+import android.text.TextUtils;
 import android.util.Log;
 
+import com.snuabar.mycomfy.common.Common;
+import com.snuabar.mycomfy.setting.Settings;
+import com.snuabar.mycomfy.utils.ImageUtils;
+
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -11,6 +17,8 @@ import java.util.Objects;
 
 // 请求模型
 public class QueueRequest {
+    public static final String REQUEST_ID_SUFFIX_LAST_FRAME_OF = "last_frame_of:";
+    private String client_id;
     private String workflow;
     private String model;
     private String prompt;
@@ -27,11 +35,13 @@ public class QueueRequest {
     private double megapixels;
     private String[] images;
     private File[] imageFiles;
+    private String[] videos;
 
     // 构造函数
     public QueueRequest(String workflow, String model, String prompt, String seed, int img_width, int img_height, int step, double cfg, double upscale_factor) {
+        this.client_id = Settings.getInstance().getClientID(null);
         this.workflow = workflow;
-        this.model = model;
+        this.model = TextUtils.isEmpty(model) ? null : model;
         this.prompt = prompt;
         this.seed = seed;
         this.img_width = img_width;
@@ -46,6 +56,14 @@ public class QueueRequest {
         loadJson(object);
     }
     // Getters and Setters
+
+    public String getClient_id() {
+        return client_id;
+    }
+
+    public void setClient_id(String client_id) {
+        this.client_id = client_id;
+    }
 
     public String getWorkflow() {
         return workflow;
@@ -189,9 +207,34 @@ public class QueueRequest {
         return false;
     }
 
+    public boolean downloadingImagesIsNeeded() {
+        if (images != null && imageFiles != null && images.length == imageFiles.length) {
+            for (int i = 0; i < images.length; i++) {
+                String img = images[i];
+                if (img == null) {
+                    continue;
+                }
+                File file = imageFiles[i];
+                if (img.startsWith(REQUEST_ID_SUFFIX_LAST_FRAME_OF) && (!file.exists() || !ImageUtils.validImage(file))) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public String[] getVideos() {
+        return videos;
+    }
+
+    public void setVideos(String[] videos) {
+        this.videos = videos;
+    }
+
     public JSONObject toJson() {
         try {
             JSONObject jsonObject = new JSONObject();
+            jsonObject.putOpt("client_id", getClient_id());
             jsonObject.putOpt("workflow", getWorkflow());
             jsonObject.putOpt("model", getModel());
             jsonObject.putOpt("prompt", getPrompt());
@@ -230,6 +273,10 @@ public class QueueRequest {
                     jsonObject.putOpt("imageFile3", imageFiles[2]);
                 }
             }
+            if (videos != null) {
+                JSONArray jsonArray = new JSONArray(videos);
+                jsonObject.putOpt("videos", jsonArray);
+            }
             return jsonObject;
         } catch (JSONException e) {
             Log.e("ImageRequest", "toJson. exception thrown.", e);
@@ -238,6 +285,7 @@ public class QueueRequest {
     }
 
     public void loadJson(JSONObject jsonObject) {
+        setClient_id(jsonObject.optString("client_id"));
         setWorkflow(jsonObject.optString("workflow"));
         setModel(jsonObject.optString("model", null));
         setPrompt(jsonObject.optString("prompt", null));
@@ -265,26 +313,34 @@ public class QueueRequest {
         setImages(images);
         File[] imageFiles = new File[3];
         if (jsonObject.has("imageFile1")) {
-            imageFiles[0] = new File(jsonObject.optString("imageFile1"));
+            imageFiles[0] = new File(Common.correctPackageLikeStringsForDebug(jsonObject.optString("imageFile1")));
         }
         if (jsonObject.has("imageFile2")) {
-            imageFiles[1] = new File(jsonObject.optString("imageFile2"));
+            imageFiles[1] = new File(Common.correctPackageLikeStringsForDebug(jsonObject.optString("imageFile2")));
         }
         if (jsonObject.has("imageFile3")) {
-            imageFiles[2] = new File(jsonObject.optString("imageFile3"));
+            imageFiles[2] = new File(Common.correctPackageLikeStringsForDebug(jsonObject.optString("imageFile3")));
         }
         setImageFiles(imageFiles);
+
+        JSONArray jsonArray = jsonObject.optJSONArray("videos");
+        if (jsonArray != null) {
+            videos = new String[jsonArray.length()];
+            for (int i = 0; i < videos.length; i++) {
+                videos[i] = jsonArray.optString(i);
+            }
+        }
     }
 
     @Override
     public boolean equals(Object o) {
         if (o == null || getClass() != o.getClass()) return false;
         QueueRequest that = (QueueRequest) o;
-        return img_width == that.img_width && img_height == that.img_height && num_images == that.num_images && Double.compare(upscale_factor, that.upscale_factor) == 0 && step == that.step && Double.compare(cfg, that.cfg) == 0 && seconds == that.seconds && Double.compare(megapixels, that.megapixels) == 0 && Objects.equals(workflow, that.workflow) && Objects.equals(model, that.model) && Objects.equals(prompt, that.prompt) && Objects.equals(seed, that.seed) && Objects.equals(style, that.style) && Objects.equals(negative_prompt, that.negative_prompt) && Objects.deepEquals(images, that.images) && Objects.deepEquals(imageFiles, that.imageFiles);
+        return img_width == that.img_width && img_height == that.img_height && num_images == that.num_images && Double.compare(upscale_factor, that.upscale_factor) == 0 && step == that.step && Double.compare(cfg, that.cfg) == 0 && seconds == that.seconds && Double.compare(megapixels, that.megapixels) == 0 && Objects.equals(client_id, that.client_id) && Objects.equals(workflow, that.workflow) && Objects.equals(model, that.model) && Objects.equals(prompt, that.prompt) && Objects.equals(seed, that.seed) && Objects.equals(style, that.style) && Objects.equals(negative_prompt, that.negative_prompt) && Objects.deepEquals(images, that.images) && Objects.deepEquals(imageFiles, that.imageFiles) && Objects.deepEquals(videos, that.videos);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(workflow, model, prompt, seed, img_width, img_height, num_images, style, negative_prompt, upscale_factor, step, cfg, seconds, megapixels, Arrays.hashCode(images), Arrays.hashCode(imageFiles));
+        return Objects.hash(client_id, workflow, model, prompt, seed, img_width, img_height, num_images, style, negative_prompt, upscale_factor, step, cfg, seconds, megapixels, Arrays.hashCode(images), Arrays.hashCode(imageFiles), Arrays.hashCode(videos));
     }
 }

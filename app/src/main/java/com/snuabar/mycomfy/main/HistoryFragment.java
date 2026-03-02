@@ -39,6 +39,7 @@ public class HistoryFragment extends Fragment {
     private MainViewModel mViewModel;
     private FragmentHistoryBinding binding;
     private final List<AbstractMessageModel> messageModels = new ArrayList<>();
+    private final Set<String> matchedIDs = new HashSet<>();
 
     /**
      * Mandatory empty constructor for the fragment manager to instantiate the
@@ -83,7 +84,7 @@ public class HistoryFragment extends Fragment {
                 }
             }
         });
-        mViewModel.getDeletionModeLiveData().observe(getViewLifecycleOwner(), aBoolean -> {
+        mViewModel.getSelectionModeLiveData().observe(getViewLifecycleOwner(), aBoolean -> {
             if (getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.RESUMED)) {
                 if (binding.list.getAdapter() instanceof HistoryAdapter) {
                     ((HistoryAdapter) binding.list.getAdapter()).setEditMode(aBoolean);
@@ -102,7 +103,26 @@ public class HistoryFragment extends Fragment {
         });
         mViewModel.getMatchedIDsLiveData().observe(getViewLifecycleOwner(), ids -> {
             if (binding.list.getAdapter() instanceof HistoryAdapter) {
-                ((HistoryAdapter) binding.list.getAdapter()).setMatchedIDs(ids);
+                if (matchedIDs.isEmpty() && (ids == null || ids.isEmpty())) {
+                    return;
+                }
+                matchedIDs.clear();
+                if (ids != null) {
+                    matchedIDs.addAll(ids);
+                }
+                loadImageContents();
+            }
+        });
+        mViewModel.getSelectionDataLiveData().observe(getViewLifecycleOwner(), selectionData -> {
+            if (getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.RESUMED)) {
+                if (selectionData != null) {
+                    if (binding.list.getAdapter() instanceof HistoryAdapter) {
+                        List<Integer> indices = ((HistoryAdapter) binding.list.getAdapter()).getSelectedIndices();
+                        List<String> ids = indices.stream().map(integer -> messageModels.get(integer).getId()).collect(Collectors.toList());
+                        selectionData.modelIdSet.clear();
+                        selectionData.modelIdSet.addAll(ids);
+                    }
+                }
             }
         });
     }
@@ -110,7 +130,7 @@ public class HistoryFragment extends Fragment {
     @Override
     public void onPause() {
         super.onPause();
-        mViewModel.changeDeletionMode(false);
+        mViewModel.changeSelectionMode(false);
     }
 
     @Override
@@ -131,12 +151,12 @@ public class HistoryFragment extends Fragment {
         }
 
         if (longClick) {
-            mViewModel.changeDeletionMode(true);
+            mViewModel.changeSelectionMode(true);
             if (binding.list.getAdapter() instanceof HistoryAdapter) {
                 ((HistoryAdapter) binding.list.getAdapter()).toggleSelection(position);
             }
         } else {
-            if (Boolean.TRUE.equals(mViewModel.getDeletionModeLiveData().getValue())) {
+            if (Boolean.TRUE.equals(mViewModel.getSelectionModeLiveData().getValue())) {
                 if (binding.list.getAdapter() instanceof HistoryAdapter) {
                     ((HistoryAdapter) binding.list.getAdapter()).toggleSelection(position);
                 }
@@ -164,6 +184,7 @@ public class HistoryFragment extends Fragment {
 
         List<AbstractMessageModel> models = DataIO.getInstance().copyMessageModels();
         models.removeIf(m -> !(m instanceof ReceivedMessageModel) || m.getImageFile() == null || !m.getImageFile().exists());
+        models.removeIf(m -> !matchedIDs.isEmpty() && !matchedIDs.contains(m.getId()));
         models.sort((o1, o2) -> Long.compare(o2.getUTCTimestamp(), o1.getUTCTimestamp()));
 
         if (binding.list.getAdapter() != null) {

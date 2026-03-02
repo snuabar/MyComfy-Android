@@ -17,6 +17,7 @@ import com.snuabar.mycomfy.common.Callbacks;
 import com.snuabar.mycomfy.common.Common;
 import com.snuabar.mycomfy.databinding.LayoutHistoryItemBinding;
 import com.snuabar.mycomfy.main.data.AbstractMessageModel;
+import com.snuabar.mycomfy.main.model.VideoConcatReceivedMessageModel;
 import com.snuabar.mycomfy.utils.ImageUtils;
 import com.snuabar.mycomfy.utils.ThumbnailCacheManager;
 
@@ -38,7 +39,6 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
     private final Map<String, Integer> idToIndexMap;
     private boolean isEditMode = false;
     private final Context context;
-    private final Set<String> matchedIDs;
 
     public HistoryAdapter(Context context, Callbacks.Callback2T<Integer, Boolean> onItemClickCallback) {
         this.context = context.getApplicationContext();
@@ -47,7 +47,6 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
         updateIdToIndexMap();
         this.onItemClickCallback = onItemClickCallback;
         this.selections = new HashSet<>();
-        this.matchedIDs = new HashSet<>();
     }
 
     @NonNull
@@ -58,14 +57,6 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
 
     @Override
     public void onBindViewHolder(@NonNull final ViewHolder holder, int position) {
-        if (!matchedIDs.isEmpty() && !matchedIDs.contains(mValues.get(position).getId())) {
-            holder.itemView.getLayoutParams().width = 0;
-            holder.itemView.getLayoutParams().height = 0;
-            return;
-        }
-        holder.itemView.getLayoutParams().width = (int) holder.itemView.getResources().getDimension(R.dimen.gallery_item_size);
-        holder.itemView.getLayoutParams().height = (int) holder.itemView.getResources().getDimension(R.dimen.gallery_item_size);
-
         holder.binding.checkBox.setVisibility(isEditMode ? View.VISIBLE : View.GONE);
         holder.binding.checkBox.setChecked(selections.contains(position));
 
@@ -104,6 +95,7 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
             holder.binding.tvScaleFactor.setVisibility(View.GONE);
         }
         holder.binding.ivPlay.setVisibility(model.isVideo() ? View.VISIBLE : View.GONE);
+        holder.binding.ivConcatVideo.setVisibility(model instanceof VideoConcatReceivedMessageModel ? View.VISIBLE : View.GONE);
     }
 
     private void onThumbnailMake(AbstractMessageModel content) {
@@ -161,22 +153,6 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
 
     public List<Integer> getSelectedIndices() {
         return new ArrayList<>(selections);
-    }
-
-    /**
-     * 给搜索用
-     *
-     * @param ids 不在这个列表中的项会被隐藏。
-     */
-    public void setMatchedIDs(Set<String> ids) {
-        if (matchedIDs.isEmpty() && (ids == null || ids.isEmpty())) {
-            return;
-        }
-        matchedIDs.clear();
-        if (ids != null) {
-            matchedIDs.addAll(ids);
-        }
-        notifyDataSetChanged();
     }
 
     public class ViewHolder extends RecyclerView.ViewHolder {

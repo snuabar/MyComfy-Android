@@ -1,4 +1,8 @@
 <resources>
     <string name="app_name">MyComfy</string>
     <string name="default_prompt">a detailed picture of an orange cat, playing with a ball in a garden, green grasses, green plants, beautiful flowers, warm sunshine, soft, cute, realistic, realism, real photo, CG，masterpiece, hdr, photo, high quality, light and shadow,</string>
+    <string name="status_pending">正在排队</string>
+    <string name="status_in_progress">正在生成</string>
+    <string name="status_completed">完成</string>
+    <string name="status_failed">失败</string>
 </resources>

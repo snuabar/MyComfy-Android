@@ -1,64 +1,118 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:orientation="vertical"
     android:fitsSystemWindows="true"
     tools:context=".main.MainActivity">
 
     <LinearLayout
-        android:id="@+id/layoutSearchBox"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:background="@android:color/white"
-        android:elevation="8dp"
-        android:orientation="horizontal"
-        android:padding="10dp">
+        android:layout_height="match_parent"
+        android:orientation="vertical">
 
-        <EditText
-            android:id="@+id/etSearchBox"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:background="@drawable/edittext_background"
-            android:paddingHorizontal="10dp"
-            android:textSize="14sp" />
+        <LinearLayout
+            android:id="@+id/layoutSearchBox"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:background="@android:color/white"
+            android:elevation="8dp"
+            android:orientation="horizontal"
+            android:padding="10dp"
+            tools:ignore="Suspicious0dp">
 
-        <ImageButton
-            android:id="@+id/btnCloseSearchBox"
-            style="@style/ButtonBorderless"
-            android:layout_width="36dp"
-            android:layout_height="match_parent"
-            android:layout_marginStart="6dp"
-            android:src="@drawable/ic_close" />
+            <EditText
+                android:id="@+id/etSearchBox"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="@drawable/edittext_background"
+                android:lines="1"
+                android:paddingHorizontal="10dp"
+                android:textSize="14sp" />
+
+            <ImageButton
+                android:id="@+id/btnCloseSearchBox"
+                style="@style/ButtonBorderless"
+                android:layout_width="36dp"
+                android:layout_height="match_parent"
+                android:layout_marginStart="6dp"
+                android:src="@drawable/ic_close" />
+
+        </LinearLayout>
+
+        <androidx.viewpager2.widget.ViewPager2
+            android:id="@+id/viewPager2"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <com.google.android.material.tabs.TabLayout
+            android:id="@+id/tabLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:elevation="8dp"
+            app:tabIndicatorGravity="top">
+
+            <com.google.android.material.tabs.TabItem
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="主页" />
+
+            <com.google.android.material.tabs.TabItem
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="历史" />
+
+        </com.google.android.material.tabs.TabLayout>
 
     </LinearLayout>
 
-    <androidx.viewpager2.widget.ViewPager2
-        android:id="@+id/viewPager2"
+    <LinearLayout
+        android:id="@+id/layoutBottomBar"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"/>
-
-    <com.google.android.material.tabs.TabLayout
-        android:id="@+id/tabLayout"
-        app:tabIndicatorGravity="top"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="@color/white"
         android:elevation="8dp"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:visibility="gone"
+        tools:visibility="visible"
+        app:layout_constraintBottom_toBottomOf="parent">
 
-        <com.google.android.material.tabs.TabItem
-            android:layout_width="wrap_content"
+        <ImageButton
+            android:id="@+id/btnDelete"
+            android:layout_width="60dp"
             android:layout_height="wrap_content"
-            android:text="主页" />
+            style="@style/ButtonBorderless"
+            android:src="@drawable/ic_delete"/>
 
-        <com.google.android.material.tabs.TabItem
-            android:layout_width="wrap_content"
+        <ImageButton
+            android:id="@+id/btnDeleteLinked"
+            android:layout_width="60dp"
             android:layout_height="wrap_content"
-            android:text="历史" />
+            style="@style/ButtonBorderless"
+            android:src="@drawable/ic_delete_linked"/>
 
-    </com.google.android.material.tabs.TabLayout>
+        <View
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"/>
 
-</LinearLayout>
+        <ImageButton
+            android:id="@+id/btnVideoConcat"
+            android:layout_width="60dp"
+            android:layout_height="wrap_content"
+            style="@style/ButtonBorderless"
+            android:src="@drawable/ic_concat"/>
+
+        <ImageButton
+            android:id="@+id/btnShare"
+            android:layout_width="60dp"
+            android:layout_height="wrap_content"
+            style="@style/ButtonBorderless"
+            android:src="@drawable/ic_share"/>
+
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

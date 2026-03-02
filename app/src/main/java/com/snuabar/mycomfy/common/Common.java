@@ -10,7 +10,10 @@ import android.view.Window;
 
 import androidx.annotation.NonNull;
 
+import com.snuabar.mycomfy.BuildConfig;
+
 import java.lang.reflect.Method;
+import java.security.SecureRandom;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -186,8 +189,8 @@ public final class Common {
     /**
      * 获取图像浏览的放大倍率
      *
-     * @param context 上下文
-     * @param bmpWidth 要显示的位图宽度
+     * @param context   上下文
+     * @param bmpWidth  要显示的位图宽度
      * @param bmpHeight 要显示的位图高度
      * @return 长度为2的数组，0：最大倍率，1：中间倍率
      */
@@ -222,4 +225,43 @@ public final class Common {
 
         return new float[]{maxScale, midScale};
     }
+
+    public static String correctPackageLikeStringsForDebug(String str) {
+        if (BuildConfig.DEBUG) {
+            if (str.contains(BuildConfig.defaultPackageName) &&
+                    !str.contains(BuildConfig.defaultPackageName + ".debug")) {
+                str = str.replaceAll(BuildConfig.defaultPackageName, BuildConfig.defaultPackageName + ".debug");
+            }
+        }
+        return str;
+    }
+
+
+    private static final SecureRandom secureRandom = new SecureRandom();
+
+    public enum SeedCtl {Random, Increase, Decrease, Fixed}
+
+    public static long generateSeed(long seed, SeedCtl seedCtl) {
+        if (seedCtl == SeedCtl.Fixed) {
+            return seed;
+        }
+
+        if (seedCtl == SeedCtl.Random) {
+            int len = Long.BYTES;
+            byte[] bytes = new byte[len];
+            secureRandom.nextBytes(bytes);
+            // 转换为 long，确保为正数
+            for (int i = 0; i < len; i++) {
+                seed = (seed << 8) | (bytes[i] & 0xFF);
+            }
+            seed = Math.abs(seed);
+        } else if (seedCtl == SeedCtl.Increase) {
+            seed++;
+        } else if (seedCtl == SeedCtl.Decrease) {
+            seed--;
+        }
+
+        return seed;
+    }
+
 }

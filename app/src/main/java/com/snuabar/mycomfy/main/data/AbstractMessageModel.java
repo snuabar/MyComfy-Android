@@ -1,5 +1,6 @@
 package com.snuabar.mycomfy.main.data;
 
+import android.content.Context;
 import android.util.Log;
 
 import androidx.annotation.CallSuper;
@@ -62,6 +63,8 @@ public abstract class AbstractMessageModel {
 
     public abstract String getStatus();
 
+    public abstract String getStatusResourceString(Context context);
+
     public abstract void setFinished(File imageFile, int code, String message);
 
     public abstract void setFinished(File imageFile, int code, String message, String endTime);
@@ -79,6 +82,8 @@ public abstract class AbstractMessageModel {
     public abstract boolean isI2I();
 
     public abstract String getAssociatedSentModelId();
+
+    public abstract boolean isI2V();
 
     @CallSuper
     public JSONObject toJson() {

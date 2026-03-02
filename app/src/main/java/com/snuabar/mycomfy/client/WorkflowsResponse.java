@@ -94,6 +94,7 @@ public class WorkflowsResponse {
         private List<String> modelKeywords;
         private List<String> excludeModelKeywords;
         private DefaultParameters defaultParameters;
+        private boolean visible = true;
 
         public String getDisplayName() {
             return displayName;
@@ -149,6 +150,14 @@ public class WorkflowsResponse {
 
         public void setDefaultParameters(DefaultParameters defaultParameters) {
             this.defaultParameters = defaultParameters;
+        }
+
+        public boolean isVisible() {
+            return visible;
+        }
+
+        public void setVisible(boolean visible) {
+            this.visible = visible;
         }
     }
 

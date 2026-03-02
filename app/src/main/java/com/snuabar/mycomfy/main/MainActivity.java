@@ -50,7 +50,7 @@ public class MainActivity extends AppCompatActivity {
                     .commitNow();
         }
 
-        mViewModel.getDeletionModeLiveData().observe(this, aBoolean -> invalidateOptionsMenu());
+        mViewModel.getSelectionModeLiveData().observe(this, aBoolean -> invalidateOptionsMenu());
 
         getOnBackPressedDispatcher().addCallback(this, onBackPressedCallback);
     }
@@ -66,11 +66,9 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public boolean onPrepareOptionsMenu(Menu menu) {
-        boolean deletionMode = Boolean.TRUE.equals(mViewModel.getDeletionModeLiveData().getValue());
-        menu.findItem(R.id.action_settings).setVisible(!deletionMode);
-        menu.findItem(R.id.action_multi_select).setVisible(!deletionMode);
-        menu.findItem(R.id.action_delete).setVisible(deletionMode);
-        menu.findItem(R.id.action_delete_associated).setVisible(deletionMode);
+        boolean selectionMode = Boolean.TRUE.equals(mViewModel.getSelectionModeLiveData().getValue());
+        menu.findItem(R.id.action_settings).setVisible(!selectionMode);
+        menu.findItem(R.id.action_multi_select).setVisible(!selectionMode);
         return super.onPrepareOptionsMenu(menu);
     }
 
@@ -91,18 +89,8 @@ public class MainActivity extends AppCompatActivity {
             startActivity(intent);
             return true;
         }
-        if (id == R.id.action_delete) {
-            mViewModel.changeDeletionHasPressed(true);
-            mViewModel.changeDeletionHasPressed(false);
-            return true;
-        }
-        if (id == R.id.action_delete_associated) {
-            mViewModel.changeAssociatedDeletionHasPressed(true);
-            mViewModel.changeAssociatedDeletionHasPressed(false);
-            return true;
-        }
         if (id == R.id.action_multi_select) {
-            mViewModel.changeDeletionMode(true);
+            mViewModel.changeSelectionMode(true);
             return true;
         }
         if (id == R.id.action_search) {
@@ -116,8 +104,8 @@ public class MainActivity extends AppCompatActivity {
     private final OnBackPressedCallback onBackPressedCallback = new OnBackPressedCallback(true) {
         @Override
         public void handleOnBackPressed() {
-            if (Boolean.TRUE.equals(mViewModel.getDeletionModeLiveData().getValue())) {
-                mViewModel.changeDeletionMode(false);
+            if (Boolean.TRUE.equals(mViewModel.getSelectionModeLiveData().getValue())) {
+                mViewModel.changeSelectionMode(false);
                 return;
             }
             if (mViewModel.getSelectedTabLiveData().getValue() != null &&

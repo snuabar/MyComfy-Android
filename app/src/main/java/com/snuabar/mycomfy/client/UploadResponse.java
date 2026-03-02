@@ -5,7 +5,6 @@ public class UploadResponse {
     private String status;
     private String message;
     private String filename;
-    private String file_url;
     private long file_size;
     private String uploaded_at;
 
@@ -31,14 +30,6 @@ public class UploadResponse {
 
     public void setFilename(String filename) {
         this.filename = filename;
-    }
-
-    public String getFile_url() {
-        return file_url;
-    }
-
-    public void setFile_url(String file_url) {
-        this.file_url = file_url;
     }
 
     public long getFile_size() {

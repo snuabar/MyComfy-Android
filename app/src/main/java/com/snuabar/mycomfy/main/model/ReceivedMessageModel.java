@@ -4,6 +4,7 @@ import android.text.TextUtils;
 import android.util.Log;
 
 import com.snuabar.mycomfy.client.EnqueueResponse;
+import com.snuabar.mycomfy.common.Common;
 import com.snuabar.mycomfy.utils.ImageUtils;
 import com.snuabar.mycomfy.utils.VideoUtils;
 
@@ -118,8 +119,7 @@ public class ReceivedMessageModel extends MessageModel {
         }
         utcTimestamp = timestamp;
         this.imageFile = imageFile;
-        setCode(code);
-        setMessage(message);
+        setStatus(STATUS_COMPLETED, code, message);
     }
 
     @Override
@@ -199,11 +199,11 @@ public class ReceivedMessageModel extends MessageModel {
         }
         String imageFilePath = jsonObject.optString("imageFile", null);
         if (!TextUtils.isEmpty(imageFilePath)) {
-            imageFile = new File(imageFilePath);
+            imageFile = new File(Common.correctPackageLikeStringsForDebug(imageFilePath));
         }
         String thumbnailFilePath = jsonObject.optString("thumbnailFile", null);
         if (!TextUtils.isEmpty(thumbnailFilePath)) {
-            thumbnailFile = new File(thumbnailFilePath);
+            thumbnailFile = new File(Common.correctPackageLikeStringsForDebug(imageFilePath));
         }
         utcTimestamp = jsonObject.optLong("utcTimestamp");
         interruptionFlag = jsonObject.optBoolean("interruptionFlag");

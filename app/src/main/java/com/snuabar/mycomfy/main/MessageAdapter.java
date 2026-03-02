@@ -5,6 +5,7 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
@@ -15,16 +16,19 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.progressindicator.LinearProgressIndicator;
 import com.snuabar.mycomfy.R;
 import com.snuabar.mycomfy.client.Parameters;
 import com.snuabar.mycomfy.common.Common;
 import com.snuabar.mycomfy.databinding.LayoutReceivedMsgItemBinding;
 import com.snuabar.mycomfy.databinding.LayoutSentMsgItemBinding;
 import com.snuabar.mycomfy.main.data.AbstractMessageModel;
+import com.snuabar.mycomfy.main.model.I2VReceivedMessageModel;
 import com.snuabar.mycomfy.main.model.MessageModel;
 import com.snuabar.mycomfy.main.model.ReceivedMessageModel;
 import com.snuabar.mycomfy.main.model.SentMessageModel;
 import com.snuabar.mycomfy.main.model.UpscaleSentMessageModel;
+import com.snuabar.mycomfy.main.model.VideoConcatSentMessageModel;
 import com.snuabar.mycomfy.utils.ImageUtils;
 import com.snuabar.mycomfy.utils.ThumbnailCacheManager;
 
@@ -52,6 +56,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
     private final Set<Integer> selections;
     private boolean isEditMode = false;
     private final Set<String> matchedIDs;
+    private final Map<Integer, long[]> progressMap;
 
     public MessageAdapter(OnElementClickListener listener) {
         this.mHandler = new Handler(Looper.getMainLooper());
@@ -61,6 +66,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
         this.models = new ArrayList<>();
         updateIdToIndexMap();
         this.matchedIDs = new HashSet<>();
+        this.progressMap = new HashMap<>();
     }
 
     @NonNull
@@ -89,7 +95,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
         }
 
         AbstractMessageModel model = models.get(position);
-        holder.setTip(model.getStatus(), model.getCode(), model.getMessage());
+        holder.setTip(model.getStatusResourceString(holder.itemView.getContext()), model.getCode(), model.getMessage());
 
         if (holder instanceof SentViewHolder) {
             onBindSentViewHolder((SentViewHolder) holder, position);
@@ -134,9 +140,9 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
             } else {
                 holder.binding.layoutImageView.setVisibility(View.GONE);
                 holder.binding.textView.setText(param.getPrompt());
-                if (model.isI2I()) {
+                if (model.isI2I() || model.isI2V()) {
                     holder.binding.layoutImages.setVisibility(View.VISIBLE);
-                    displayI2ISentImages(holder, model);
+                    displayThreeImages(holder, model);
                 } else {
                     holder.binding.layoutImages.setVisibility(View.GONE);
                 }
@@ -183,9 +189,24 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
         holder.binding.btnSave.setVisibility(isEditMode ? View.INVISIBLE : View.VISIBLE);
         holder.binding.btnShare.setVisibility(isEditMode ? View.INVISIBLE : View.VISIBLE);
         holder.binding.layoutUpscale.setVisibility(canBeUpscaled(model) ? View.VISIBLE : View.GONE);
+        updateVisibilityOfOptionalButtons(holder, model);
+        updateProgress(holder.binding.pgsBar, position, model);
     }
 
-    private void displayI2ISentImages(SentViewHolder holder, SentMessageModel model) {
+    private void updateVisibilityOfOptionalButtons(ReceivedViewHolder holder, ReceivedMessageModel model) {
+        Integer index = idToIndexMap.get(model.getId());
+        if (index != null && index == models.size() - 1 &&
+                model instanceof I2VReceivedMessageModel &&
+                model.isFinished() && model.getImageFile() != null &&
+                !isEditMode
+        ) {
+            holder.binding.layoutOptionalButtons.setVisibility(View.VISIBLE);
+        } else {
+            holder.binding.layoutOptionalButtons.setVisibility(View.GONE);
+        }
+    }
+
+    private void displayThreeImages(SentViewHolder holder, SentMessageModel model) {
         File[] imageFiles = model.getParameters().getImageFiles();
         if (imageFiles != null) {
             Context context = holder.itemView.getContext();
@@ -205,13 +226,14 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
                 } else {
                     imageViews[i].setImageBitmap(null);
                 }
+                imageViews[i].setVisibility(imageFile != null ? View.VISIBLE : View.GONE);
             }
         }
     }
 
     private boolean canBeUpscaled(ReceivedMessageModel model) {
         boolean upscaled = model.getParameters().getUpscale_factor() > 1.0;
-        return !model.isI2I() && !model.isVideo() && model.getCode() == 200 && !model.getInterruptionFlag() && !upscaled && !isEditMode;
+        return !model.isI2I() && !model.isI2V() && !model.isVideo() && model.getCode() == 200 && !model.getInterruptionFlag() && !upscaled && !isEditMode;
     }
 
     private void onThumbnailMake(AbstractMessageModel model) {
@@ -282,22 +304,28 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
         }
     }
 
-
     public void notifyItemAdded(int index) {
+        int beforeIndex = index - 1;
+        if (beforeIndex >= 0 && beforeIndex < getItemCount()) {
+            notifyItemRangeChanged(beforeIndex, 2);
+        } else {
+            // 插入项
+            notifyItemInserted(index);
+        }
         updateIdToIndexMap();
 
         mHandler.post(() -> {
-            // 插入项
-            notifyItemInserted(index);
-
             if (getRecyclerView() != null) {
                 getRecyclerView().scrollToPosition(getItemCount() - 1);
             }
         });
-
     }
 
     public void notifyItemDeleted(int index) {
+        int beforeIndex = index - 1;
+        if (beforeIndex >= 0 && beforeIndex < getItemCount()) {
+            notifyItemChanged(index - 1);
+        }
         notifyItemRemoved(index);
         updateIdToIndexMap();
     }
@@ -327,6 +355,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
      *
      * @param ids 不在这个列表中的项会被隐藏。
      */
+    @SuppressLint("NotifyDataSetChanged")
     public void setMatchedIDs(Set<String> ids) {
         if (matchedIDs.isEmpty() && (ids == null || ids.isEmpty())) {
             return;
@@ -344,11 +373,21 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
 
     private void displayDetailedParams(SentViewHolder holder, AbstractMessageModel model) {
         Parameters param = model.getParameters();
-        if (model.isI2I()) {
+        String modelName = TextUtils.isEmpty(param.getModel()) ? "<none>" : param.getModel();
+        if (model instanceof VideoConcatSentMessageModel) {
+            StringBuilder stringBuilder = new StringBuilder();
+            for (int i = 0; i < model.getParameters().getVideos().length; i++) {
+                stringBuilder.append(model.getParameters().getVideos()[i]);
+                if (i < model.getParameters().getVideos().length - 1) {
+                    stringBuilder.append("\n");
+                }
+            }
+            holder.binding.textView0.setText(stringBuilder.toString());
+        } else if (model.isI2I()) {
             holder.binding.textView0.setText(String.format(Locale.getDefault(),
                     "%s\n%s\n%s %d %.01f %.01f",
                     param.getWorkflow(),
-                    param.getModel(),
+                    modelName,
                     param.getSeed(),
                     param.getStep(), param.getCfg(),
                     param.getMegapixels()
@@ -357,7 +396,7 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
             holder.binding.textView0.setText(String.format(Locale.getDefault(),
                     "%s\n%s\n%dx%d %s %d %.01f %.01f %s",
                     param.getWorkflow(),
-                    param.getModel(),
+                    modelName,
                     param.getImg_width(), param.getImg_height(),
                     param.getSeed(),
                     param.getStep(), param.getCfg(),
@@ -368,12 +407,34 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
             holder.binding.textView0.setText(String.format(Locale.getDefault(),
                     "%s\n%s\n%dx%d %s %d %.01f %.01f",
                     param.getWorkflow(),
-                    param.getModel(),
+                    modelName,
                     param.getImg_width(), param.getImg_height(),
                     param.getSeed(),
                     param.getStep(), param.getCfg(),
                     param.getUpscale_factor()
             ));
+        }
+    }
+
+    public void notifyItemProgress(int index, long max, long current) {
+        if (max > current) {
+            progressMap.put(index, new long[]{max, current});
+        } else {
+            progressMap.remove(index);
+        }
+        notifyItemChanged(index);
+    }
+
+    private void updateProgress(LinearProgressIndicator pgs, int position, AbstractMessageModel model) {
+        long[] progress = progressMap.get(position);
+        if (progress != null && progress.length == 2) {
+            pgs.setVisibility(View.VISIBLE);
+            pgs.setIndeterminate(false);
+            pgs.setMax((int) progress[0]);
+            pgs.setProgress((int) progress[1], true);
+        } else {
+            pgs.setIndeterminate(true);
+            pgs.setVisibility(model.isFinished() ? View.INVISIBLE : View.VISIBLE);
         }
     }
 
@@ -410,8 +471,8 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
 
         void setTip(String status, int code, String message) {
             if (tvTip != null) {
-                boolean isErr = MessageModel.STATUS_FAILED.equals(status) && code != 200;
-                tvTip.setText(message);
+                boolean isErr = MessageModel.STATUS_FAILED.equals(status) || ((code < 200 || code > 299) && code != 0);
+                tvTip.setText(isErr ? message : status);
                 tvTip.setTextColor(isErr ?
                         itemView.getResources().getColor(android.R.color.holo_red_light, null) :
                         itemView.getResources().getColor(R.color.gray_83, null));
@@ -429,26 +490,26 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
             this.tvTip = binding.tvTip;
 
             binding.btnResent.setOnClickListener(v -> {
-                if (listener != null) {
+                if (listener != null && !isEditMode) {
                     listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_RESENT, null, null);
                 }
             });
 
             binding.imageView1.setOnClickListener(v -> {
-                if (listener != null) {
-                    listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_I2I_IMAGES, null, 0);
+                if (listener != null && !isEditMode) {
+                    listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_THREE_IMAGES, null, 0);
                 }
             });
 
             binding.imageView2.setOnClickListener(v -> {
-                if (listener != null) {
-                    listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_I2I_IMAGES, null, 1);
+                if (listener != null && !isEditMode) {
+                    listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_THREE_IMAGES, null, 1);
                 }
             });
 
             binding.imageView3.setOnClickListener(v -> {
-                if (listener != null) {
-                    listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_I2I_IMAGES, null, 2);
+                if (listener != null && !isEditMode) {
+                    listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_THREE_IMAGES, null, 2);
                 }
             });
         }
@@ -463,33 +524,38 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
             this.tvDate = binding.tvDate;
             this.tvTip = binding.tvTip;
             binding.btnInterrupt.setOnClickListener(v -> {
-                if (listener != null) {
+                if (listener != null && !isEditMode) {
                     listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_INTERRUPT, null, null);
                 }
             });
             binding.btnSave.setOnClickListener(v -> {
-                if (listener != null) {
+                if (listener != null && !isEditMode) {
                     listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_SAVE, null, null);
                 }
             });
             binding.btnShare.setOnClickListener(v -> {
-                if (listener != null) {
+                if (listener != null && !isEditMode) {
                     listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_SHARE, null, null);
                 }
             });
             binding.btnX2.setOnClickListener(v -> {
-                if (listener != null) {
+                if (listener != null && !isEditMode) {
                     listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_X2, null, null);
                 }
             });
             binding.btnX4.setOnClickListener(v -> {
-                if (listener != null) {
+                if (listener != null && !isEditMode) {
                     listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_X4, null, null);
                 }
             });
             binding.btnXN.setOnClickListener(v -> {
-                if (listener != null) {
+                if (listener != null && !isEditMode) {
                     listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_XN, null, null);
+                }
+            });
+            binding.btnContinueWithLastFrame.setOnClickListener(v -> {
+                if (listener != null && !isEditMode) {
+                    listener.onClick(v, getAbsoluteAdapterPosition(), OnElementClickListener.OPE_CONTINUE_WITH_LAST_FRAME, null, null);
                 }
             });
         }
@@ -505,7 +571,8 @@ public class MessageAdapter extends RecyclerView.Adapter<MessageAdapter.ViewHold
         int OPE_X2 = 5;
         int OPE_X4 = 6;
         int OPE_XN = 7;
-        int OPE_I2I_IMAGES = 8;
+        int OPE_THREE_IMAGES = 8;
+        int OPE_CONTINUE_WITH_LAST_FRAME = 9;
         void onClick(View view, int index, int ope, float[] downLocation, Object obj);
     }
 }

@@ -56,17 +56,23 @@ public interface ApiService {
     Call<ResponseBody> download(@Path("prompt_id") String promptId);
 
     /**
-     * 流式获取图像（适用于大图像）
+     * 流式下载（适用于大文件）
      */
-    @GET("/api/images/{request_id}/stream")
+    @GET("/api/download/{file_id}/stream")
     @Streaming
-    Call<ResponseBody> streamImage(@Path("request_id") String requestId);
+    Call<ResponseBody> stream(@Path("file_id") String fileId);
 
     /**
      * 获取服务器统计信息
      */
     @GET("/api/stats")
     Call<ServerStats> getServerStats();
+
+    /**
+     * 同步客户信息
+     */
+    @POST("/api/client")
+    Call<ClientResponse> syncClient(@Body ClientRequest request);
 
     @POST("/api/interrupt")
     Call<ResponseBody> interrupt(@Body InterruptRequest request);

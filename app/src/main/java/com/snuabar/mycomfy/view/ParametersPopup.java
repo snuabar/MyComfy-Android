@@ -7,6 +7,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.text.TextUtils;
 import android.util.Log;
+import android.util.Size;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -26,11 +27,13 @@ import com.snuabar.mycomfy.R;
 import com.snuabar.mycomfy.client.Parameters;
 import com.snuabar.mycomfy.client.WorkflowsResponse;
 import com.snuabar.mycomfy.common.Callbacks;
+import com.snuabar.mycomfy.common.Common;
 import com.snuabar.mycomfy.databinding.LayoutModelItemBinding;
 import com.snuabar.mycomfy.databinding.LayoutParametersPopupWindowBinding;
 import com.snuabar.mycomfy.databinding.LayoutWorkflowItemBinding;
 import com.snuabar.mycomfy.main.data.prompt.PromptManager;
 import com.snuabar.mycomfy.setting.Settings;
+import com.snuabar.mycomfy.view.helper.ImageSizeInputManager;
 import com.snuabar.mycomfy.utils.ImageUtils;
 import com.snuabar.mycomfy.utils.ViewUtils;
 
@@ -39,7 +42,6 @@ import org.json.JSONObject;
 
 import java.io.File;
 import java.lang.ref.WeakReference;
-import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -60,12 +62,12 @@ public class ParametersPopup extends GeneralPopup {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private JSONObject paramJsonObject = null;
     private String paramKey = null;// 使用加密强度的随机数生成器
-    private final SecureRandom secureRandom = new SecureRandom();
     private final Stack<String> undoList;
     private OnSubmitCallback onSubmitCallback;
     private final DataRequirer dataRequirer;
     private PickPicturePopup pickPicturePopup;
     private final PictureInfo[] pictureInfos;
+    private final ImageSizeInputManager sizeInputManager;
 
     public ParametersPopup(Context context, DataRequirer dataRequirer) {
         super(context);
@@ -73,6 +75,7 @@ public class ParametersPopup extends GeneralPopup {
         undoList = new Stack<>();
         pictureInfos = new PictureInfo[]{new PictureInfo(), new PictureInfo(), new PictureInfo()};
         binding = LayoutParametersPopupWindowBinding.inflate(LayoutInflater.from(context));
+        this.sizeInputManager = new ImageSizeInputManager(binding.etWidth, binding.etHeight);
         setContentView(binding.getRoot());
         setWidth(WindowManager.LayoutParams.MATCH_PARENT);
         setHeight(WindowManager.LayoutParams.MATCH_PARENT);
@@ -131,6 +134,7 @@ public class ParametersPopup extends GeneralPopup {
                 binding.promptEditText.translateNone();
             }
         });
+        binding.btnGenerateSeed.setOnClickListener(v -> generateSeed());
         binding.btnSwitchWH.setOnClickListener(v -> switchWidthAndHeight());
         binding.btnClose.setOnClickListener(v -> dismiss());
         binding.btnSubmit.setOnClickListener(v -> {
@@ -143,6 +147,7 @@ public class ParametersPopup extends GeneralPopup {
         binding.imageView1.setOnClickListener(this::onImageViewClick);
         binding.imageView2.setOnClickListener(this::onImageViewClick);
         binding.imageView3.setOnClickListener(this::onImageViewClick);
+        binding.btnClearPrompts.setOnClickListener(v -> binding.promptEditText.setText(""));
     }
 
     private void onImageViewClick(View v) {
@@ -190,6 +195,7 @@ public class ParametersPopup extends GeneralPopup {
         pictureInfos[which].setFile(file);
         Bitmap bmp = pictureInfos[which].bmp;
         displayPicture(which, bmp);
+        sizeInputManager.setBitmapSize(pictureInfos[0].bitmapSize);
     }
 
     public void setOnSubmitCallback(OnSubmitCallback callback) {
@@ -204,27 +210,21 @@ public class ParametersPopup extends GeneralPopup {
 
         long seed = 0;
         if (seedCtl == 0) {
-            byte[] bytes = new byte[Long.BYTES];
-            secureRandom.nextBytes(bytes);
-            // 转换为 long，确保为正数
-            for (int i = 0; i < 8; i++) {
-                seed = (seed << 8) | (bytes[i] & 0xFF);
-            }
-            seed = Math.abs(seed);
+            seed = Common.generateSeed(seed, Common.SeedCtl.Random);
         } else if (seedCtl == 1) {
             String text = binding.etSeed.getText().toString();
             if (TextUtils.isEmpty(text)) {
                 text = "0";
             }
             seed = Long.parseLong(text);
-            seed++;
+            seed = Common.generateSeed(seed, Common.SeedCtl.Increase);
         } else if (seedCtl == 2) {
             String text = binding.etSeed.getText().toString();
             if (TextUtils.isEmpty(text)) {
                 text = "0";
             }
             seed = Long.parseLong(text);
-            seed--;
+            seed = Common.generateSeed(seed, Common.SeedCtl.Decrease);
         }
         binding.etSeed.setText(String.valueOf(seed));
         saveValues();
@@ -332,6 +332,7 @@ public class ParametersPopup extends GeneralPopup {
         workflows.clear();
         workflows.putAll(workflowList);
         List<String> workflowNames = new ArrayList<>(workflows.keySet());
+        workflowNames.sort(String::compareTo);
         workflowAdapter.clear();
         workflowAdapter.addAll(workflowNames);
         String selectedWorkflow = Settings.getInstance().getWorkflow(null);
@@ -482,13 +483,13 @@ public class ParametersPopup extends GeneralPopup {
         }
 
         visibility = binding.layoutImageSize.getVisibility();
-        binding.layoutImageSize.setVisibility(isWorkflowInputImage() ? View.GONE : View.VISIBLE);
+        binding.layoutImageSize.setVisibility(isWorkflowImageToImage() ? View.GONE : View.VISIBLE);
         if (binding.layoutImageSize.getVisibility() != visibility) {
             layoutChanged = true;
         }
 
         visibility = binding.layoutMegapixels.getVisibility();
-        binding.layoutMegapixels.setVisibility(isWorkflowInputImage() ? View.VISIBLE : View.GONE);
+        binding.layoutMegapixels.setVisibility(isWorkflowImageToImage() ? View.VISIBLE : View.GONE);
         if (binding.layoutMegapixels.getVisibility() != visibility) {
             layoutChanged = true;
         }
@@ -512,6 +513,8 @@ public class ParametersPopup extends GeneralPopup {
             setPictureFile(file1, 0);
             setPictureFile(file2, 1);
             setPictureFile(file3, 2);
+        } else {
+            sizeInputManager.setBitmapSize(null);
         }
 
         setSeedCtl(jsonObject.optInt(Settings.KEY_PARAM_SEED_CTL, 0));
@@ -592,6 +595,26 @@ public class ParametersPopup extends GeneralPopup {
             return false;
         }
         return WorkflowsResponse.Workflow.INPUT_TEXT.equals(workflow.getInputType());
+    }
+
+    public boolean isWorkflowImageToVideo() {
+        String selectedWorkflow = Settings.getInstance().getWorkflow("");
+        WorkflowsResponse.Workflow workflow = workflows.get(selectedWorkflow);
+        if (workflow == null) {
+            return false;
+        }
+        return WorkflowsResponse.Workflow.INPUT_IMAGE.equals(workflow.getInputType()) &&
+                WorkflowsResponse.Workflow.OUTPUT_VIDEO.equals(workflow.getOutputType());
+    }
+
+    public boolean isWorkflowImageToImage() {
+        String selectedWorkflow = Settings.getInstance().getWorkflow("");
+        WorkflowsResponse.Workflow workflow = workflows.get(selectedWorkflow);
+        if (workflow == null) {
+            return false;
+        }
+        return WorkflowsResponse.Workflow.INPUT_IMAGE.equals(workflow.getInputType()) &&
+                WorkflowsResponse.Workflow.OUTPUT_IMAGE.equals(workflow.getOutputType());
     }
 
     @NonNull
@@ -813,7 +836,7 @@ public class ParametersPopup extends GeneralPopup {
         }
     }
 
-    private class WorkflowAdapter extends SpinnerBaseAdapter {
+    private static class WorkflowAdapter extends SpinnerBaseAdapter {
 
         public WorkflowAdapter(@NonNull Context context) {
             super(context);
@@ -832,21 +855,19 @@ public class ParametersPopup extends GeneralPopup {
             }
             String workflowKey = getItem(position);
             if (workflowKey != null) {
-                WorkflowsResponse.Workflow workflow = workflows.get(workflowKey);
-                if (workflow != null) {
-                    binding.text1.setText(workflow.getDisplayName());
-                    if (workflowKey.equals(getParameter(Settings.KEY_PARAM_WORKFLOW))) {
-                        binding.text1.setBackground(ResourcesCompat.getDrawable(binding.text1.getResources(), R.drawable.spinner_item_selection_background, null));
-                    } else {
-                        binding.text1.setBackground(null);
-                    }
+                String displayName = Settings.getInstance().getWorkflowDisplayName(workflowKey);
+                binding.text1.setText(displayName);
+                if (workflowKey.equals(Settings.getInstance().getWorkflow(""))) {
+                    binding.text1.setBackground(ResourcesCompat.getDrawable(binding.text1.getResources(), R.drawable.spinner_item_selection_background, null));
+                } else {
+                    binding.text1.setBackground(null);
                 }
             }
             return binding.getRoot();
         }
     }
 
-    private class ModelAdapter extends SpinnerBaseAdapter {
+    private static class ModelAdapter extends SpinnerBaseAdapter {
 
         public ModelAdapter(@NonNull Context context) {
             super(context);
@@ -866,7 +887,7 @@ public class ParametersPopup extends GeneralPopup {
             String model = getItem(position);
             binding.text1.setText(model);
             if (model != null) {
-                if (model.equals(getParameter(Settings.KEY_PARAM_MODEL))) {
+                if (model.equals(Settings.getInstance().getModelName(""))) {
                     binding.text1.setBackground(ResourcesCompat.getDrawable(binding.text1.getResources(), R.drawable.spinner_item_selection_background, null));
                 } else {
                     binding.text1.setBackground(null);
@@ -885,11 +906,15 @@ public class ParametersPopup extends GeneralPopup {
     private class PictureInfo {
         private Bitmap bmp;
         private File file;
+        private Size bitmapSize;
 
         private void setFile(File file) {
             this.file = file;
+            bitmapSize = null;
             File thumbnail = null;
             if (file != null) {
+                int[] size = ImageUtils.getImageSize(file);
+                bitmapSize = new Size(size[0], size[1]);
                 thumbnail = ImageUtils.getThumbnailFileInCacheDir(getContentView().getContext(), file);
                 if (!thumbnail.exists()) {
                     float width = getContentView().getContext().getResources().getDimension(R.dimen.thumbnail_width);

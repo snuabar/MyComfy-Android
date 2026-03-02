@@ -1,5 +1,6 @@
 package com.snuabar.mycomfy.main.data;
 
+import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
@@ -12,13 +13,24 @@ import androidx.lifecycle.MutableLiveData;
 
 import com.snuabar.mycomfy.client.Parameters;
 import com.snuabar.mycomfy.main.data.livedata.DeletionData;
+import com.snuabar.mycomfy.main.data.livedata.SelectionData;
+import com.snuabar.mycomfy.main.model.ContinuedI2VSentMessageModel;
+import com.snuabar.mycomfy.main.model.I2VReceivedMessageModel;
+import com.snuabar.mycomfy.main.model.I2VSentMessageModel;
+import com.snuabar.mycomfy.main.model.VideoConcatSentMessageModel;
+import com.snuabar.mycomfy.utils.FileOperator;
 import com.snuabar.mycomfy.utils.FilePicker;
 
+import java.io.File;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 public class MainViewModel extends HttpBaseViewModel {
 
@@ -29,24 +41,26 @@ public class MainViewModel extends HttpBaseViewModel {
     private String matchingKeywords;
     private final MutableLiveData<Boolean> deletionHasPressed;
     private final MutableLiveData<Boolean> associatedDeletionHasPressed;
-    private final MutableLiveData<Boolean> deletionModeLiveData;
+    private final MutableLiveData<Boolean> selectionModeLiveData;
     private final MutableLiveData<Integer> selectedTabLiveData;
     private final MutableLiveData<Integer> clickedTabLiveData;
     private final MutableLiveData<DeletionData> deletionDataLiveData;
     private final MutableLiveData<Boolean> modelListChangeLiveData;
     private final MutableLiveData<Boolean> searchingModeLiveData;
     private final MutableLiveData<Set<String>> matchedIDsLiveData;
+    private final MutableLiveData<SelectionData> selectionDataLiveData;
 
     public MainViewModel() {
         deletionHasPressed = new MutableLiveData<>();
         associatedDeletionHasPressed = new MutableLiveData<>();
-        deletionModeLiveData = new MutableLiveData<>();
+        selectionModeLiveData = new MutableLiveData<>();
         selectedTabLiveData = new MutableLiveData<>();
         clickedTabLiveData = new MutableLiveData<>();
         deletionDataLiveData = new MutableLiveData<>();
         modelListChangeLiveData = new MutableLiveData<>();
         searchingModeLiveData = new MutableLiveData<>();
         matchedIDsLiveData = new MutableLiveData<>();
+        selectionDataLiveData = new MutableLiveData<>();
     }
 
     @Override
@@ -130,7 +144,7 @@ public class MainViewModel extends HttpBaseViewModel {
                             ids.add(model.getId());
                             break;
                         }
-                        if (!model.isI2I()) {
+                        if (!model.isI2I() && !model.isI2V()) {
                             String upscale = "x" + p.getUpscale_factor();
                             if (upscale.contains(k)) {
                                 ids.add(model.getId());
@@ -167,12 +181,102 @@ public class MainViewModel extends HttpBaseViewModel {
         });
     }
 
-    public LiveData<Boolean> getDeletionModeLiveData() {
-        return deletionModeLiveData;
+    public void shareSelected(Context context) {
+        SelectionData selectionData = new SelectionData(new HashSet<>());
+        fetchSelectionData(selectionData);
+        if (selectionData.modelIdSet.isEmpty()) {
+            return;
+        }
+        changeSelectionMode(false);
+
+        List<AbstractMessageModel> models = new ArrayList<>(getMessageModels());
+        models.removeIf(m -> !selectionData.modelIdSet.contains(m.getId()));
+        List<File> selectedImageFile = models.stream().map(AbstractMessageModel::getImageFile).collect(Collectors.toList());
+        selectedImageFile.removeIf(file -> file == null || !file.exists());
+        selectedImageFile.sort(Comparator.comparingLong(File::lastModified));
+
+        FileOperator.shareImagesFromLocal(context, selectedImageFile);
     }
 
-    public void changeDeletionMode(boolean deletionMode) {
-        deletionModeLiveData.postValue(deletionMode);
+    private Set<String> searchConnectedVideosFromBottom() {
+        Set<String> ids = new HashSet<>();
+        for (int i = messageModels.size() - 1; i >= 0;) {
+            AbstractMessageModel receivedModel0 = messageModels.get(i);
+            if (!(receivedModel0 instanceof I2VReceivedMessageModel)) {
+                break;
+            }
+            // 看是否有关联Sent项
+            int sentId = getIndexWithId(receivedModel0.getAssociatedSentModelId());
+            if (sentId == -1) {
+                break;
+            }
+            AbstractMessageModel sentModel = getMessageModel(receivedModel0.getAssociatedSentModelId());
+            if (!(sentModel instanceof I2VSentMessageModel)) {
+                // 不是
+                break;
+            }
+            //看这个Sent项的上一项是否有关联
+            int beforeIdx = sentId - 1;
+            if (beforeIdx < 0) {
+                // 没有其它项
+                break;
+            }
+            AbstractMessageModel beforeModel = messageModels.get(beforeIdx);
+            if (beforeModel instanceof I2VReceivedMessageModel) {
+                ContinuedI2VSentMessageModel continuedI2VSentMessageModel = ((I2VReceivedMessageModel) beforeModel).getContinuedI2VSentMessageModel();
+                if (continuedI2VSentMessageModel == null) {
+                    break;
+                }
+                if (!continuedI2VSentMessageModel.getId().equals(sentModel.getId())) {
+                    break;
+                }
+
+                ids.add(receivedModel0.getId());
+                ids.add(beforeModel.getId());
+                i -= 2;
+            } else {
+                break;
+            }
+        }
+        return ids;
+    }
+
+    public void combineVideos() {
+        SelectionData selectionData = new SelectionData(new HashSet<>());
+        fetchSelectionData(selectionData);
+        if (selectionData.modelIdSet.isEmpty()) {
+            Set<String> videoList = searchConnectedVideosFromBottom();
+            if (videoList.isEmpty()) {
+                return;
+            }
+            selectionData.modelIdSet.addAll(videoList);
+        }
+        changeSelectionMode(false);
+
+        // 需要按主列表顺序排序
+        List<AbstractMessageModel> models = new ArrayList<>(getMessageModels());
+        models.removeIf(m -> !selectionData.modelIdSet.contains(m.getId()));
+
+        Parameters parameters = new Parameters();
+        parameters.setWorkflow("video_concat");
+        parameters.setPrompt("视频合并");
+        parameters.setVideos(models.stream().map(AbstractMessageModel::getPromptId).toArray(String[]::new));
+        VideoConcatSentMessageModel model = new VideoConcatSentMessageModel(parameters);
+
+        enqueue(model);
+    }
+
+    public boolean isLastMessage(AbstractMessageModel model) {
+        int index = getIndexWithId(model.getId());
+        return index == messageModels.size() - 1;
+    }
+
+    public LiveData<Boolean> getSelectionModeLiveData() {
+        return selectionModeLiveData;
+    }
+
+    public void changeSelectionMode(boolean selectionMode) {
+        selectionModeLiveData.postValue(selectionMode);
     }
 
     public LiveData<Integer> getSelectedTabLiveData() {
@@ -216,7 +320,6 @@ public class MainViewModel extends HttpBaseViewModel {
         deletionDataLiveData.postValue(deletionData);
     }
 
-
     public LiveData<Boolean> getModelListChangeLiveData() {
         return modelListChangeLiveData;
     }
@@ -242,5 +345,13 @@ public class MainViewModel extends HttpBaseViewModel {
 
     public LiveData<Set<String>> getMatchedIDsLiveData() {
         return matchedIDsLiveData;
+    }
+
+    public LiveData<SelectionData> getSelectionDataLiveData() {
+        return selectionDataLiveData;
+    }
+
+    public void fetchSelectionData(SelectionData selectionData) {
+        selectionDataLiveData.setValue(selectionData);
     }
 }
